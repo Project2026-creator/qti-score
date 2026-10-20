@@ -55,6 +55,7 @@ fn Node::required(self : Node, name : String) -> String raise QtiError {
 fn Node::only_attributes(
   self : Node,
   allowed : Array[String],
+  allow_base~ : Bool = false,
 ) -> Unit raise QtiError {
   for attr in self.element.attributes {
     match attr.name.namespace_uri {
@@ -66,7 +67,8 @@ fn Node::only_attributes(
           )
         }
       Some("http://www.w3.org/XML/1998/namespace") =>
-        if !["lang", "space"].contains(attr.name.local_name) {
+        if !["lang", "space"].contains(attr.name.local_name) &&
+          !(allow_base && attr.name.local_name == "base") {
           raise Unsupported(
             self.location(),
             "XML attribute '\{attr.name.local_name}'",
@@ -89,12 +91,13 @@ fn Node::only_attributes(
 fn Node::only_children(
   self : Node,
   allowed : Array[String],
+  ns_uri~ : String = qti_namespace,
 ) -> Unit raise QtiError {
   if self.content.to_string().trim() != "" {
     raise InvalidItem(self.location(), "unexpected text content")
   }
   for child in self.children {
-    if child.element.name.namespace_uri != Some(qti_namespace) ||
+    if child.element.name.namespace_uri != Some(ns_uri) ||
       !allowed.contains(child.name()) {
       raise Unsupported(
         child.location(),
@@ -109,9 +112,10 @@ fn Node::one(
   self : Node,
   name : String,
   required~ : Bool = true,
+  ns_uri~ : String = qti_namespace,
 ) -> Node? raise QtiError {
   let matches = self.children.filter(n => {
-    n.name() == name && n.element.name.namespace_uri == Some(qti_namespace)
+    n.name() == name && n.element.name.namespace_uri == Some(ns_uri)
   })
   if matches.length() > 1 {
     raise InvalidItem(self.location(), "duplicate '\{name}'")

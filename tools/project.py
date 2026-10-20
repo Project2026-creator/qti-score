@@ -13,6 +13,7 @@ import socketserver
 import subprocess
 import sys
 import urllib.request
+import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 REVISION = "0a92fbbb6d2e620a1f7fad19977be4c418246bc0"
@@ -56,6 +57,21 @@ def command(args, env=None, input_text=None):
     return result
 
 
+def build_sample_package():
+    destination = ROOT / "web/sample-package.zip"
+    with zipfile.ZipFile(str(destination), "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for path, source in [
+            ("imsmanifest.xml", "package-manifest.xml"),
+            ("items/single.xml", "single.xml"), ("items/numeric.xml", "numeric.xml"),
+            ("items/essay.xml", "essay.xml"), ("assets/note.txt", "package-note.txt"),
+        ]:
+            info = zipfile.ZipInfo(path, date_time=(2026, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o100644 << 16
+            archive.writestr(info, (ROOT / "examples" / source).read_bytes())
+    return destination
+
+
 def build_web(moon, env):
     command([moon, "build", "--target", "js", "--release"], env)
     source = ROOT / "_build/js/release/build/web/bridge/bridge.js"
@@ -64,6 +80,7 @@ def build_web(moon, env):
         raise RuntimeError("Missing MoonBit bridge build output: {}".format(source))
     shutil.copyfile(str(source), str(destination))
     shutil.copyfile(str(source), str(ROOT / "sdk/qti-core.mjs"))
+    build_sample_package()
     return destination
 
 
@@ -90,7 +107,7 @@ def extract_json(stdout):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.2.0",
+        "module": "Project2026-creator/qti-score", "version": "0.3.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "feature_cases": [],
     }
@@ -211,6 +228,58 @@ try {
             raise AssertionError("CLI and SDK explanation steps differ")
     if len(bridge_results) != len(records):
         raise AssertionError("Missing bridge results")
+    archive = ROOT / "web/sample-package.zip"
+    inspected = extract_json(command([moon, "run", "cmd/main", "--", "inspect-package", str(archive)], env).stdout)
+    package_report = inspected.get("package", {})
+    if inspected.get("ok") is not True or package_report.get("ready_count") != 2 or \
+            [entry["status"] for entry in package_report.get("items", [])] != ["ready", "ready", "unsupported"]:
+        raise AssertionError("Unexpected package inspection: {}".format(inspected))
+    package_cases = []
+    for resource, response_file, expected in [
+        ("choice", "single-response.json", 1), ("measurement", "numeric-response.json", 1),
+    ]:
+        response_path = ROOT / "examples" / response_file
+        score_args = [moon, "run", "cmd/main", "--", "package-score", str(archive), resource, str(response_path)]
+        score = extract_json(command(score_args, env).stdout)
+        explain_args = score_args.copy()
+        explain_args[4] = "package-explain"
+        explanation = extract_json(command(explain_args, env).stdout)
+        if score.get("ok") is not True or score["result"]["score"] != expected or \
+                explanation.get("result") != score["result"] or not explanation.get("steps"):
+            raise AssertionError("Package scoring/explanation mismatch")
+        package_cases.append({"resource_id": resource, "response": json.loads(response_path.read_text(encoding="utf-8")),
+                              "expected_score": expected, "cli_result": score["result"], "steps": explanation["steps"]})
+    package_script = """
+import {readFileSync} from 'node:fs';
+const {importPackage}=await import(process.argv[1]);
+const bundle=importPackage(readFileSync(process.argv[2]));
+try {
+  const cases=JSON.parse(readFileSync(0,'utf8'));
+  const results=cases.map(c=>{ const item=bundle.getItem(c.resource_id);
+    try {return item.explain(c.response);} finally {item.dispose();} });
+  console.log(JSON.stringify({report:bundle.describe(),results}));
+} finally {bundle.dispose();}
+"""
+    package_comparison = json.loads(command([node, "--input-type=module", "-e", package_script,
+                                      (sdk / "index.mjs").as_uri(), str(archive)], env,
+                                     json.dumps(package_cases)).stdout)
+    if package_comparison["report"] != package_report or len(package_comparison["results"]) != len(package_cases):
+        raise AssertionError("Package reports differ between CLI and SDK")
+    for case, result in zip(package_cases, package_comparison["results"]):
+        if result != {"result": case["cli_result"], "steps": case["steps"]}:
+            raise AssertionError("Package scoring differs between CLI and SDK")
+        case["sdk_result"] = result["result"]
+    report["package_report"] = package_report
+    report["package_cases"] = package_cases
+    for resource, expected_code in [("essay", "unsupported"), ("missing", "invalid_package")]:
+        arguments = [moon, "run", "cmd/main", "--", "package-score", str(archive), resource, "examples/single-response.json"]
+        failed = subprocess.run(arguments, cwd=str(ROOT), env=env, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, encoding="utf-8", errors="replace")
+        result = extract_json(failed.stdout)
+        if failed.returncode != 1 or result.get("error", {}).get("code") != expected_code:
+            raise AssertionError("Package CLI failure did not preserve error and exit status")
+        report["checks"].append({"command": ["moon"] + arguments[1:], "returncode": failed.returncode,
+                                 "expected_nonzero": True, "result": result})
     # A real CLI failure must return a nonzero code as well as a JSON error.
     bad = cache / "invalid-response.json"
     bad.write_text('{"RESPONSE":"not-a-choice"}', encoding="utf-8")
@@ -243,6 +312,7 @@ try {
                              "expected_nonzero": True, "results": mixed_results})
     report["official_cases_passed"] = len(report["official_cases"])
     report["feature_cases_passed"] = len(report["feature_cases"])
+    report["package_cases_passed"] = len(package_cases)
     report["entry_point_parity"] = True
     report["passed"] = True
     output.parent.mkdir(parents=True, exist_ok=True)

@@ -137,6 +137,7 @@ pub fn QtiError::code(self : QtiError) -> String {
   match self {
     InvalidXml(_, _, _) => "invalid_xml"
     InvalidItem(_, _) => "invalid_item"
+    InvalidPackage(_, _) => "invalid_package"
     Unsupported(_, _) => "unsupported"
     InvalidResponse(_) => "invalid_response"
     LimitExceeded(_) => "limit_exceeded"
@@ -147,8 +148,9 @@ pub fn QtiError::code(self : QtiError) -> String {
 pub fn QtiError::message(self : QtiError) -> String {
   match self {
     InvalidXml(message, line, column) => "\{message} at \{line}:\{column}"
-    InvalidItem(location, message) | Unsupported(location, message) =>
-      "\{location}: \{message}"
+    InvalidItem(location, message)
+    | InvalidPackage(location, message)
+    | Unsupported(location, message) => "\{location}: \{message}"
     InvalidResponse(message) | LimitExceeded(message) => message
   }
 }
@@ -167,7 +169,9 @@ pub impl ToJson for QtiError with fn to_json(self) {
 pub fn QtiError::location(self : QtiError) -> SourceLocation? {
   match self {
     InvalidXml(_, line, column) => Some({ line, column, })
-    InvalidItem(location, _) | Unsupported(location, _) => {
+    InvalidItem(location, _)
+    | InvalidPackage(location, _)
+    | Unsupported(location, _) => {
       let mut suffix = ""
       for part in location.split(" at ") {
         suffix = part.to_owned()

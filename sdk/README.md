@@ -32,3 +32,27 @@ Responses are plain objects with an optional `RESPONSE` member: string, finite n
 QTI support is the documented subset in the repository README. Numeric rules contain one response condition with ordered branches, `qti-equal`/`qti-is-null` predicates and literal float SCORE assignments. Relative tolerance uses a fixed nonnegative first operand; other expressions and negative relative references are rejected explicitly. This package does not claim full QTI conformance.
 
 For development, run `npm ci --prefix sdk --ignore-scripts` from the repository root, then `python tools/project.py check`. TypeScript is a development dependency only.
+
+## Import content packages
+
+```js
+import { importPackage } from '@project2026-creator/qti-score';
+
+const bundle = importPackage(zipBytes); // Uint8Array, including Node Buffer
+try {
+  console.log(bundle.describe()); // each item is ready, unsupported, or invalid
+  console.log(bundle.resourceFiles('choice')); // declared files + transitive dependencies
+  const bytes = bundle.readFile('assets/note.txt'); // fresh Uint8Array, exact ZIP path
+  const item = bundle.getItem('choice'); // manifest resource ID, not item ID
+  try { console.log(item.score({ RESPONSE: 'A' })); }
+  finally { item.dispose(); }
+} finally { bundle.dispose(); }
+```
+
+ZIP parsing, URI resolution, dependency checks and item compilation run in MoonBit. The SDK copies the input before import and returns fresh reports, file lists and byte arrays. It does not fetch referenced URLs, extract files onto disk, execute assets or render HTML. Source XML may contain author answers; `readFile` is an explicit raw-file operation.
+
+Limits are 8 MiB compressed input, 512 entries, 4 MiB per expanded file and 16 MiB total expanded data. At most 4 packages may be live per core module. Failed imports consume no handle. Each `getItem` creates an independent compiled handle within the shared 256-item limit; dispose that item separately. Opened items remain usable after their parent package is disposed. Package disposal is idempotent; later operations throw `disposed`.
+
+`describe()` includes package identifier, files, resources, dependencies, bounded resource issues and item compatibility entries. A `ready` entry has item metadata and no error; other entries carry an error with source position where available. `getItem` rethrows that error. Unknown IDs and missing files throw `invalid_package`. A readable package with unsupported items still imports successfully. ZIP corruption, invalid paths or malformed manifests fail the import.
+
+The supported packaging subset requires root `imsmanifest.xml`, accepts QTI 3 and common CP namespaces, resolves local `href` and inherited `xml:base`, and compiles `imsqti_item_xmlv3p0` resources. File paths are case-sensitive. Manifest URIs are decoded once; ZIP names are not decoded. Entry points must be listed in their resource's files. External URLs, fragments, queries, encoded separators and root escapes are rejected. Other resource types remain available as files and metadata; organizations, metadata semantics, test sequencing, full schema validation and asset rendering are outside this subset. See the repository README for the precise limits and namespaces.

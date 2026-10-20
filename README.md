@@ -1,6 +1,6 @@
 # QTI Score
 
-A MoonBit library for compiling and scoring a focused subset of QTI 3 items. Supports choice, text and numeric entry, developer explanations, and an ESM JavaScript SDK backed by the same MoonBit core.
+A MoonBit library for importing QTI 3 ZIP content packages and scoring a focused subset of items. Supports choice, text and numeric entry, per-item compatibility reports, developer explanations, and an ESM JavaScript SDK backed by the same MoonBit core.
 
 QTI Score 将 QTI 3 题目编译成可重复使用的评分对象。核心库负责 XML 命名空间、响应类型、标准答案、映射和数值比较；命令行、浏览器与 JS SDK 使用同一份实现。适用于测验平台接入、题目迁移验证和教育技术课程中的标准实验。
 
@@ -40,6 +40,37 @@ python tools/project.py serve
 
 浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换四种示例、编辑或导入 XML，并查看作答和评分结果。勾选“记录评分过程”后，提交作答会显示分支判断、映射贡献与分值限制。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；`shuffle` 等呈现信息不改变评分计算，演示按原文顺序列出选项。
 
+## QTI ZIP 题包
+
+浏览器点击“载入示例题包”或“导入 ZIP”，可查看逐题兼容状态、清单资源与共享依赖，选取可评分题目后直接作答。示例包含单选、数值填空以及一份暂不支持的长文本题；长文本题的错误不会阻止前两题评分。演示仅读取本地内容，资源文件不自动执行或注入 HTML。
+
+```sh
+# 从 examples 中的源文件生成确定性的示例 ZIP，并构建网页与 SDK
+python tools/project.py build-web
+moon run cmd/main -- inspect-package web/sample-package.zip
+moon run cmd/main -- package-score web/sample-package.zip choice examples/single-response.json
+moon run cmd/main -- package-explain web/sample-package.zip measurement examples/numeric-response.json
+```
+
+MoonBit 宿主读取 ZIP 字节后调用：
+
+```moonbit
+let bundle = @qti.read_content_package(zip_bytes)
+println(bundle.describe())
+let item = bundle.item("choice") // 清单 resource identifier，而非题目 identifier
+println(item.score(@qti.Response::Single("A")))
+let paths = bundle.resource_files("choice") // 含传递依赖，去重
+let data = bundle.read_file("assets/note.txt") // 精确、区分大小写的 ZIP 路径
+```
+
+`describe()` 返回文件列表、资源类型、依赖、资源诊断，以及每道题的 `ready` / `unsupported` / `invalid` 状态。单题失败保留其错误和可定位的 XML 行列；`item(resource_id)` 重抛该错误。报告不包含正确答案、映射规则或文件内容。文件缺失与循环依赖会影响其依赖者，独立题目仍可导入；清单格式、危险路径、重复 ZIP 成员和 ZIP 损坏导致整体失败。
+
+支持根目录 `imsmanifest.xml`，QTI 3 CP 命名空间 `http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1` 及通用 CP 命名空间 `http://www.imsglobal.org/xsd/imscp_v1p1`。自动编译 `imsqti_item_xmlv3p0` 资源；其他资源保留为文件与依赖元信息。`href` 按清单及继承的 `xml:base` 解析，UTF-8 百分号解码一次；ZIP 成员名保持原文。支持包内相对路径，拒绝外部 URL、查询、片段、编码分隔符和越过包根目录的路径。入口 `href` 必须包含在所属资源的 `file` 列表中。
+
+默认限额：**8 MiB ZIP、512 个条目、每文件 4 MiB、解压总量 16 MiB**；CRC 全量检查，所有内容只保存在内存中。MoonBit 可通过 `PackageLimits` 调整至最多 64 MiB / 4096 条目 / 16 MiB 每文件 / 128 MiB 总量。清单另限 512 个资源、4096 个资源子引用，每个资源最多报告 8 条诊断；所有 XML 仍受下文的独立限制。多资源引用同一题目文件时复用编译结果。
+
+此功能是题包读取与评分接入子集：metadata、organizations 保留在原始清单中但不执行，未实现完整 CP/XSD 校验、试卷编序或资源渲染。0.3.0 新增 `QtiError::InvalidPackage`；穷尽匹配该错误枚举的调用者需处理新增分支。
+
 `tools/project.py` 优先使用 `--moon PATH` 或 `QTI_MOON` 指定的工具链，其次使用存在的 `_build/toolchain/bin/moon`，最后使用 PATH 中的 `moon`。它不会安装软件或修改系统工具链。首次准备环境请参见 [MoonBit 官方下载说明](https://www.moonbitlang.com/download/)；旧版工具链可能无法编译当前依赖使用的 `Int32` 类型。
 
 ## 作为库使用
@@ -76,6 +107,9 @@ let next = item.score_json("{\"RESPONSE\":[\"A\"]}")
 | `evaluate_json(xml, response_json)` | 不抛异常的 JSON 宿主边界 |
 | `describe_json(xml)` | 不提交作答，编译并返回 JSON 元信息 |
 | `explain_json(xml, response_json)` | 显式返回结果与步骤的 JSON 宿主边界 |
+| `read_content_package(bytes, limits?)` | 在内存中导入有大小限制的 ZIP 题包 |
+| `ContentPackage::item(resource_id)` | 获取已编译的可评分题目 |
+| `ContentPackage::describe()` / `resource_files(id)` / `read_file(path)` | 兼容报告、传递依赖文件和原始字节 |
 
 响应 JSON 为单个对象：
 
@@ -119,6 +153,8 @@ try {
 
 `compileItem` 编译一次，之后复用评分对象；`describe()` 每次返回独立元信息。单个模块最多保留 256 个活动编译对象，使用结束调用 `dispose()`；重复释放安全，释放后调用抛出 `disposed` 错误。`scoreBatch` 最多处理 4096 次作答，逐条返回成功或错误，错误不会中断后续行，索引从 0 开始。另有 `evaluateItem`、`describeItem` 一次性接口。浏览器工作台也通过 SDK 使用编译对象。完整接口与边界见 [SDK 文档](sdk/README.md)。
 
+`importPackage(Uint8Array)` 导入题包，返回 `describe`、`getItem`、`resourceFiles`、`readFile`、`dispose`。每个模块最多保留 4 个活动题包；`getItem` 使用上述 256 个编译对象配额。打开的题目独立释放，题包释放后仍可评分。导入输入和返回的字节、报告均与内部状态隔离。可运行 [题包 SDK 示例](examples/use-package.mjs)：`node examples/use-package.mjs`。
+
 ## 支持边界与评分语义
 
 - QTI 3 命名空间必须是 `http://www.imsglobal.org/xsd/imsqtiasi_v3p0`；支持默认命名空间、前缀与 XHTML 题干元素。
@@ -157,11 +193,14 @@ JSON 边界返回 `{ "ok": false, "error": { "code", "message", "location" } }`�
 |---|---|
 | `invalid_xml` | XML 格式或命名空间语法错误 |
 | `invalid_item` | 声明不一致、缺少必需内容或无效参数 |
+| `invalid_package` | ZIP、路径、清单资源或依赖不一致 |
 | `unsupported` | 当前 QTI 处理子集不支持的结构 |
 | `invalid_response` | 响应形状、选项或数据无效 |
 | `limit_exceeded` | 超过资源上限 |
 
 CLI 成功退出码为 0；文件或评分错误为 1；命令格式错误为 2。`batch` 跳过空白行，每个非空行均输出一条带原始行号的结果；有任何失败行则最终退出 1，其他行仍会处理。
+
+`inspect-package` 对可读取的题包返回 0，即使个别题目不兼容；调用者检查报告中的状态。`package-score` / `package-explain` 在所选资源不可用时返回 1 和具体错误。
 
 ## 开发与核对
 
@@ -176,6 +215,8 @@ python tools/project.py check
 
 最后一个命令会构建浏览器桥接模块与独立 SDK，运行 SDK 接入测试和 TypeScript 类型检查，并以固定提交版本的官方单选、多选题目进行 **14 个评分场景**核对，另检查 **12 个本地数值场景**。CLI、桥接与 SDK 的结果必须一致，数值评分解释也逐步对照，同时检查 CLI 错误退出码。预期值根据标准规则与题目声明编写，不由待测评分器生成。TypeScript 是 SDK 的开发依赖，由前一条 npm 命令安装；普通 MoonBit 核心测试不依赖它。
 
+检查还对照 CLI 与 SDK 的完整题包报告及 2 个题包评分／解释场景，并验证不支持和未知资源的非零退出码。核心测试覆盖 Store/Deflate/数据描述符、CRC、解压限额、URI 编码、xml:base、缺失文件、长依赖链与循环；SDK 测试覆盖字节隔离、独立安装和对象生命周期。
+
 官方 XML 首次运行时下载到 `_build/reference/`，校验固定 SHA-256 后使用，后续可用 `--offline` 运行。结构化结果默认保存到 `_build/validation.json`，也可用 `--output PATH` 指定位置。检查还覆盖批处理空行、失败后继续处理及退出码。普通 MoonBit 测试使用仓库内自编题目，依赖下载后可离线运行。
 
 ## 依据与依赖
@@ -185,6 +226,7 @@ python tools/project.py check
 - [官方样例固定版本](https://github.com/1EdTech/qti-examples/tree/0a92fbbb6d2e620a1f7fad19977be4c418246bc0/qtiv3-examples/packaging/items)
 - `Milky2018/xml` 0.6.1：XML 与命名空间解析
 - `moonbit-community/casefold` 0.1.7：Unicode case folding
+- `moonbit-community/flate` 0.9.0：纯 MoonBit ZIP 解压、CRC 与资源限额
 - `moonbitlang/x` 0.5.6：CLI 与测试的文件读写、进程退出
 
 源码采用 Apache-2.0，见 [LICENSE](LICENSE)。官方样例不随源码重新分发；核对脚本下载的样例保留其上游许可。

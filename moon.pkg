@@ -3,10 +3,14 @@ import {
   "moonbitlang/core/json",
   "moonbitlang/core/string",
   "moonbit-community/casefold",
+  "moonbit-community/flate/zip",
+  "moonbitlang/core/encoding/utf8",
 }
 
 import {
   "Project2026-creator/qti-score" @qti,
   "moonbitlang/x/fs",
   "moonbitlang/core/json",
+  "moonbit-community/flate/zip",
+  "moonbitlang/core/encoding/utf8",
 } for "test"

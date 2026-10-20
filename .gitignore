@@ -1,6 +1,7 @@
 /_build/
 /.mooncakes/
 /web/qti-score.mjs
+/web/sample-package.zip
 /sdk/qti-core.mjs
 /sdk/node_modules/
 /tools/__pycache__/

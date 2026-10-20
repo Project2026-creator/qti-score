@@ -1,16 +1,100 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, mkdtempSync, mkdirSync, copyFileSync, rmSync } from 'node:fs';
+import { readFileSync, mkdtempSync, mkdirSync, copyFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const sdkURL = process.env.QTI_SDK_URL || new URL('./index.mjs', import.meta.url).href;
-const { compileItem, evaluateItem, describeItem, QtiScoreError } = await import(sdkURL);
+const { compileItem, evaluateItem, describeItem, importPackage, QtiScoreError } = await import(sdkURL);
 const core = await import(new URL('./qti-core.mjs', sdkURL));
 const fixture = name => readFileSync(new URL(`../examples/${name}.xml`, import.meta.url), 'utf8');
 const hasCode = code => cause => cause instanceof QtiScoreError && cause.code === code;
+const packageBytes = () => readFileSync(new URL('../web/sample-package.zip', import.meta.url));
+
+test('ZIP import retains per-item diagnostics and scores supported resources', () => {
+  const bundle = importPackage(packageBytes());
+  const items = [];
+  try {
+    const report = bundle.describe();
+    assert.equal(report.identifier, 'education-bank');
+    assert.equal(report.file_count, 5);
+    assert.equal(report.ready_count, 2);
+    assert.deepEqual(report.items.map(entry => entry.status), ['ready', 'ready', 'unsupported']);
+    assert.equal(report.items[2].error.code, 'unsupported');
+    assert.ok(report.items[2].error.location.line > 0);
+    assert.deepEqual(bundle.resourceFiles('choice'), ['items/single.xml', 'assets/note.txt']);
+    for (const [id, response, expected] of [['choice', 'A', 1], ['measurement', 100.5, 1]]) {
+      const item = bundle.getItem(id);
+      items.push(item);
+      assert.equal(item.score({ RESPONSE: response }).score, expected);
+      assert.deepEqual(item.explain({ RESPONSE: response }).result, item.score({ RESPONSE: response }));
+    }
+    assert.throws(() => bundle.getItem('essay'), hasCode('unsupported'));
+    assert.throws(() => bundle.getItem('formative'), hasCode('invalid_package'));
+    assert.throws(() => bundle.resourceFiles('missing'), hasCode('invalid_package'));
+    assert.throws(() => bundle.readFile('../escape'), hasCode('invalid_package'));
+    assert.throws(() => bundle.readFile('missing'), hasCode('invalid_package'));
+    assert.throws(() => bundle.getItem(null), hasCode('invalid_package'));
+  } finally { items.forEach(item => item.dispose()); bundle.dispose(); }
+});
+
+test('ZIP inputs, resource bytes and nested reports cannot change an imported package', () => {
+  const bytes = packageBytes();
+  const bundle = importPackage(bytes);
+  bytes.fill(0);
+  try {
+    const report = bundle.describe();
+    report.resources[0].files.length = 0;
+    report.items[0].item.choices.length = 0;
+    bundle.resourceFiles('choice').length = 0;
+    const note = bundle.readFile('assets/note.txt');
+    assert.deepEqual(note, new Uint8Array(readFileSync(new URL('../examples/package-note.txt', import.meta.url))));
+    note.fill(0);
+    assert.equal(bundle.describe().resources[0].files.length, 1);
+    assert.equal(bundle.describe().items[0].item.choices.length, 3);
+    assert.equal(bundle.resourceFiles('choice').length, 2);
+    assert.notEqual(bundle.readFile('assets/note.txt')[0], 0);
+  } finally { bundle.dispose(); }
+});
+
+test('opened package items survive parent disposal and package handles are not reused', () => {
+  const bundle = importPackage(packageBytes());
+  const item = bundle.getItem('choice');
+  bundle.dispose(); bundle.dispose();
+  try {
+    assert.equal(bundle.disposed, true);
+    assert.equal(item.score({ RESPONSE: 'A' }).score, 1);
+    for (const operation of [() => bundle.describe(), () => bundle.getItem('choice'),
+      () => bundle.resourceFiles('choice'), () => bundle.readFile('imsmanifest.xml')]) {
+      assert.throws(operation, hasCode('disposed'));
+    }
+  } finally { item.dispose(); }
+  const old = JSON.parse(core.import_package(packageBytes()));
+  assert.equal(core.release_package(old.handle), true);
+  assert.equal(core.release_package(old.handle), false);
+  const fresh = JSON.parse(core.import_package(packageBytes()));
+  try {
+    assert.notEqual(old.handle, fresh.handle);
+    assert.equal(JSON.parse(core.describe_package(old.handle)).error.code, 'invalid_handle');
+  } finally { core.release_package(fresh.handle); }
+});
+
+test('package budgets and failed imports do not leak package handles', () => {
+  for (const value of [null, 'zip', new ArrayBuffer(0)]) {
+    assert.throws(() => importPackage(value), hasCode('invalid_package'));
+  }
+  assert.throws(() => importPackage(new Uint8Array(8 * 1048576 + 1)), hasCode('limit_exceeded'));
+  for (let i = 0; i < 6; i++) assert.throws(() => importPackage(new Uint8Array([1, 2, 3])), hasCode('invalid_package'));
+  const bundles = [];
+  try {
+    for (let i = 0; i < 4; i++) bundles.push(importPackage(packageBytes()));
+    assert.throws(() => importPackage(packageBytes()), hasCode('limit_exceeded'));
+    bundles.pop().dispose();
+    bundles.push(importPackage(packageBytes()));
+  } finally { bundles.forEach(bundle => bundle.dispose()); }
+});
 
 test('compiled and one-shot scoring agree for every supported interaction', () => {
   for (const [name, cases] of [
@@ -147,16 +231,21 @@ test('standalone package runs after being copied outside the repository', () => 
     const installed = join(folder, 'node_modules', '@project2026-creator', 'qti-score');
     mkdirSync(installed, { recursive: true });
     for (const file of ['index.mjs', 'index.d.mts', 'package.json', 'qti-core.mjs', 'README.md', 'LICENSE', 'NOTICE']) {
-      copyFileSync(join(source, file), join(installed, file));
+      const path = join(source, file);
+      copyFileSync(existsSync(path) ? path : join(source, '..', file), join(installed, file));
     }
     const script = `import {readFileSync} from 'node:fs';
-      import {compileItem} from '@project2026-creator/qti-score';
-      const item=compileItem(readFileSync(0,'utf8'));
-      try { console.log(JSON.stringify(item.score({RESPONSE:100.5}))); } finally { item.dispose(); }`;
+      import {compileItem,importPackage} from '@project2026-creator/qti-score';
+      const input=JSON.parse(readFileSync(0,'utf8'));
+      const item=compileItem(input.xml);
+      const bundle=importPackage(Buffer.from(input.zip,'base64'));
+      try { console.log(JSON.stringify({score:item.score({RESPONSE:100.5}).score,ready:bundle.describe().ready_count})); }
+      finally { item.dispose(); bundle.dispose(); }`;
     const child = spawnSync(process.execPath, ['--input-type=module', '-e', script],
-      { input: fixture('numeric'), encoding: 'utf8', cwd: folder });
+      { input: JSON.stringify({ xml: fixture('numeric'), zip: packageBytes().toString('base64') }), encoding: 'utf8', cwd: folder });
     assert.equal(child.status, 0, child.stderr);
     assert.equal(JSON.parse(child.stdout).score, 1);
+    assert.equal(JSON.parse(child.stdout).ready, 2);
   } finally {
     assert.ok(resolve(folder).startsWith(resolve(tmpdir()) + sep + 'qti-sdk-'));
     rmSync(folder, { recursive: true, force: true });

@@ -116,3 +116,49 @@ export function evaluateItem(xml, response) {
 export function describeItem(xml) {
   return unwrap(core.describe(xmlText(xml))).item;
 }
+
+function packageKey(value) {
+  if (typeof value !== 'string') throw error('invalid_package', 'Resource identifier or file path must be a string');
+  return value;
+}
+
+class ContentPackage {
+  #handle;
+  #disposed = false;
+  constructor(handle) { this.#handle = handle; }
+  get disposed() { return this.#disposed; }
+  #assertLive() {
+    if (this.#disposed) throw error('disposed', 'Content package has been disposed');
+  }
+  describe() {
+    this.#assertLive();
+    return unwrap(core.describe_package(this.#handle)).package;
+  }
+  getItem(resourceId) {
+    this.#assertLive();
+    const { handle } = unwrap(core.package_item(this.#handle, packageKey(resourceId)));
+    return new CompiledItem(handle);
+  }
+  resourceFiles(resourceId) {
+    this.#assertLive();
+    return unwrap(core.package_files(this.#handle, packageKey(resourceId))).files;
+  }
+  readFile(path) {
+    this.#assertLive();
+    const { base64 } = unwrap(core.package_file(this.#handle, packageKey(path)));
+    return Uint8Array.from(atob(base64), character => character.charCodeAt(0));
+  }
+  dispose() {
+    if (this.#disposed) return;
+    core.release_package(this.#handle);
+    this.#disposed = true;
+  }
+}
+
+/** Import a bounded ZIP in memory. Opened items have independent lifetimes. */
+export function importPackage(bytes) {
+  if (!(bytes instanceof Uint8Array)) throw error('invalid_package', 'ZIP input must be a Uint8Array');
+  if (bytes.byteLength > 8 * 1048576) throw error('limit_exceeded', 'ZIP input exceeds 8 MiB');
+  const { handle } = unwrap(core.import_package(new Uint8Array(bytes)));
+  return new ContentPackage(handle);
+}

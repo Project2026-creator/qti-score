@@ -1,4 +1,4 @@
-import { compileItem, evaluateItem, describeItem, QtiScoreError } from './index.mjs';
+import { compileItem, evaluateItem, describeItem, importPackage, QtiScoreError } from './index.mjs';
 import type { Score, Explanation, BatchResult, ResponseObject, ItemDescription } from './index.mjs';
 
 const item = compileItem('<xml/>');
@@ -23,3 +23,17 @@ score.score = 99;
 const error: Error = new QtiScoreError({ code: 'invalid_response', message: 'bad', location: null });
 void [score, explanation, metadata, oneShot, error];
 item.dispose();
+const bundle = importPackage(new Uint8Array());
+for (const entry of bundle.describe().items) {
+  if (entry.status === 'ready') { const title: string = entry.item.title; void title; }
+  else { const code: string = entry.error.code; void code; }
+}
+const files: string[] = bundle.resourceFiles('resource-id');
+const bytes: Uint8Array = bundle.readFile(files[0]);
+bundle.getItem('resource-id').dispose();
+// @ts-expect-error ZIP input must be bytes
+importPackage('archive.zip');
+// @ts-expect-error disposal state is read-only
+bundle.disposed = false;
+void bytes;
+bundle.dispose();

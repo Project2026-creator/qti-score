@@ -14,12 +14,15 @@ pub fn evaluate_json(String, String) -> String
 
 pub fn explain_json(String, String) -> String
 
+pub fn read_content_package(Bytes, limits? : PackageLimits) -> ContentPackage raise QtiError
+
 pub fn response_from_json(Json) -> Response raise QtiError
 
 // Errors
 pub(all) suberror QtiError {
   InvalidXml(String, Int32, Int32)
   InvalidItem(String, String)
+  InvalidPackage(String, String)
   Unsupported(String, String)
   InvalidResponse(String)
   LimitExceeded(String)
@@ -60,6 +63,15 @@ pub fn Choice::equal(Self, Self) -> Bool
 pub fn Choice::not_equal(Self, Self) -> Bool
 pub fn Choice::to_repr(Self) -> @debug.Repr
 
+pub struct ContentPackage {
+  identifier : String
+  // private fields
+}
+pub fn ContentPackage::describe(Self) -> Json
+pub fn ContentPackage::item(Self, String) -> Item raise QtiError
+pub fn ContentPackage::read_file(Self, String) -> Bytes raise QtiError
+pub fn ContentPackage::resource_files(Self, String) -> Array[String] raise QtiError
+
 pub struct Explanation {
   result : Score
   steps : Array[ScoringStep]
@@ -97,6 +109,17 @@ pub fn Limits::default() -> Self
 pub fn Limits::equal(Self, Self) -> Bool
 pub fn Limits::not_equal(Self, Self) -> Bool
 pub fn Limits::to_repr(Self) -> @debug.Repr
+
+pub(all) struct PackageLimits {
+  max_archive_bytes : Int32
+  max_entries : Int32
+  max_file_bytes : Int32
+  max_total_bytes : Int32
+} derive(Eq, @debug.Debug)
+pub fn PackageLimits::default() -> Self
+pub fn PackageLimits::equal(Self, Self) -> Bool
+pub fn PackageLimits::not_equal(Self, Self) -> Bool
+pub fn PackageLimits::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Response {
   Null

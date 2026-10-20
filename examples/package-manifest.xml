@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1" identifier="education-bank">
+  <metadata><schema>QTI Item Bank</schema><schemaversion>3.0.0</schemaversion></metadata>
+  <organizations/>
+  <resources>
+    <resource identifier="choice" type="imsqti_item_xmlv3p0" href="items/single.xml">
+      <file href="items/single.xml"/><dependency identifierref="shared"/>
+    </resource>
+    <resource identifier="measurement" type="imsqti_item_xmlv3p0" href="items/numeric.xml">
+      <file href="items/numeric.xml"/><dependency identifierref="shared"/>
+    </resource>
+    <resource identifier="essay" type="imsqti_item_xmlv3p0" href="items/essay.xml">
+      <file href="items/essay.xml"/>
+    </resource>
+    <resource identifier="shared" type="webcontent" href="assets/note.txt">
+      <file href="assets/note.txt"/>
+    </resource>
+  </resources>
+</manifest>

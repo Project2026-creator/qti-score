@@ -5,6 +5,7 @@ Dependencies used by this project retain their respective copyright notices
 and Apache-2.0 licenses:
   Milky2018/xml (moonbit-community/xml-mbt)
   moonbit-community/casefold
+  moonbit-community/flate
   moonbitlang/core
   moonbitlang/x
 

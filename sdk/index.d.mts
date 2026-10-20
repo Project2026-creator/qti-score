@@ -46,3 +46,33 @@ export interface CompiledItem {
 export function compileItem(xml: string): CompiledItem;
 export function evaluateItem(xml: string, response: ResponseObject): Score;
 export function describeItem(xml: string): ItemDescription;
+
+export interface PackageResource {
+  readonly identifier: string;
+  readonly type: string;
+  readonly href: string | null;
+  readonly files: readonly string[];
+  readonly dependencies: readonly string[];
+  readonly resolved_file_count: number;
+  readonly issues: readonly ErrorDetail[];
+}
+export type PackageItem =
+  | { readonly resource_id: string; readonly path: string; readonly status: 'ready'; readonly item: ItemDescription; readonly error: null }
+  | { readonly resource_id: string; readonly path: string | null; readonly status: 'unsupported' | 'invalid'; readonly item: null; readonly error: ErrorDetail };
+export interface PackageDescription {
+  readonly identifier: string;
+  readonly file_count: number;
+  readonly files: readonly string[];
+  readonly resources: readonly PackageResource[];
+  readonly items: readonly PackageItem[];
+  readonly ready_count: number;
+}
+export interface ContentPackage {
+  readonly disposed: boolean;
+  describe(): PackageDescription;
+  getItem(resourceId: string): CompiledItem;
+  resourceFiles(resourceId: string): string[];
+  readFile(path: string): Uint8Array;
+  dispose(): void;
+}
+export function importPackage(bytes: Uint8Array): ContentPackage;

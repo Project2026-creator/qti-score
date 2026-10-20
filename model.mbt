@@ -4,6 +4,7 @@
 pub(all) suberror QtiError {
   InvalidXml(String, Int32, Int32)
   InvalidItem(String, String)
+  InvalidPackage(String, String)
   Unsupported(String, String)
   InvalidResponse(String)
   LimitExceeded(String)

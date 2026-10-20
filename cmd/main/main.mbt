@@ -11,13 +11,23 @@ fn main {
     args[offset] == "--help" ||
     args[offset] == "help" {
     println(
-      "QTI Score 0.2.0\n  describe ITEM.xml\n  score ITEM.xml RESPONSE.json\n  explain ITEM.xml RESPONSE.json\n  batch ITEM.xml RESPONSES.jsonl\n\nResponses: {\"RESPONSE\": \"A\"}, {\"RESPONSE\": [\"A\",\"B\"]}, {\"RESPONSE\": 100.5}, or {\"RESPONSE\": null}\nExplain is an explicit developer diagnostic and may reveal scoring rules.",
+      "QTI Score 0.3.0\n  describe ITEM.xml\n  score ITEM.xml RESPONSE.json\n  explain ITEM.xml RESPONSE.json\n  batch ITEM.xml RESPONSES.jsonl\n  inspect-package ARCHIVE.zip\n  package-score ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-explain ARCHIVE.zip RESOURCE_ID RESPONSE.json\n\nResponses: {\"RESPONSE\": \"A\"}, {\"RESPONSE\": [\"A\",\"B\"]}, {\"RESPONSE\": 100.5}, or {\"RESPONSE\": null}\nExplain is an explicit developer diagnostic and may reveal scoring rules.",
     )
     return
   }
   let command = args[offset]
-  let expected = if command == "describe" { 2 } else { 3 }
-  if !["describe", "score", "explain", "batch"].contains(command) ||
+  let from_package = command == "package-score" || command == "package-explain"
+  let expected = if command == "describe" || command == "inspect-package" {
+    2
+  } else if from_package {
+    4
+  } else {
+    3
+  }
+  if ![
+      "describe", "score", "explain", "batch", "inspect-package", "package-score",
+      "package-explain",
+    ].contains(command) ||
     args.length() != offset + expected {
     println(
       "{\"ok\":false,\"error\":{\"code\":\"usage\",\"message\":\"Use --help for command syntax\"}}",
@@ -26,13 +36,28 @@ fn main {
     return
   }
   try {
-    let item = @qti.compile_item(@fs.read_file_to_string(args[offset + 1]))
+    if command == "inspect-package" {
+      let bundle = @qti.read_content_package(
+        @fs.read_file_to_bytes(args[offset + 1]),
+      )
+      let result : Json = { "ok": true, "package": bundle.describe() }
+      println(result.stringify())
+      return
+    }
+    let item = if from_package {
+      @qti.read_content_package(@fs.read_file_to_bytes(args[offset + 1])).item(
+        args[offset + 2],
+      )
+    } else {
+      @qti.compile_item(@fs.read_file_to_string(args[offset + 1]))
+    }
     if command == "describe" {
       let result : Json = { "ok": true, "item": item.describe() }
       println(result.stringify())
     } else {
-      let input = @fs.read_file_to_string(args[offset + 2])
-      if command == "explain" {
+      let response_offset = if from_package { 3 } else { 2 }
+      let input = @fs.read_file_to_string(args[offset + response_offset])
+      if command == "explain" || command == "package-explain" {
         let explanation = item.explain_json(input)
         let result : Json = {
           "ok": true,
@@ -41,7 +66,7 @@ fn main {
           "steps": explanation.steps,
         }
         println(result.stringify())
-      } else if command == "score" {
+      } else if command == "score" || command == "package-score" {
         let score = item.score_json(input)
         let result : Json = {
           "ok": true,
@@ -77,6 +102,7 @@ fn main {
   } catch {
     @qti.InvalidXml(_, _, _)
     | @qti.InvalidItem(_, _)
+    | @qti.InvalidPackage(_, _)
     | @qti.Unsupported(_, _)
     | @qti.InvalidResponse(_)
     | @qti.LimitExceeded(_) as e => {

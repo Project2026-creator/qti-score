@@ -98,3 +98,97 @@ pub fn release(handle : Int32) -> Bool {
   compiled.items.remove(handle)
   existed
 }
+
+///|
+priv struct Packages {
+  items : Map[Int32, @qti.ContentPackage]
+  mut next_id : Int32
+}
+
+///|
+let packages : Packages = { items: Map([]), next_id: 1, }
+
+///|
+pub fn import_package(bytes : Bytes) -> String {
+  if packages.items.length() >= 4 || packages.next_id == 2147483647 {
+    return handle_error(
+      "limit_exceeded", "at most 4 live packages; dispose unused packages",
+    )
+  }
+  let result : Json = try {
+    let bundle = @qti.read_content_package(bytes)
+    let handle = packages.next_id
+    packages.next_id += 1
+    packages.items[handle] = bundle
+    { "ok": true, "handle": handle }
+  } catch {
+    e => { "ok": false, "error": e }
+  }
+  result.stringify()
+}
+
+///|
+pub fn describe_package(handle : Int32) -> String {
+  guard packages.items.get(handle) is Some(bundle) else {
+    return handle_error("invalid_handle", "package is unavailable or disposed")
+  }
+  let result : Json = { "ok": true, "package": bundle.describe() }
+  result.stringify()
+}
+
+///|
+pub fn package_item(handle : Int32, resource_id : String) -> String {
+  guard packages.items.get(handle) is Some(bundle) else {
+    return handle_error("invalid_handle", "package is unavailable or disposed")
+  }
+  if compiled.items.length() >= 256 || compiled.next_id == 2147483647 {
+    return handle_error(
+      "limit_exceeded", "at most 256 live compiled items; dispose unused items",
+    )
+  }
+  let result : Json = try {
+    let item = bundle.item(resource_id)
+    let item_handle = compiled.next_id
+    compiled.next_id += 1
+    compiled.items[item_handle] = item
+    { "ok": true, "handle": item_handle }
+  } catch {
+    e => { "ok": false, "error": e }
+  }
+  result.stringify()
+}
+
+///|
+pub fn package_files(handle : Int32, resource_id : String) -> String {
+  guard packages.items.get(handle) is Some(bundle) else {
+    return handle_error("invalid_handle", "package is unavailable or disposed")
+  }
+  let result : Json = {
+    "ok": true,
+    "files": bundle.resource_files(resource_id),
+  } catch {
+    e => { "ok": false, "error": e }
+  }
+  result.stringify()
+}
+
+///|
+pub fn package_file(handle : Int32, path : String) -> String {
+  guard packages.items.get(handle) is Some(bundle) else {
+    return handle_error("invalid_handle", "package is unavailable or disposed")
+  }
+  let result : Json = try {
+    let bytes = bundle.read_file(path)
+    { "ok": true, "base64": @base64.encode(bytes[:]) }
+  } catch {
+    e => { "ok": false, "error": e }
+  }
+  result.stringify()
+}
+
+///|
+pub fn release_package(handle : Int32) -> Bool {
+  let existed = packages.items.contains(handle)
+  packages.items.remove(handle)
+  existed
+}

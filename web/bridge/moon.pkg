@@ -1,5 +1,6 @@
 import {
   "Project2026-creator/qti-score" @qti,
+  "moonbitlang/core/encoding/base64",
 }
 
 supported_targets = "js"
@@ -16,6 +17,12 @@ options(
         "score_compiled",
         "explain_compiled",
         "release",
+        "import_package",
+        "describe_package",
+        "package_item",
+        "package_files",
+        "package_file",
+        "release_package",
       ],
       "format": "esm",
     },

@@ -17,6 +17,12 @@
       <button type="button" data-example="text" aria-pressed="false"><span class="example-number">03</span><span><strong>文本填空</strong><small>大小写与 Unicode</small></span><span class="example-arrow">↗</span></button>
       <button type="button" data-example="numeric" aria-pressed="false"><span class="example-number">04</span><span><strong>数值填空</strong><small>精确匹配与误差容限</small></span><span class="example-arrow">↗</span></button>
     </nav>
+    <section class="package-panel" aria-labelledby="package-heading">
+      <div class="package-heading"><div><span class="step">CONTENT PACKAGE</span><h2 id="package-heading">从题包开始</h2><p>导入 QTI 3 ZIP，逐题检查兼容状态与共享资源。</p></div><div class="package-actions"><button id="sample-package" class="text-button" type="button">载入示例题包</button><button id="open-package" class="secondary" type="button">导入 ZIP ↥</button><input id="package-input" type="file" accept=".zip,application/zip" hidden></div></div>
+      <p id="package-status" class="package-status" role="status">支持本地题包，最大 8 MiB。文件仅在当前浏览器中读取。</p>
+      <div id="package-error" class="error" role="alert" hidden></div>
+      <div id="package-report" hidden><div id="package-items" class="package-items" aria-label="题包中的题目"></div><p id="package-selection" class="package-status"></p><details class="package-resources"><summary>清单与资源依赖</summary><ul id="resource-list"></ul></details></div>
+    </section>
     <div id="fatal-error" class="error" role="alert" hidden></div>
     <section class="workbench" aria-label="评分工作台">
       <section class="panel source-panel"><div class="panel-heading"><div><span class="step">01 / SOURCE</span><h2>题目定义</h2></div><button id="open-file" class="text-button" type="button">导入 XML ↥</button><input id="file-input" type="file" accept=".xml,text/xml,application/xml" hidden></div><div class="file-bar"><span id="filename">single.xml</span><span>QTI 3 XML</span></div><label class="sr-only" for="xml-source">QTI 题目 XML 源码</label><textarea id="xml-source" spellcheck="false" autocapitalize="off" aria-describedby="source-status"></textarea><div class="source-bottom"><span id="source-status" role="status">正在载入内核…</span><button id="compile" type="button" class="secondary">编译题目</button></div><div id="compile-error" class="error" role="alert" hidden></div></section>
