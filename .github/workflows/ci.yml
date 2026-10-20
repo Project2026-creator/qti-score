@@ -23,5 +23,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Resolve Mooncakes dependencies
+        run: moon update
       - name: Check QTI library and host entry points
         run: python tools/project.py check
