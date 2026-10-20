@@ -1,0 +1,9 @@
+import {
+  "Project2026-creator/qti-score" @qti,
+}
+
+supported_targets = "js"
+
+options(
+  link: { "js": { "exports": [ "evaluate", "describe" ], "format": "esm" } },
+)

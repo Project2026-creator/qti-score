@@ -1,0 +1,125 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Project2026-creator/qti-score"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn compile_item(String, limits? : Limits) -> Item raise QtiError
+
+pub fn describe_json(String) -> String
+
+pub fn evaluate_json(String, String) -> String
+
+pub fn response_from_json(Json) -> Response raise QtiError
+
+// Errors
+pub(all) suberror QtiError {
+  InvalidXml(String, Int32, Int32)
+  InvalidItem(String, String)
+  Unsupported(String, String)
+  InvalidResponse(String)
+  LimitExceeded(String)
+} derive(Eq, @debug.Debug)
+pub fn QtiError::code(Self) -> String
+pub fn QtiError::equal(Self, Self) -> Bool
+pub fn QtiError::message(Self) -> String
+pub fn QtiError::not_equal(Self, Self) -> Bool
+pub fn QtiError::to_json(Self) -> Json
+pub fn QtiError::to_repr(Self) -> @debug.Repr
+pub impl ToJson for QtiError
+
+// Types and methods
+pub(all) enum BaseType {
+  Identifier
+  Text
+} derive(Eq, @debug.Debug)
+pub fn BaseType::equal(Self, Self) -> Bool
+pub fn BaseType::not_equal(Self, Self) -> Bool
+pub fn BaseType::to_repr(Self) -> @debug.Repr
+
+pub(all) enum Cardinality {
+  Single
+  Multiple
+} derive(Eq, @debug.Debug)
+pub fn Cardinality::equal(Self, Self) -> Bool
+pub fn Cardinality::not_equal(Self, Self) -> Bool
+pub fn Cardinality::to_repr(Self) -> @debug.Repr
+
+pub struct Choice {
+  identifier : String
+  text : String
+} derive(Eq, @debug.Debug)
+pub fn Choice::equal(Self, Self) -> Bool
+pub fn Choice::not_equal(Self, Self) -> Bool
+pub fn Choice::to_repr(Self) -> @debug.Repr
+
+pub struct Item {
+  identifier : String
+  title : String
+  response_identifier : String
+  cardinality : Cardinality
+  base_type : BaseType
+  template : Template
+  prompt : String
+  min_choices : Int32
+  max_choices : Int32
+  // private fields
+} derive(@debug.Debug)
+pub fn Item::choices(Self) -> Array[Choice]
+pub fn Item::correct_response(Self) -> Array[String]?
+pub fn Item::describe(Self) -> Json
+pub fn Item::score(Self, Response) -> Score raise QtiError
+pub fn Item::score_json(Self, String) -> Score raise QtiError
+pub fn Item::to_repr(Self) -> @debug.Repr
+
+pub(all) struct Limits {
+  max_characters : Int32
+  max_depth : Int32
+  max_elements : Int32
+} derive(Eq, @debug.Debug)
+pub fn Limits::default() -> Self
+pub fn Limits::equal(Self, Self) -> Bool
+pub fn Limits::not_equal(Self, Self) -> Bool
+pub fn Limits::to_repr(Self) -> @debug.Repr
+
+pub(all) enum Response {
+  Null
+  Single(String)
+  Multiple(Array[String])
+} derive(Eq, @debug.Debug)
+pub fn Response::equal(Self, Self) -> Bool
+pub fn Response::not_equal(Self, Self) -> Bool
+pub fn Response::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ResponseStatus {
+  Unanswered
+  Answered
+} derive(Eq, @debug.Debug)
+pub fn ResponseStatus::equal(Self, Self) -> Bool
+pub fn ResponseStatus::not_equal(Self, Self) -> Bool
+pub fn ResponseStatus::to_repr(Self) -> @debug.Repr
+
+pub struct Score {
+  score : Double
+  status : ResponseStatus
+  matches_correct : Bool?
+} derive(Eq, @debug.Debug)
+pub fn Score::equal(Self, Self) -> Bool
+pub fn Score::not_equal(Self, Self) -> Bool
+pub fn Score::to_json(Self) -> Json
+pub fn Score::to_repr(Self) -> @debug.Repr
+pub impl ToJson for Score
+
+pub(all) enum Template {
+  MatchCorrect
+  MapResponse
+} derive(Eq, @debug.Debug)
+pub fn Template::equal(Self, Self) -> Bool
+pub fn Template::not_equal(Self, Self) -> Bool
+pub fn Template::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

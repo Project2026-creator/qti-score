@@ -1,0 +1,14 @@
+QTI Score
+Copyright 2026 QTI Score contributors
+
+Dependencies used by this project retain their respective copyright notices
+and Apache-2.0 licenses:
+  Milky2018/xml (moonbit-community/xml-mbt)
+  moonbit-community/casefold
+  moonbitlang/core
+  moonbitlang/x
+
+QTI and 1EdTech are trademarks of 1EdTech Consortium, Inc. This project is an
+independent implementation of a documented subset, not an endorsed or certified
+1EdTech product. Official reference examples remain under their upstream license
+and are downloaded only into the local build cache by the check command.

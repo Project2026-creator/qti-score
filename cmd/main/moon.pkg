@@ -1,0 +1,8 @@
+import {
+  "Project2026-creator/qti-score" @qti,
+  "moonbitlang/core/env",
+  "moonbitlang/x/fs",
+  "moonbitlang/x/sys",
+}
+
+pkgtype(kind: "executable")

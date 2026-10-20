@@ -1,0 +1,12 @@
+import {
+  "Milky2018/xml",
+  "moonbitlang/core/json",
+  "moonbitlang/core/string",
+  "moonbit-community/casefold",
+}
+
+import {
+  "Project2026-creator/qti-score" @qti,
+  "moonbitlang/x/fs",
+  "moonbitlang/core/json",
+} for "test"

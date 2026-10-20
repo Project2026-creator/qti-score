@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>QTI Score · 题目评分工作台</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="./"><span class="mark" aria-hidden="true">q.</span>QTI Score</a><span class="tag">QTI 3 · 本地评分内核</span><a href="../README.md" class="doc-link">使用文档 ↗</a></header>
+  <main>
+    <section class="intro"><div><p class="eyebrow">ASSESSMENT INFRASTRUCTURE</p><h1>一份题目，一致的评分规则。</h1><p class="lead">载入标准题目，提交一次作答，查看评分结果。<br>单选、多选与文本填空，共用同一个 MoonBit 评分内核。</p></div><div class="flow" aria-hidden="true"><span>题目 XML</span><i>→</i><span>学习者响应</span><i>→</i><strong>得分</strong></div></section>
+    <nav class="examples" aria-label="示例题目">
+      <button type="button" data-example="single" aria-pressed="true"><span class="example-number">01</span><span><strong>单选题</strong><small>完全匹配 · match_correct</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" data-example="multiple" aria-pressed="false"><span class="example-number">02</span><span><strong>多选题</strong><small>部分得分 · map_response</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" data-example="text" aria-pressed="false"><span class="example-number">03</span><span><strong>文本填空</strong><small>大小写与 Unicode</small></span><span class="example-arrow">↗</span></button>
+    </nav>
+    <div id="fatal-error" class="error" role="alert" hidden></div>
+    <section class="workbench" aria-label="评分工作台">
+      <section class="panel source-panel"><div class="panel-heading"><div><span class="step">01 / SOURCE</span><h2>题目定义</h2></div><button id="open-file" class="text-button" type="button">导入 XML ↥</button><input id="file-input" type="file" accept=".xml,text/xml,application/xml" hidden></div><div class="file-bar"><span id="filename">single.xml</span><span>QTI 3 XML</span></div><label class="sr-only" for="xml-source">QTI 题目 XML 源码</label><textarea id="xml-source" spellcheck="false" autocapitalize="off" aria-describedby="source-status"></textarea><div class="source-bottom"><span id="source-status" role="status">正在载入内核…</span><button id="compile" type="button" class="secondary">编译题目</button></div><div id="compile-error" class="error" role="alert" hidden></div></section>
+      <section class="panel response-panel"><div class="panel-heading"><div><span class="step">02 / RESPONSE</span><h2>尝试作答</h2></div><span id="template-name" class="small-tag">—</span></div><div class="question"><p id="item-id" class="eyebrow">ITEM</p><h3 id="question-title">正在载入示例</h3><p id="question-prompt" class="question-prompt"></p><form id="answer-form"><fieldset id="answer-controls"><legend class="sr-only">选择或填写你的答案</legend></fieldset><div class="answer-actions"><button id="submit-score" class="primary" type="submit" disabled>提交评分 <span aria-hidden="true">→</span></button><button id="clear-answer" class="text-button" type="button">清空作答</button></div></form></div><div class="response-json"><span>响应 JSON</span><pre id="response-json">{"RESPONSE":null}</pre></div><section class="result" aria-labelledby="result-heading" aria-live="polite"><div><span class="step" id="result-heading">03 / RESULT</span><p id="result-message">提交作答后，在这里查看结果。</p><p id="match-message" class="match-message"></p></div><div class="score"><span id="score-value">—</span><small>得分</small></div></section><div id="score-error" class="error" role="alert" hidden></div></section>
+    </section>
+    <footer><span><span class="status-dot"></span>评分在当前浏览器运行，题目与作答不会上传。</span><span>支持标准模板的明确子集 · <a href="https://www.1edtech.org/standards/qti/index" target="_blank" rel="noreferrer">QTI 规范 ↗</a></span></footer>
+  </main>
+  <script type="module" src="app.mjs"></script>
+</body>
+</html>

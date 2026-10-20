@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="feedback" title="有效反馈" adaptive="false" time-dependent="false" xml:lang="zh-CN">
+  <qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="identifier">
+    <qti-correct-response><qti-value>A</qti-value><qti-value>C</qti-value></qti-correct-response>
+    <qti-mapping default-value="-1" lower-bound="0" upper-bound="2">
+      <qti-map-entry map-key="A" mapped-value="1"/>
+      <qti-map-entry map-key="B" mapped-value="-1"/>
+      <qti-map-entry map-key="C" mapped-value="1"/>
+    </qti-mapping>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="2"/>
+  <qti-item-body>
+    <qti-choice-interaction response-identifier="RESPONSE" shuffle="false" max-choices="0">
+      <qti-prompt>哪些做法有助于学习者利用反馈改进学习？可多选。</qti-prompt>
+      <qti-simple-choice identifier="A">指出问题并提供下一步可执行的建议</qti-simple-choice>
+      <qti-simple-choice identifier="B">只告诉学习者“你不够聪明”</qti-simple-choice>
+      <qti-simple-choice identifier="C">让学习者有机会根据反馈修订作品</qti-simple-choice>
+      <qti-simple-choice identifier="D">只显示同学排名</qti-simple-choice>
+    </qti-choice-interaction>
+  </qti-item-body>
+  <qti-response-processing template="https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/map_response.xml"/>
+</qti-assessment-item>

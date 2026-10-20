@@ -1,0 +1,395 @@
+///|
+/// Compile the supported QTI 3 item profile. Templates are recognized by a
+/// closed URI allowlist, never downloaded or executed from the network.
+pub fn compile_item(
+  xml : String,
+  limits~ : Limits = Limits::default(),
+) -> Item raise QtiError {
+  let root = parse_document(xml, limits)
+  if root.name() != "qti-assessment-item" ||
+    root.element.name.namespace_uri != Some(qti_namespace) {
+    raise Unsupported(root.location(), "expected a QTI 3 qti-assessment-item")
+  }
+  root.only_attributes([
+    "identifier", "title", "adaptive", "time-dependent", "label",
+  ])
+  root.only_children([
+    "qti-response-declaration", "qti-outcome-declaration", "qti-item-body", "qti-response-processing",
+  ])
+  if xml_bool(root, "adaptive", default=false) ||
+    xml_bool(root, "time-dependent", default=false) {
+    raise Unsupported(root.location(), "adaptive or time-dependent items")
+  }
+  let item_id = identifier(root.required("identifier"), root.location())
+  let title = root.required("title")
+  let declaration = root.one("qti-response-declaration").unwrap()
+  declaration.only_attributes(["identifier", "cardinality", "base-type"])
+  declaration.only_children(["qti-correct-response", "qti-mapping"])
+  let response_id = declaration.required("identifier")
+  if response_id != "RESPONSE" {
+    raise Unsupported(
+      declaration.location(),
+      "standard templates require response identifier RESPONSE",
+    )
+  }
+  let cardinality = match declaration.required("cardinality") {
+    "single" => Cardinality::Single
+    "multiple" => Cardinality::Multiple
+    other => raise Unsupported(declaration.location(), "cardinality '\{other}'")
+  }
+  let base_type = match declaration.required("base-type") {
+    "identifier" => BaseType::Identifier
+    "string" => BaseType::Text
+    other => raise Unsupported(declaration.location(), "base-type '\{other}'")
+  }
+  let correct = match declaration.one("qti-correct-response", required=false) {
+    None => None
+    Some(n) => Some(parse_correct(n, cardinality, base_type))
+  }
+  let mapping = match declaration.one("qti-mapping", required=false) {
+    None => None
+    Some(n) => Some(parse_mapping(n, base_type))
+  }
+  let outcome = root.one("qti-outcome-declaration").unwrap()
+  outcome.only_attributes([
+    "identifier", "cardinality", "base-type", "normal-minimum", "normal-maximum",
+  ])
+  outcome.only_children(["qti-default-value"])
+  if outcome.required("identifier") != "SCORE" ||
+    outcome.required("cardinality") != "single" ||
+    outcome.required("base-type") != "float" {
+    raise Unsupported(
+      outcome.location(),
+      "expected one single float SCORE outcome",
+    )
+  }
+  ignore(optional_number(outcome, "normal-minimum"))
+  ignore(optional_number(outcome, "normal-maximum"))
+  if outcome.one("qti-default-value", required=false) is Some(default_node) {
+    default_node.only_attributes([])
+    default_node.only_children(["qti-value"])
+    let value = default_node.one("qti-value").unwrap()
+    value.only_attributes([])
+    if !value.children.is_empty() {
+      raise InvalidItem(
+        value.location(),
+        "score default must contain text only",
+      )
+    }
+    let text = value.content.to_string()
+    let parsed = @string.parse_double(text.trim()) catch {
+      _ => raise InvalidItem(value.location(), "invalid SCORE default")
+    }
+    if text.contains("_") || parsed.is_nan() || parsed.is_inf() {
+      raise InvalidItem(value.location(), "invalid SCORE default")
+    }
+  }
+  let processing = root.one("qti-response-processing").unwrap()
+  processing.only_attributes(["template"])
+  processing.only_children([])
+  let template = parse_template(processing.required("template"))
+  if template == MatchCorrect && correct is None {
+    raise InvalidItem(
+      declaration.location(),
+      "match_correct requires qti-correct-response",
+    )
+  }
+  if template == MapResponse && mapping is None {
+    raise InvalidItem(
+      declaration.location(),
+      "map_response requires qti-mapping",
+    )
+  }
+  let body = root.one("qti-item-body").unwrap()
+  body.only_attributes(["class", "id", "dir"])
+  let interactions : Array[Node] = []
+  collect_interactions(body, interactions, "")
+  if interactions.length() != 1 {
+    raise Unsupported(
+      body.location(),
+      "expected exactly one supported interaction",
+    )
+  }
+  let interaction = interactions[0]
+  if interaction.required("response-identifier") != response_id {
+    raise InvalidItem(
+      interaction.location(),
+      "response-identifier does not match declaration",
+    )
+  }
+  let choices : Array[Choice] = []
+  let mut min_choices = 0
+  let mut max_choices = 1
+  let prompt = if interaction.name() == "qti-choice-interaction" {
+    if base_type != Identifier {
+      raise InvalidItem(
+        interaction.location(),
+        "choice interaction requires identifier base-type",
+      )
+    }
+    interaction.only_attributes([
+      "response-identifier", "shuffle", "min-choices", "max-choices", "class", "id",
+      "orientation",
+    ])
+    interaction.only_children(["qti-prompt", "qti-simple-choice"])
+    ignore(xml_bool(interaction, "shuffle", default=false))
+    min_choices = nonnegative_int(interaction, "min-choices", default=0)
+    max_choices = nonnegative_int(interaction, "max-choices")
+    for choice in interaction.children {
+      if choice.name() != "qti-simple-choice" {
+        continue
+      }
+      choice.only_attributes(["identifier", "fixed", "class", "id"])
+      ignore(xml_bool(choice, "fixed", default=false))
+      let id = identifier(choice.required("identifier"), choice.location())
+      if choices.any(c => c.identifier == id) {
+        raise InvalidItem(choice.location(), "duplicate choice '\{id}'")
+      }
+      choices.push({
+        identifier: id,
+        text: choice.all_text.to_string().trim().to_owned(),
+      })
+    }
+    if choices.length() < 2 {
+      raise InvalidItem(
+        interaction.location(),
+        "a choice interaction needs at least two choices",
+      )
+    }
+    if (cardinality == Single && max_choices != 1) ||
+      min_choices > choices.length() ||
+      (
+        max_choices != 0 &&
+        (max_choices > choices.length() || min_choices > max_choices)
+      ) {
+      raise InvalidItem(
+        interaction.location(),
+        "inconsistent min-choices/max-choices",
+      )
+    }
+    match interaction.one("qti-prompt", required=false) {
+      Some(n) => n.all_text.to_string().trim().to_owned()
+      None => title
+    }
+  } else {
+    if cardinality != Single || base_type != Text {
+      raise Unsupported(
+        interaction.location(),
+        "text entry requires single string response",
+      )
+    }
+    interaction.only_attributes([
+      "response-identifier", "expected-length", "class", "id", "placeholder-text",
+    ])
+    interaction.only_children([])
+    if interaction.attr("expected-length") is Some(_) {
+      ignore(nonnegative_int(interaction, "expected-length"))
+    }
+    body.all_text.to_string().trim().to_owned()
+  }
+  if !choices.is_empty() {
+    if correct is Some(values) {
+      if values.length() < min_choices ||
+        (max_choices != 0 && values.length() > max_choices) {
+        raise InvalidItem(
+          declaration.location(),
+          "correct response violates choice limits",
+        )
+      }
+      for value in values {
+        if !choices.any(c => c.identifier == value) {
+          raise InvalidItem(
+            declaration.location(),
+            "correct response references unknown choice '\{value}'",
+          )
+        }
+      }
+    }
+    if mapping is Some(m) {
+      for entry in m.entries {
+        if !choices.any(c => c.identifier == entry.key) {
+          raise InvalidItem(
+            declaration.location(),
+            "mapping references unknown choice '\{entry.key}'",
+          )
+        }
+      }
+    }
+  }
+  {
+    identifier: item_id,
+    title,
+    response_identifier: response_id,
+    cardinality,
+    base_type,
+    template,
+    prompt,
+    min_choices,
+    max_choices,
+    choices,
+    correct,
+    mapping,
+  }
+}
+
+///|
+fn parse_template(uri : String) -> Template raise QtiError {
+  for
+    prefix in [
+      "https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/", "http://purl.imsglobal.org/spec/qti/v3p0/rptemplates/",
+      "https://www.imsglobal.org/question/qti_v3p0/rptemplates/", "http://www.imsglobal.org/question/qti_v3p0/rptemplates/",
+    ] {
+    if uri == prefix + "match_correct" || uri == prefix + "match_correct.xml" {
+      return MatchCorrect
+    }
+    if uri == prefix + "map_response" || uri == prefix + "map_response.xml" {
+      return MapResponse
+    }
+  }
+  raise Unsupported("qti-response-processing", "template '\{uri}'")
+}
+
+///|
+fn parse_correct(
+  node : Node,
+  cardinality : Cardinality,
+  base_type : BaseType,
+) -> Array[String] raise QtiError {
+  node.only_attributes([])
+  node.only_children(["qti-value"])
+  if node.children.is_empty() ||
+    (cardinality == Single && node.children.length() != 1) {
+    raise InvalidItem(
+      node.location(),
+      "correct response has invalid cardinality",
+    )
+  }
+  let values : Array[String] = []
+  for child in node.children {
+    child.only_attributes([])
+    if !child.children.is_empty() {
+      raise InvalidItem(child.location(), "qti-value must contain text only")
+    }
+    let value = child.content.to_string()
+    if base_type == Identifier {
+      values.push(identifier(value.trim().to_owned(), child.location()))
+    } else {
+      if value == "" {
+        raise InvalidItem(child.location(), "empty correct string is NULL")
+      }
+      values.push(value)
+    }
+  }
+  values
+}
+
+///|
+fn parse_mapping(node : Node, base_type : BaseType) -> Mapping raise QtiError {
+  node.only_attributes(["default-value", "lower-bound", "upper-bound"])
+  node.only_children(["qti-map-entry"])
+  let default_value = optional_number(node, "default-value").unwrap_or(0.0)
+  let lower_bound = optional_number(node, "lower-bound")
+  let upper_bound = optional_number(node, "upper-bound")
+  if lower_bound is Some(lo) && upper_bound is Some(hi) && lo > hi {
+    raise InvalidItem(node.location(), "lower-bound exceeds upper-bound")
+  }
+  if node.children.is_empty() {
+    raise InvalidItem(node.location(), "mapping needs at least one map entry")
+  }
+  let entries : Array[MapEntry] = []
+  for child in node.children {
+    child.only_attributes(["map-key", "mapped-value", "case-sensitive"])
+    child.only_children([])
+    let key = child.required("map-key")
+    if base_type == Identifier {
+      ignore(identifier(key, child.location()))
+    }
+    let case_sensitive = xml_bool(child, "case-sensitive", default=false)
+    let folded_key = @casefold.casefold(key)
+    if entries.any(e => {
+        e.key == key ||
+        (
+          base_type == Text &&
+          !case_sensitive &&
+          !e.case_sensitive &&
+          e.folded_key == folded_key
+        )
+      }) {
+      raise InvalidItem(
+        child.location(),
+        "duplicate or ambiguous map-key '\{key}'",
+      )
+    }
+    entries.push({
+      key,
+      folded_key,
+      value: number(child, "mapped-value"),
+      case_sensitive,
+    })
+  }
+  { entries, default_value, lower_bound, upper_bound, }
+}
+
+///|
+fn nonnegative_int(
+  node : Node,
+  attribute : String,
+  default? : Int32,
+) -> Int32 raise QtiError {
+  let text = match node.attr(attribute) {
+    None =>
+      match default {
+        Some(n) => return n
+        None => raise InvalidItem(node.location(), "missing '\{attribute}'")
+      }
+    Some(s) => s
+  }
+  if text == "" || !text.iter().all(c => '0' <= c && c <= '9') {
+    raise InvalidItem(
+      node.location(),
+      "invalid nonnegative integer '\{attribute}'",
+    )
+  }
+  @string.parse_int(text[:]) catch {
+    _ =>
+      raise InvalidItem(node.location(), "integer out of range '\{attribute}'")
+  }
+}
+
+///|
+fn collect_interactions(
+  node : Node,
+  found : Array[Node],
+  parent : String,
+) -> Unit raise QtiError {
+  let name = node.name()
+  let uri = node.element.name.namespace_uri
+  if uri != Some(qti_namespace) && uri != Some("http://www.w3.org/1999/xhtml") {
+    raise Unsupported(node.location(), "body namespace '\{uri.unwrap_or("")}'")
+  }
+  if name.has_prefix("qti-") && uri != Some(qti_namespace) {
+    raise Unsupported(node.location(), "QTI element in a different namespace")
+  }
+  if (name == "qti-simple-choice" || name == "qti-prompt") &&
+    parent != "qti-choice-interaction" {
+    raise InvalidItem(
+      node.location(),
+      "element must be a child of qti-choice-interaction",
+    )
+  }
+  if name == "qti-item-body" && parent != "" {
+    raise InvalidItem(node.location(), "nested item body")
+  }
+  if name == "qti-choice-interaction" || name == "qti-text-entry-interaction" {
+    found.push(node)
+  } else if ![
+      "qti-item-body", "qti-simple-choice", "qti-prompt", "p", "div", "span", "br",
+      "blockquote", "strong", "em", "b", "i", "u", "sub", "sup", "ul", "ol", "li",
+      "img", "a", "table", "thead", "tbody", "tr", "th", "td",
+    ].contains(name) {
+    raise Unsupported(node.location(), "body element '\{name}'")
+  }
+  for child in node.children {
+    collect_interactions(child, found, name)
+  }
+}
