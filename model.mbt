@@ -23,6 +23,7 @@ pub(all) enum BaseType {
   Text
   Integer
   Float
+  DirectedPair
 } derive(Debug, Eq)
 
 ///|
@@ -114,6 +115,7 @@ pub struct Item {
   priv correct : Array[String]?
   priv mapping : Mapping?
   priv numeric_rule : NumericRule?
+  priv matching : MatchInteraction?
   priv processing_source : SourceLocation
 } derive(Debug)
 

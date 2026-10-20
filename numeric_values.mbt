@@ -55,5 +55,6 @@ fn BaseType::name(self : BaseType) -> String {
     Text => "string"
     Integer => "integer"
     Float => "float"
+    DirectedPair => "directedPair"
   }
 }

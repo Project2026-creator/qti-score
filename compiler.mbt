@@ -43,6 +43,7 @@ pub fn compile_item(
     "string" => BaseType::Text
     "integer" => BaseType::Integer
     "float" => BaseType::Float
+    "directedPair" => BaseType::DirectedPair
     other => raise Unsupported(declaration.location(), "base-type '\{other}'")
   }
   let correct = match declaration.one("qti-correct-response", required=false) {
@@ -157,6 +158,14 @@ pub fn compile_item(
   }
   let interaction = interactions[0]
   let ordered = interaction.name() == "qti-order-interaction"
+  let mut matching : MatchInteraction? = None
+  if (base_type == DirectedPair) !=
+    (interaction.name() == "qti-match-interaction") {
+    raise InvalidItem(
+      interaction.location(),
+      "directedPair requires a match interaction",
+    )
+  }
   if interaction.required("response-identifier") != response_id {
     raise InvalidItem(
       interaction.location(),
@@ -166,7 +175,30 @@ pub fn compile_item(
   let choices : Array[Choice] = []
   let mut min_choices = 0
   let mut max_choices = 1
-  let prompt = if interaction.name() == "qti-choice-interaction" || ordered {
+  let prompt = if interaction.name() == "qti-match-interaction" {
+    let spec = parse_match_interaction(interaction, cardinality)
+    min_choices = spec.minimum
+    max_choices = spec.maximum
+    if correct is Some(values) {
+      spec.validate(values) catch {
+        error => raise InvalidItem(declaration.location(), error.message())
+      }
+    }
+    if mapping is Some(m) {
+      for entry in m.entries {
+        ignore(
+          spec.endpoints(entry.key) catch {
+            error => raise InvalidItem(declaration.location(), error.message())
+          },
+        )
+      }
+    }
+    matching = Some(spec)
+    match interaction.one("qti-prompt", required=false) {
+      Some(n) => n.all_text.to_string().trim().to_owned()
+      None => title
+    }
+  } else if interaction.name() == "qti-choice-interaction" || ordered {
     if base_type != Identifier {
       raise InvalidItem(
         interaction.location(),
@@ -303,6 +335,7 @@ pub fn compile_item(
     correct,
     mapping,
     numeric_rule,
+    matching,
     processing_source: processing.source(),
   }
 }
@@ -348,6 +381,8 @@ fn parse_correct(
     let value = child.content.to_string()
     if base_type == Identifier {
       values.push(identifier(value.trim().to_owned(), child.location()))
+    } else if base_type == DirectedPair {
+      values.push(authored_pair(value, child))
     } else if base_type.is_numeric() {
       ignore(authored_number(value, base_type, child))
       values.push(value.trim().to_owned())
@@ -378,7 +413,11 @@ fn parse_mapping(node : Node, base_type : BaseType) -> Mapping raise QtiError {
   for child in node.children {
     child.only_attributes(["map-key", "mapped-value", "case-sensitive"])
     child.only_children([])
-    let key = child.required("map-key")
+    let key = if base_type == DirectedPair {
+      authored_pair(child.required("map-key"), child)
+    } else {
+      child.required("map-key")
+    }
     if base_type == Identifier {
       ignore(identifier(key, child.location()))
     }
@@ -451,23 +490,30 @@ fn collect_interactions(
   }
   if (name == "qti-simple-choice" || name == "qti-prompt") &&
     parent != "qti-choice-interaction" &&
-    parent != "qti-order-interaction" {
+    parent != "qti-order-interaction" &&
+    !(name == "qti-prompt" && parent == "qti-match-interaction") {
     raise InvalidItem(
       node.location(),
       "element must be a child of a choice or order interaction",
     )
+  }
+  if (name == "qti-simple-match-set" && parent != "qti-match-interaction") ||
+    (name == "qti-simple-associable-choice" && parent != "qti-simple-match-set") {
+    raise InvalidItem(node.location(), "misplaced match interaction element")
   }
   if name == "qti-item-body" && parent != "" {
     raise InvalidItem(node.location(), "nested item body")
   }
   if name == "qti-choice-interaction" ||
     name == "qti-text-entry-interaction" ||
-    name == "qti-order-interaction" {
+    name == "qti-order-interaction" ||
+    name == "qti-match-interaction" {
     found.push(node)
   } else if ![
-      "qti-item-body", "qti-simple-choice", "qti-prompt", "p", "div", "span", "br",
-      "blockquote", "strong", "em", "b", "i", "u", "sub", "sup", "ul", "ol", "li",
-      "img", "a", "table", "thead", "tbody", "tr", "th", "td",
+      "qti-item-body", "qti-simple-choice", "qti-prompt", "qti-simple-match-set",
+      "qti-simple-associable-choice", "p", "div", "span", "br", "blockquote", "strong",
+      "em", "b", "i", "u", "sub", "sup", "ul", "ol", "li", "img", "a", "table", "thead",
+      "tbody", "tr", "th", "td",
     ].contains(name) {
     raise Unsupported(node.location(), "body element '\{name}'")
   }

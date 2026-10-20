@@ -114,7 +114,7 @@ pub fn Item::describe(self : Item) -> Json {
     "identifier": c.identifier,
     "text": c.text,
   })
-  {
+  let description : Json = {
     "identifier": self.identifier,
     "title": self.title,
     "response_identifier": self.response_identifier,
@@ -134,6 +134,10 @@ pub fn Item::describe(self : Item) -> Json {
     "max_choices": self.max_choices,
     "choices": choices,
   }
+  if self.matching is Some(spec) && description is Object(fields) {
+    fields["matching"] = spec.describe()
+  }
+  description
 }
 
 ///|

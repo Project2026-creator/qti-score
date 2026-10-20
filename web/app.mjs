@@ -1,5 +1,6 @@
 import { createBatchPanel } from './batch.mjs';
 import { createOrderControl } from './order.mjs';
+import { createMatchControl } from './match.mjs';
 
 const $ = id => document.getElementById(id);
 const batchPanel = createBatchPanel();
@@ -7,6 +8,7 @@ const source = $('xml-source');
 let engine;
 let compiledItem;
 let orderControl;
+let matchControl;
 let contentPackage;
 let item;
 let activeXml = '';
@@ -20,6 +22,7 @@ function showError(id, error) {
 
 function response() {
   if (!item) return { RESPONSE: null };
+  if (item.base_type === 'directedPair') return matchControl?.response() || { RESPONSE: null };
   if (item.cardinality === 'ordered') return orderControl?.response() || { RESPONSE: null };
   if (item.base_type !== 'identifier') return { RESPONSE: $('text-answer')?.value || '' };
   const values = [...$('answer-controls').querySelectorAll('input:checked')].map(input => input.value);
@@ -77,12 +80,15 @@ function renderQuestion() {
   $('template-name').textContent = item.template;
   const fieldset = $('answer-controls');
   orderControl = null;
+  matchControl = null;
   fieldset.replaceChildren();
   const legend = document.createElement('legend');
   legend.className = 'sr-only';
-  legend.textContent = item.cardinality === 'ordered' ? '排列答案' : item.base_type !== 'identifier' ? '填写答案' : '选择答案';
+  legend.textContent = item.base_type === 'directedPair' ? '添加配对' : item.cardinality === 'ordered' ? '排列答案' : item.base_type !== 'identifier' ? '填写答案' : '选择答案';
   fieldset.append(legend);
-  if (item.cardinality === 'ordered') {
+  if (item.base_type === 'directedPair') {
+    matchControl = createMatchControl(fieldset, item, () => { updateResponse(); resetResult(); });
+  } else if (item.cardinality === 'ordered') {
     orderControl = createOrderControl(fieldset, item, () => { updateResponse(); resetResult(); });
   } else if (item.base_type !== 'identifier') {
     const label = document.createElement('label');
@@ -333,7 +339,7 @@ $('answer-form').addEventListener('submit', event => {
   $('match-message').textContent = matchMessage;
 });
 $('answer-controls').addEventListener('input', () => { updateResponse(); resetResult(); });
-$('clear-answer').addEventListener('click', () => { $('answer-form').reset(); orderControl?.reset(); updateResponse(); resetResult(); });
+$('clear-answer').addEventListener('click', () => { $('answer-form').reset(); orderControl?.reset(); matchControl?.reset(); updateResponse(); resetResult(); });
 $('compile').addEventListener('click', () => { ++loading; compile(); });
 source.addEventListener('input', () => {
   ++loading;

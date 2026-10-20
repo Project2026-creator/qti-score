@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="methods" title="评价方式与用途" adaptive="false" time-dependent="false">
+  <qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="directedPair">
+    <qti-correct-response><qti-value>Quiz Diagnose</qti-value><qti-value>Portfolio Growth</qti-value><qti-value>Observation Diagnose</qti-value></qti-correct-response>
+    <qti-mapping default-value="-0.5" lower-bound="0" upper-bound="3">
+      <qti-map-entry map-key="Quiz Diagnose" mapped-value="1"/>
+      <qti-map-entry map-key="Portfolio Growth" mapped-value="1"/>
+      <qti-map-entry map-key="Observation Diagnose" mapped-value="1"/>
+    </qti-mapping>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body><qti-match-interaction response-identifier="RESPONSE" max-associations="3">
+    <qti-prompt>将评价方式与最适合的用途配对。每种方式最多关联一次，用途可以重复使用。</qti-prompt>
+    <qti-simple-match-set>
+      <qti-simple-associable-choice identifier="Quiz" match-max="1">课前小测</qti-simple-associable-choice>
+      <qti-simple-associable-choice identifier="Portfolio" match-max="1">学习档案袋</qti-simple-associable-choice>
+      <qti-simple-associable-choice identifier="Observation" match-max="1">课堂观察</qti-simple-associable-choice>
+    </qti-simple-match-set>
+    <qti-simple-match-set>
+      <qti-simple-associable-choice identifier="Diagnose" match-max="0">诊断学习困难</qti-simple-associable-choice>
+      <qti-simple-associable-choice identifier="Growth" match-max="0">展示长期成长</qti-simple-associable-choice>
+    </qti-simple-match-set>
+  </qti-match-interaction></qti-item-body>
+  <qti-response-processing template="https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/map_response.xml"/>
+</qti-assessment-item>

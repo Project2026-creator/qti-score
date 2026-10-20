@@ -7,17 +7,24 @@ export interface Score {
   readonly matches_correct: boolean | null;
 }
 export interface Choice { readonly identifier: string; readonly text: string }
+export interface MatchChoice extends Choice { readonly match_min: number; readonly match_max: number }
+export interface MatchDescription {
+  readonly min_associations: number;
+  readonly max_associations: number;
+  readonly sets: readonly [readonly MatchChoice[], readonly MatchChoice[]];
+}
 export interface ItemDescription {
   readonly identifier: string;
   readonly title: string;
   readonly response_identifier: 'RESPONSE';
   readonly cardinality: 'single' | 'multiple' | 'ordered';
-  readonly base_type: 'identifier' | 'string' | 'integer' | 'float';
+  readonly base_type: 'identifier' | 'string' | 'integer' | 'float' | 'directedPair';
   readonly template: 'match_correct' | 'map_response' | 'numeric_rules';
   readonly prompt: string;
   readonly min_choices: number;
   readonly max_choices: number;
   readonly choices: readonly Choice[];
+  readonly matching?: MatchDescription;
 }
 export type JsonValue = null | boolean | number | string | readonly JsonValue[] | { readonly [key: string]: JsonValue };
 export interface ScoringStep {

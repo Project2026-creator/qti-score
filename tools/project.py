@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REVISION = "0a92fbbb6d2e620a1f7fad19977be4c418246bc0"
 OFFICIAL_BASE = "https://raw.githubusercontent.com/1EdTech/qti-examples/{}/qtiv3-examples/packaging/items/".format(REVISION)
 OFFICIAL_HASHES = {
+    "match.xml": "fcc3f989c6bcf37b8e164217f82afdb8d8ec59f057dffd7b22bfb34c2a5e8bb3",
     "choice.xml": "9d762846f7ab3232de9549a956991afa761f2fd1f1dc276e98efe85c16ffea1e",
     "choice_multiple.xml": "c0cdfc4017844b8b8b54a52eac149ea227d2c0dfd33cd0086ff9b1c2871a2cb7",
     "order.xml": "f47faff0c906c31a2e9cb3d2c7c1558278007cf47bf5593e42bcf41455185da8",
@@ -70,6 +71,9 @@ def build_sample_package():
         ("order-package.zip", [("imsmanifest.xml", "order-manifest.xml"),
                                ("items/order.xml", "order.xml"), ("items/order-subset.xml", "order-subset.xml")]),
     ]
+    examples.append(("match-package.zip", [("imsmanifest.xml", "match-manifest.xml"),
+                                           ("items/match.xml", "match.xml"),
+                                           ("items/match-single.xml", "match-single.xml")]))
     for filename, files in examples:
         with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path, source in files:
@@ -115,7 +119,7 @@ def extract_json(stdout):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.5.0",
+        "module": "Project2026-creator/qti-score", "version": "0.6.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "feature_cases": [],
     }
@@ -163,6 +167,10 @@ def verify(moon, env, output, offline=False):
             (None, 0), ([], 0),
         ]),
     ]
+    sources.append(("match.xml", [
+        (["C R", "D M", "L M", "P T"], 3), (["P T", "L M", "D M", "C R"], 3),
+        (["C R"], 1), (["D M"], 0.5), (["C T"], 0), (["C R", "D M"], 1.5), (None, 0), ([], 0),
+    ]))
     bridge_inputs = []
     for filename, cases in sources:
         path = cache / filename
@@ -191,6 +199,11 @@ def verify(moon, env, output, offline=False):
     for name, cases in [
         ("numeric", [(100, 2), (100.5, 1), (104, 0.5), (95, 0.5), (105, 0.5), (110, 0), (None, 0), ("", 0)]),
         ("integer", [(42, 1), ("0042", 1), (41, 0), (None, 0)]),
+        ("match", [(["Quiz Diagnose", "Portfolio Growth", "Observation Diagnose"], 3),
+                   (["Observation Diagnose", "Portfolio Growth", "Quiz Diagnose"], 3),
+                   (["Quiz Diagnose"], 1), (["Quiz Diagnose", "Portfolio Diagnose"], 0.5),
+                   (["Quiz Growth"], 0), (None, 0), ([], 0)]),
+        ("match-single", [("Portfolio Growth", 1), ("Quiz Growth", 0), (None, 0), ("", 0)]),
         ("order", [(["Analyze", "Design", "Develop", "Implement", "Evaluate"], 1),
                    (["Develop", "Evaluate", "Analyze", "Implement", "Design"], 0), (None, 0), ([], 0)]),
         ("order-subset", [(["Locate", "Adapt"], 1), (["Adapt", "Locate"], 0),
@@ -311,6 +324,7 @@ try {
         ("quoted-identities", quoted_attempts, 2, 2, 0, 0),
         ("ordered-package", (ROOT / "examples/order-attempts.jsonl").read_text(encoding="utf-8"), 4, 3, 1, 1),
     ]
+    batch_scenarios.append(("matching-package", (ROOT / "examples/match-attempts.jsonl").read_text(encoding="utf-8"), 4, 3, 1, 1))
     batch_script = """
 import {readFileSync} from 'node:fs';
 const {importPackage}=await import(process.argv[1]);
@@ -321,6 +335,8 @@ finally {bundle.dispose();}
     report["batch_cases"] = []
     for name, source, count, scored, errors, expected_exit in batch_scenarios:
         batch_archive = ROOT / "web/order-package.zip" if name == "ordered-package" else archive
+        if name == "matching-package":
+            batch_archive = ROOT / "web/match-package.zip"
         path = cache / ("batch-" + name + ".jsonl")
         path.write_text(source, encoding="utf-8")
         arguments = [moon, "run", "cmd/main", "--", "package-batch", str(batch_archive), str(path)]
@@ -357,6 +373,8 @@ finally {bundle.dispose();}
             raise AssertionError("CSV text quoting/prefix mismatch")
         if name == "ordered-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [1, 1, 0, None]:
             raise AssertionError("Ordered package batch did not preserve sequence semantics")
+        if name == "matching-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [3, 0.5, None, 0]:
+            raise AssertionError("Matching package batch scores differ from authored expectations")
         report["batch_cases"].append({"name": name, "expected_exit": expected_exit,
                                       "cli_report": cli_report, "sdk_report": sdk_evaluation["report"],
                                       "csv": exported, "csv_decoded": decoded})

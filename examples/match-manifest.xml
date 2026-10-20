@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1" identifier="matching-bank">
+  <resources>
+    <resource identifier="methods" type="imsqti_item_xmlv3p0" href="items/match.xml"><file href="items/match.xml"/></resource>
+    <resource identifier="one-link" type="imsqti_item_xmlv3p0" href="items/match-single.xml"><file href="items/match-single.xml"/></resource>
+  </resources>
+</manifest>

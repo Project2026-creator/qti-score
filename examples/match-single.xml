@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="one-link" title="选择一组合理关联">
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="directedPair">
+    <qti-correct-response><qti-value>Portfolio Growth</qti-value></qti-correct-response>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body><qti-match-interaction response-identifier="RESPONSE">
+    <qti-prompt>只选择一组关联：哪一种评价方式适合展示长期成长？</qti-prompt>
+    <qti-simple-match-set>
+      <qti-simple-associable-choice identifier="Quiz" match-max="1">课前小测</qti-simple-associable-choice>
+      <qti-simple-associable-choice identifier="Portfolio" match-max="1">学习档案袋</qti-simple-associable-choice>
+    </qti-simple-match-set>
+    <qti-simple-match-set>
+      <qti-simple-associable-choice identifier="Growth" match-max="1">展示长期成长</qti-simple-associable-choice>
+    </qti-simple-match-set>
+  </qti-match-interaction></qti-item-body>
+  <qti-response-processing template="https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/match_correct.xml"/>
+</qti-assessment-item>

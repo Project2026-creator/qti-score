@@ -14,6 +14,57 @@ const hasCode = code => cause => cause instanceof QtiScoreError && cause.code ==
 const packageBytes = () => readFileSync(new URL('../web/sample-package.zip', import.meta.url));
 const packageAttempts = () => readFileSync(new URL('../examples/package-attempts.jsonl', import.meta.url), 'utf8');
 
+test('matching supports many-to-one partial credit and preserves pair direction', () => {
+  const item = compileItem(fixture('match'));
+  try {
+    const pairs = ['Observation Diagnose', 'Portfolio Growth', 'Quiz Diagnose'];
+    assert.equal(item.score({ RESPONSE: pairs }).score, 3);
+    assert.equal(item.score({ RESPONSE: pairs }).matches_correct, true);
+    const report = item.scoreBatch([
+      { RESPONSE: ['Quiz Diagnose', 'Portfolio Diagnose'] }, { RESPONSE: ['Diagnose Quiz'] },
+      { RESPONSE: ['Quiz Diagnose', 'Quiz Growth'] }, { RESPONSE: ['Quiz Diagnose', ' Quiz\tDiagnose '] }, {},
+    ]);
+    assert.deepEqual(report.map(r => r.ok ? r.result.score : r.error.code), [0.5, 'invalid_response', 'invalid_response', 'invalid_response', 0]);
+    const explanation = item.explain({ RESPONSE: [' Quiz\tDiagnose '] });
+    assert.equal(explanation.result.score, 1);
+    assert.equal(explanation.steps.find(s => s.operation === 'map_value').details.value, 'Quiz Diagnose');
+    assert.deepEqual(pairs, ['Observation Diagnose', 'Portfolio Growth', 'Quiz Diagnose']);
+    const metadata = item.describe();
+    assert.equal(metadata.base_type, 'directedPair');
+    assert.deepEqual(metadata.matching.sets.map(s => s.length), [3, 2]);
+    metadata.matching.sets[0][0].identifier = 'changed';
+    metadata.matching.sets[1].length = 0;
+    assert.equal(item.describe().matching.sets[0][0].identifier, 'Quiz');
+    assert.equal(item.describe().matching.sets[1].length, 2);
+    assert.equal('correct_response' in metadata, false);
+  } finally { item.dispose(); }
+});
+
+test('single directed pairs require a string and default to one association', () => {
+  const item = compileItem(fixture('match-single'));
+  try {
+    assert.equal(item.describe().matching.max_associations, 1);
+    assert.equal(item.score({ RESPONSE: 'Portfolio Growth' }).score, 1);
+    assert.equal(item.score({ RESPONSE: 'Quiz Growth' }).score, 0);
+    assert.equal(item.score({ RESPONSE: '' }).status, 'unanswered');
+    assert.throws(() => item.score({ RESPONSE: ['Portfolio Growth'] }), hasCode('invalid_response'));
+  } finally { item.dispose(); }
+});
+
+test('matching content packages retain row failures and standalone item lifetimes', () => {
+  const bundle = importPackage(readFileSync(new URL('../web/match-package.zip', import.meta.url)));
+  const item = bundle.getItem('methods');
+  try {
+    assert.equal(bundle.describe().ready_count, 2);
+    const { report, csv } = bundle.scoreAttempts(readFileSync(new URL('../examples/match-attempts.jsonl', import.meta.url), 'utf8'));
+    assert.deepEqual(report.rows.map(r => r.ok ? r.result.score : r.error.code), [3, 0.5, 'invalid_response', 0]);
+    assert.deepEqual(report.attempts.map(a => a.score_sum), [3, 0.5, null, 0]);
+    assert.ok(csv.includes('false,,,,"invalid_response"'));
+    bundle.dispose();
+    assert.equal(item.score({ RESPONSE: ['Quiz Diagnose'] }).score, 1);
+  } finally { item.dispose(); bundle.dispose(); }
+});
+
 test('ordered arrays compare positions and retain the caller sequence', () => {
   const item = compileItem(fixture('order'));
   const values = ['Analyze', 'Design', 'Develop', 'Implement', 'Evaluate'];

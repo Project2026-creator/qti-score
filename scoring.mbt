@@ -87,6 +87,11 @@ fn Item::execute(
       "response exceeds 4096 values or 65536 UTF-16 code units per value",
     )
   }
+  if self.base_type == DirectedPair {
+    for i, value in values {
+      values[i] = directed_pair(value)
+    }
+  }
   let empty = values.is_empty()
   record_step(steps, "response", self.processing_source, {
     "status": if empty {
@@ -177,6 +182,9 @@ fn Item::execute(
       seen[value] = true
     }
   }
+  if self.matching is Some(spec) {
+    spec.validate(values)
+  }
   let matches_correct = self.correct.map(correct => {
     if self.cardinality == Ordered {
       values == correct
@@ -215,7 +223,7 @@ fn Item::execute(
         let mut entry_index : Json = Json::null()
         let mut entry_source = mapping.source
         for i, entry in mapping.entries {
-          let equal = if self.base_type == Identifier || entry.case_sensitive {
+          let equal = if self.base_type != Text || entry.case_sensitive {
             value == entry.key
           } else {
             @casefold.casefold(value) == entry.folded_key
