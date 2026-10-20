@@ -1,6 +1,6 @@
 name = "Project2026-creator/qti-score"
 
-version = "0.4.0"
+version = "0.5.0"
 
 readme = "README.md"
 
@@ -10,7 +10,7 @@ license = "Apache-2.0"
 
 keywords = [ "qti", "assessment", "scoring", "education" ]
 
-description = "A QTI 3 scoring kernel with ZIP package import, batch reports and a JavaScript SDK."
+description = "A QTI 3 scoring kernel for choice, ordered and numeric responses, ZIP packages and batch reports."
 
 import {
   "Milky2018/xml@0.6.1",

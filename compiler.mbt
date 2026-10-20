@@ -35,6 +35,7 @@ pub fn compile_item(
   let cardinality = match declaration.required("cardinality") {
     "single" => Cardinality::Single
     "multiple" => Cardinality::Multiple
+    "ordered" => Cardinality::Ordered
     other => raise Unsupported(declaration.location(), "cardinality '\{other}'")
   }
   let base_type = match declaration.required("base-type") {
@@ -48,6 +49,12 @@ pub fn compile_item(
     None => None
     Some(n) => Some(parse_correct(n, cardinality, base_type))
   }
+  if cardinality == Ordered && base_type != Identifier {
+    raise Unsupported(
+      declaration.location(),
+      "ordered responses require identifier base-type in this profile",
+    )
+  }
   if base_type.is_numeric() && cardinality != Single {
     raise Unsupported(
       declaration.location(),
@@ -57,6 +64,12 @@ pub fn compile_item(
   let mapping = match declaration.one("qti-mapping", required=false) {
     None => None
     Some(n) => {
+      if cardinality == Ordered {
+        raise Unsupported(
+          n.location(),
+          "ordered mappings are outside this profile",
+        )
+      }
       if base_type.is_numeric() {
         raise Unsupported(
           n.location(),
@@ -143,6 +156,7 @@ pub fn compile_item(
     )
   }
   let interaction = interactions[0]
+  let ordered = interaction.name() == "qti-order-interaction"
   if interaction.required("response-identifier") != response_id {
     raise InvalidItem(
       interaction.location(),
@@ -152,11 +166,18 @@ pub fn compile_item(
   let choices : Array[Choice] = []
   let mut min_choices = 0
   let mut max_choices = 1
-  let prompt = if interaction.name() == "qti-choice-interaction" {
+  let prompt = if interaction.name() == "qti-choice-interaction" || ordered {
     if base_type != Identifier {
       raise InvalidItem(
         interaction.location(),
         "choice interaction requires identifier base-type",
+      )
+    }
+    if (ordered && cardinality != Ordered) ||
+      (!ordered && cardinality == Ordered) {
+      raise InvalidItem(
+        interaction.location(),
+        "order interaction requires ordered cardinality; choice interaction requires single or multiple",
       )
     }
     interaction.only_attributes([
@@ -165,8 +186,10 @@ pub fn compile_item(
     ])
     interaction.only_children(["qti-prompt", "qti-simple-choice"])
     ignore(xml_bool(interaction, "shuffle", default=false))
-    min_choices = nonnegative_int(interaction, "min-choices", default=0)
-    max_choices = nonnegative_int(interaction, "max-choices")
+    if !ordered {
+      min_choices = nonnegative_int(interaction, "min-choices", default=0)
+      max_choices = nonnegative_int(interaction, "max-choices")
+    }
     for choice in interaction.children {
       if choice.name() != "qti-simple-choice" {
         continue
@@ -182,10 +205,16 @@ pub fn compile_item(
         text: choice.all_text.to_string().trim().to_owned(),
       })
     }
-    if choices.length() < 2 {
+    if ordered {
+      let (minimum, maximum) = order_limits(interaction, choices.length())
+      min_choices = minimum
+      max_choices = maximum
+    }
+    let needed = if ordered { 1 } else { 2 }
+    if choices.length() < needed {
       raise InvalidItem(
         interaction.location(),
-        "a choice interaction needs at least two choices",
+        "interaction needs at least \{needed} choice(s)",
       )
     }
     if (cardinality == Single && max_choices != 1) ||
@@ -221,6 +250,18 @@ pub fn compile_item(
   }
   if !choices.is_empty() {
     if correct is Some(values) {
+      if ordered {
+        let seen : Map[String, Bool] = Map([])
+        for value in values {
+          if seen.contains(value) {
+            raise InvalidItem(
+              declaration.location(),
+              "duplicate ordered correct choice '\{value}'",
+            )
+          }
+          seen[value] = true
+        }
+      }
       if values.length() < min_choices ||
         (max_choices != 0 && values.length() > max_choices) {
         raise InvalidItem(
@@ -409,16 +450,19 @@ fn collect_interactions(
     raise Unsupported(node.location(), "QTI element in a different namespace")
   }
   if (name == "qti-simple-choice" || name == "qti-prompt") &&
-    parent != "qti-choice-interaction" {
+    parent != "qti-choice-interaction" &&
+    parent != "qti-order-interaction" {
     raise InvalidItem(
       node.location(),
-      "element must be a child of qti-choice-interaction",
+      "element must be a child of a choice or order interaction",
     )
   }
   if name == "qti-item-body" && parent != "" {
     raise InvalidItem(node.location(), "nested item body")
   }
-  if name == "qti-choice-interaction" || name == "qti-text-entry-interaction" {
+  if name == "qti-choice-interaction" ||
+    name == "qti-text-entry-interaction" ||
+    name == "qti-order-interaction" {
     found.push(node)
   } else if ![
       "qti-item-body", "qti-simple-choice", "qti-prompt", "p", "div", "span", "br",

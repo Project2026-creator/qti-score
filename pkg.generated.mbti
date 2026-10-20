@@ -95,6 +95,7 @@ pub impl ToJson for BatchRow
 pub(all) enum Cardinality {
   Single
   Multiple
+  Ordered
 } derive(Eq, @debug.Debug)
 pub fn Cardinality::equal(Self, Self) -> Bool
 pub fn Cardinality::not_equal(Self, Self) -> Bool
@@ -171,6 +172,7 @@ pub(all) enum Response {
   Null
   Single(String)
   Multiple(Array[String])
+  Ordered(Array[String])
   Number(Double)
 } derive(Eq, @debug.Debug)
 pub fn Response::equal(Self, Self) -> Bool

@@ -11,7 +11,7 @@ fn main {
     args[offset] == "--help" ||
     args[offset] == "help" {
     println(
-      "QTI Score 0.4.0\n  describe ITEM.xml\n  score ITEM.xml RESPONSE.json\n  explain ITEM.xml RESPONSE.json\n  batch ITEM.xml RESPONSES.jsonl\n  inspect-package ARCHIVE.zip\n  package-score ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-explain ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-batch ARCHIVE.zip ATTEMPTS.jsonl [--csv]\n\nResponses: {\"RESPONSE\": \"A\"}, {\"RESPONSE\": [\"A\",\"B\"]}, {\"RESPONSE\": 100.5}, or {\"RESPONSE\": null}\nBatch rows: {\"attempt_id\":\"a\",\"resource_id\":\"choice\",\"response\":{\"RESPONSE\":\"A\"}}\nExplain is an explicit developer diagnostic and may reveal scoring rules.",
+      "QTI Score 0.5.0\n  describe ITEM.xml\n  score ITEM.xml RESPONSE.json\n  explain ITEM.xml RESPONSE.json\n  batch ITEM.xml RESPONSES.jsonl\n  inspect-package ARCHIVE.zip\n  package-score ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-explain ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-batch ARCHIVE.zip ATTEMPTS.jsonl [--csv]\n\nResponses: {\"RESPONSE\": \"A\"}, {\"RESPONSE\": [\"A\",\"B\"]}, {\"RESPONSE\": 100.5}, or {\"RESPONSE\": null}\nBatch rows: {\"attempt_id\":\"a\",\"resource_id\":\"choice\",\"response\":{\"RESPONSE\":\"A\"}}\nExplain is an explicit developer diagnostic and may reveal scoring rules.",
     )
     return
   }

@@ -31,6 +31,14 @@ Responses are plain objects with an optional `RESPONSE` member: string, finite n
 
 QTI support is the documented subset in the repository README. Numeric rules contain one response condition with ordered branches, `qti-equal`/`qti-is-null` predicates and literal float SCORE assignments. Relative tolerance uses a fixed nonnegative first operand; other expressions and negative relative references are rejected explicitly. This package does not claim full QTI conformance.
 
+## Ordered responses
+
+QTI `qti-order-interaction` is supported with `ordered/identifier` declarations and `match_correct`. Pass the ordered identifiers as a string array, for example `item.score({RESPONSE:['Locate','Adapt']})`. The core checks each position; a different order with the same identifiers does not match. No per-position partial credit or ordered mapping is inferred. `describe().cardinality` can now be `ordered`; metadata choices remain in authored display order and do not reveal the correct sequence.
+
+If `min-choices` is omitted, all choices must be ordered and `max-choices` is ignored semantically (its numeric syntax is still checked). With an explicit minimum, it must be at least one; the maximum defaults to the available choice count, with `1 <= min <= max <= count`. Metadata exposes the effective bounds. Nonempty responses must fit that range and contain unique, known choice identifiers. Null, an omitted RESPONSE, or an empty array is unanswered; a scalar, an empty-string member or a duplicate is an error. Explanation steps add `comparison:'ordered'` to the existing `match_correct` operation and share the normal scorer.
+
+Imported packages and `scoreAttempts` interpret arrays using each item's cardinality, so no new JSONL shape is needed. The standalone SDK has no JavaScript order scorer. Version 0.5.0 expands `ItemDescription.cardinality` to `'single' | 'multiple' | 'ordered'`; exhaustive consumers should handle the additional case. The browser demo offers keyboard buttons for complete and subset orders, initially leaving the response unanswered. Presentation shuffling, graphical ordering and other ordered base types are outside this demo's supported profile.
+
 For development, run `npm ci --prefix sdk --ignore-scripts` from the repository root, then `python tools/project.py check`. TypeScript is a development dependency only.
 
 ## Import content packages

@@ -14,6 +14,61 @@ const hasCode = code => cause => cause instanceof QtiScoreError && cause.code ==
 const packageBytes = () => readFileSync(new URL('../web/sample-package.zip', import.meta.url));
 const packageAttempts = () => readFileSync(new URL('../examples/package-attempts.jsonl', import.meta.url), 'utf8');
 
+test('ordered arrays compare positions and retain the caller sequence', () => {
+  const item = compileItem(fixture('order'));
+  const values = ['Analyze', 'Design', 'Develop', 'Implement', 'Evaluate'];
+  try {
+    assert.equal(item.describe().cardinality, 'ordered');
+    assert.equal(item.describe().min_choices, 5);
+    assert.equal(item.describe().max_choices, 5);
+    assert.equal(item.score({ RESPONSE: values }).score, 1);
+    assert.deepEqual(item.score({ RESPONSE: values }), evaluateItem(fixture('order'), { RESPONSE: values }));
+    const reversed = [...values].reverse();
+    const explanation = item.explain({ RESPONSE: reversed });
+    assert.equal(explanation.result.score, 0);
+    assert.equal(explanation.result.matches_correct, false);
+    assert.equal(explanation.steps.at(-1).details.comparison, 'ordered');
+    assert.deepEqual(values, ['Analyze', 'Design', 'Develop', 'Implement', 'Evaluate']);
+    assert.deepEqual(reversed, ['Evaluate', 'Implement', 'Develop', 'Design', 'Analyze']);
+    assert.equal(item.scoreBatch([{ RESPONSE: values }, { RESPONSE: reversed }, {}])[2].result.status, 'unanswered');
+    const metadata = item.describe();
+    metadata.choices.reverse();
+    assert.equal(item.describe().choices[0].identifier, 'Develop');
+  } finally { item.dispose(); }
+});
+
+test('ordered subsets reject repeated/unknown choices and distinguish NULL from invalid containers', () => {
+  const item = compileItem(fixture('order-subset'));
+  try {
+    assert.equal(item.score({ RESPONSE: ['Locate', 'Adapt'] }).score, 1);
+    assert.equal(item.score({ RESPONSE: ['Adapt', 'Locate'] }).score, 0);
+    assert.equal(item.score({ RESPONSE: ['Locate', 'Adapt', 'Rank'] }).score, 0);
+    for (const value of [[], null]) assert.equal(item.score({ RESPONSE: value }).status, 'unanswered');
+    for (const value of [['Locate'], ['Locate', 'Locate'], ['Locate', 'missing'],
+      ['Locate', 'Adapt', 'Rank', 'Skip'], ['Locate', ''], 'Locate', '', 1]) {
+      assert.throws(() => item.score({ RESPONSE: value }), hasCode('invalid_response'));
+    }
+  } finally { item.dispose(); }
+});
+
+test('ordered package items and batch reports use the same positional scorer', () => {
+  const bundle = importPackage(readFileSync(new URL('../web/order-package.zip', import.meta.url)));
+  const item = bundle.getItem('priorities');
+  try {
+    assert.equal(bundle.describe().ready_count, 2);
+    assert.ok(bundle.describe().items.every(entry => entry.status === 'ready' && entry.item.cardinality === 'ordered'));
+    const source = readFileSync(new URL('../examples/order-attempts.jsonl', import.meta.url), 'utf8');
+    const { report, csv } = bundle.scoreAttempts(source);
+    assert.equal(report.scored_count, 3);
+    assert.equal(report.error_count, 1);
+    assert.deepEqual(report.rows.map(row => row.result?.score ?? null), [1, 1, 0, null]);
+    assert.deepEqual(report.attempts.map(attempt => attempt.score_sum), [2, 0]);
+    assert.ok(csv.includes('false,,,,"invalid_response"'));
+    bundle.dispose();
+    assert.equal(item.score({ RESPONSE: ['Locate', 'Adapt'] }).score, 1);
+  } finally { item.dispose(); bundle.dispose(); }
+});
+
 test('package batch groups attempts and retains errors without assigning zero scores', () => {
   const bundle = importPackage(packageBytes());
   try {

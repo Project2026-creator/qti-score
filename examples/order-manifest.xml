@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1" identifier="ordering-bank">
+  <organizations/>
+  <resources>
+    <resource identifier="procedure" type="imsqti_item_xmlv3p0" href="items/order.xml"><file href="items/order.xml"/></resource>
+    <resource identifier="priorities" type="imsqti_item_xmlv3p0" href="items/order-subset.xml"><file href="items/order-subset.xml"/></resource>
+  </resources>
+</manifest>

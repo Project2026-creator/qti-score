@@ -51,7 +51,7 @@ fn Item::execute(
     }
     Single(s) => {
       if self.cardinality != Single {
-        raise InvalidResponse("expected a multiple response")
+        raise InvalidResponse("string response requires single cardinality")
       }
       if s == "" || (self.base_type.is_numeric() && s.trim() == "") {
         []
@@ -61,11 +61,22 @@ fn Item::execute(
     }
     Multiple(xs) => {
       if self.cardinality != Multiple {
-        raise InvalidResponse("expected a single response")
+        raise InvalidResponse("multiple response requires multiple cardinality")
       }
       if xs.any(s => s == "") {
         raise InvalidResponse(
           "NULL members are not permitted in a multiple response",
+        )
+      }
+      xs.copy()
+    }
+    Ordered(xs) => {
+      if self.cardinality != Ordered {
+        raise InvalidResponse("ordered response requires ordered cardinality")
+      }
+      if xs.any(s => s == "") {
+        raise InvalidResponse(
+          "NULL members are not permitted in an ordered response",
         )
       }
       xs.copy()
@@ -157,14 +168,35 @@ fn Item::execute(
       }
     }
   }
-  let matches_correct = self.correct.map(correct => bag_equal(values, correct))
+  if self.cardinality == Ordered {
+    let seen : Map[String, Bool] = Map([])
+    for value in values {
+      if seen.contains(value) {
+        raise InvalidResponse("duplicate ordered choice '\{value}'")
+      }
+      seen[value] = true
+    }
+  }
+  let matches_correct = self.correct.map(correct => {
+    if self.cardinality == Ordered {
+      values == correct
+    } else {
+      bag_equal(values, correct)
+    }
+  })
   let score = match self.template {
     MatchCorrect => {
       let score = if matches_correct == Some(true) { 1.0 } else { 0.0 }
-      record_step(steps, "match_correct", self.processing_source, {
-        "matched": matches_correct == Some(true),
-        "score": score,
-      })
+      let details : Json = if self.cardinality == Ordered {
+        {
+          "matched": matches_correct == Some(true),
+          "score": score,
+          "comparison": "ordered",
+        }
+      } else {
+        { "matched": matches_correct == Some(true), "score": score }
+      }
+      record_step(steps, "match_correct", self.processing_source, details)
       score
     }
     MapResponse => {

@@ -14,6 +14,7 @@ pub(all) suberror QtiError {
 pub(all) enum Cardinality {
   Single
   Multiple
+  Ordered
 } derive(Debug, Eq)
 
 ///|
@@ -33,11 +34,12 @@ pub(all) enum Template {
 
 ///|
 /// The caller supplies the cardinality explicitly. Empty strings and empty
-/// multiple containers become QTI NULL; nonempty text is never trimmed.
+/// multiple/ordered containers become QTI NULL; nonempty text is never trimmed.
 pub(all) enum Response {
   Null
   Single(String)
   Multiple(Array[String])
+  Ordered(Array[String])
   Number(Double)
 } derive(Debug, Eq)
 

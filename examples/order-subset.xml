@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="remediation" title="补救教学的先后" adaptive="false" time-dependent="false" xml:lang="zh-CN">
+  <qti-response-declaration identifier="RESPONSE" cardinality="ordered" base-type="identifier">
+    <qti-correct-response><qti-value>Locate</qti-value><qti-value>Adapt</qti-value></qti-correct-response>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-order-interaction response-identifier="RESPONSE" min-choices="2" max-choices="3" shuffle="false">
+      <qti-prompt>选择开展补救教学必需的环节，并按先后排列。可提交 2–3 项。</qti-prompt>
+      <qti-simple-choice identifier="Adapt">调整教学支持</qti-simple-choice>
+      <qti-simple-choice identifier="Rank">公开学习者排名</qti-simple-choice>
+      <qti-simple-choice identifier="Locate">定位学习困难</qti-simple-choice>
+      <qti-simple-choice identifier="Skip">跳过反馈</qti-simple-choice>
+    </qti-order-interaction>
+  </qti-item-body>
+  <qti-response-processing template="https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/match_correct.xml"/>
+</qti-assessment-item>

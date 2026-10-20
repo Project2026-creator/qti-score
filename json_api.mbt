@@ -84,7 +84,10 @@ fn Item::parse_response_json(
       },
     )
   }
-  response_from_json(parsed)
+  match response_from_json(parsed) {
+    Multiple(values) if self.cardinality == Ordered => Ordered(values)
+    response => response
+  }
 }
 
 ///|
@@ -118,6 +121,7 @@ pub fn Item::describe(self : Item) -> Json {
     "cardinality": match self.cardinality {
       Single => "single"
       Multiple => "multiple"
+      Ordered => "ordered"
     },
     "base_type": self.base_type.name(),
     "template": match self.template {

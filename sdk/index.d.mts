@@ -11,7 +11,7 @@ export interface ItemDescription {
   readonly identifier: string;
   readonly title: string;
   readonly response_identifier: 'RESPONSE';
-  readonly cardinality: 'single' | 'multiple';
+  readonly cardinality: 'single' | 'multiple' | 'ordered';
   readonly base_type: 'identifier' | 'string' | 'integer' | 'float';
   readonly template: 'match_correct' | 'map_response' | 'numeric_rules';
   readonly prompt: string;

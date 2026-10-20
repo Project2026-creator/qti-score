@@ -1,10 +1,12 @@
 import { createBatchPanel } from './batch.mjs';
+import { createOrderControl } from './order.mjs';
 
 const $ = id => document.getElementById(id);
 const batchPanel = createBatchPanel();
 const source = $('xml-source');
 let engine;
 let compiledItem;
+let orderControl;
 let contentPackage;
 let item;
 let activeXml = '';
@@ -18,6 +20,7 @@ function showError(id, error) {
 
 function response() {
   if (!item) return { RESPONSE: null };
+  if (item.cardinality === 'ordered') return orderControl?.response() || { RESPONSE: null };
   if (item.base_type !== 'identifier') return { RESPONSE: $('text-answer')?.value || '' };
   const values = [...$('answer-controls').querySelectorAll('input:checked')].map(input => input.value);
   return { RESPONSE: item.cardinality === 'single' ? values[0] ?? null : values };
@@ -46,7 +49,7 @@ function renderExplanation(steps) {
     switch (step.operation) {
       case 'response': text = detail.status === 'unanswered' ? '未作答，进入空响应处理。' : `接收 ${detail.count} 个响应值。`; break;
       case 'null_response': text = '空响应按标准模板得 0 分，跳过映射上下界。'; break;
-      case 'match_correct': text = `${detail.matched ? '完全匹配' : '未完全匹配'}，得 ${detail.score} 分。`; break;
+      case 'match_correct': text = `${detail.comparison === 'ordered' ? '按位置比较顺序：' : ''}${detail.matched ? '完全匹配' : '未完全匹配'}，得 ${detail.score} 分。`; break;
       case 'duplicate_ignored': text = `重复值 ${detail.value} 不重复计分。`; break;
       case 'map_value': text = `${detail.value}：${detail.used_default ? '使用默认映射' : `命中第 ${detail.entry_index + 1} 项映射`}，贡献 ${detail.contribution} 分。`; break;
       case 'mapping_bounds': text = `映射合计 ${detail.raw_score} 分，${detail.adjusted ? '按上下界调整为' : '最终为'} ${detail.score} 分。`; break;
@@ -73,12 +76,15 @@ function renderQuestion() {
   $('question-prompt').textContent = item.prompt;
   $('template-name').textContent = item.template;
   const fieldset = $('answer-controls');
+  orderControl = null;
   fieldset.replaceChildren();
   const legend = document.createElement('legend');
   legend.className = 'sr-only';
-  legend.textContent = item.base_type !== 'identifier' ? '填写答案' : '选择答案';
+  legend.textContent = item.cardinality === 'ordered' ? '排列答案' : item.base_type !== 'identifier' ? '填写答案' : '选择答案';
   fieldset.append(legend);
-  if (item.base_type !== 'identifier') {
+  if (item.cardinality === 'ordered') {
+    orderControl = createOrderControl(fieldset, item, () => { updateResponse(); resetResult(); });
+  } else if (item.base_type !== 'identifier') {
     const label = document.createElement('label');
     label.className = 'text-label';
     label.htmlFor = 'text-answer';
@@ -317,10 +323,17 @@ $('answer-form').addEventListener('submit', event => {
   }
   $('score-value').textContent = String(value.score);
   $('result-message').textContent = value.status === 'unanswered' ? '当前没有作答，已按题目声明的规则评分。' : '已按题目声明的规则完成评分。';
-  $('match-message').textContent = value.status === 'unanswered' ? '' : value.matches_correct === null ? '题目未提供标准响应。' : value.matches_correct ? '与标准响应完全匹配。' : '未与标准响应完全匹配；评分规则仍可给予部分分数。';
+  let matchMessage = '';
+  if (value.status !== 'unanswered') {
+    if (value.matches_correct === null) matchMessage = '题目未提供标准响应。';
+    else if (value.matches_correct) matchMessage = '与标准响应完全匹配。';
+    else if (item.template === 'match_correct') matchMessage = '未与标准响应完全匹配；本题按完全匹配评分。';
+    else matchMessage = '未与标准响应完全匹配；评分规则仍可给予部分分数。';
+  }
+  $('match-message').textContent = matchMessage;
 });
 $('answer-controls').addEventListener('input', () => { updateResponse(); resetResult(); });
-$('clear-answer').addEventListener('click', () => { $('answer-form').reset(); updateResponse(); resetResult(); });
+$('clear-answer').addEventListener('click', () => { $('answer-form').reset(); orderControl?.reset(); updateResponse(); resetResult(); });
 $('compile').addEventListener('click', () => { ++loading; compile(); });
 source.addEventListener('input', () => {
   ++loading;

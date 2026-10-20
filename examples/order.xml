@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="addie" title="教学设计的 ADDIE 流程" adaptive="false" time-dependent="false" xml:lang="zh-CN">
+  <qti-response-declaration identifier="RESPONSE" cardinality="ordered" base-type="identifier">
+    <qti-correct-response><qti-value>Analyze</qti-value><qti-value>Design</qti-value><qti-value>Develop</qti-value><qti-value>Implement</qti-value><qti-value>Evaluate</qti-value></qti-correct-response>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-order-interaction response-identifier="RESPONSE" shuffle="false" orientation="vertical">
+      <qti-prompt>将 ADDIE 教学设计的五个环节按顺序排列。</qti-prompt>
+      <qti-simple-choice identifier="Develop">开发教学材料</qti-simple-choice>
+      <qti-simple-choice identifier="Evaluate">评价教学效果</qti-simple-choice>
+      <qti-simple-choice identifier="Analyze">分析学习需求</qti-simple-choice>
+      <qti-simple-choice identifier="Implement">实施教学</qti-simple-choice>
+      <qti-simple-choice identifier="Design">设计教学方案</qti-simple-choice>
+    </qti-order-interaction>
+  </qti-item-body>
+  <qti-response-processing template="https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/match_correct.xml"/>
+</qti-assessment-item>

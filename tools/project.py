@@ -23,6 +23,7 @@ OFFICIAL_BASE = "https://raw.githubusercontent.com/1EdTech/qti-examples/{}/qtiv3
 OFFICIAL_HASHES = {
     "choice.xml": "9d762846f7ab3232de9549a956991afa761f2fd1f1dc276e98efe85c16ffea1e",
     "choice_multiple.xml": "c0cdfc4017844b8b8b54a52eac149ea227d2c0dfd33cd0086ff9b1c2871a2cb7",
+    "order.xml": "f47faff0c906c31a2e9cb3d2c7c1558278007cf47bf5593e42bcf41455185da8",
 }
 
 
@@ -60,18 +61,23 @@ def command(args, env=None, input_text=None):
 
 
 def build_sample_package():
-    destination = ROOT / "web/sample-package.zip"
-    with zipfile.ZipFile(str(destination), "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for path, source in [
+    examples = [
+        ("sample-package.zip", [
             ("imsmanifest.xml", "package-manifest.xml"),
             ("items/single.xml", "single.xml"), ("items/numeric.xml", "numeric.xml"),
             ("items/essay.xml", "essay.xml"), ("assets/note.txt", "package-note.txt"),
-        ]:
-            info = zipfile.ZipInfo(path, date_time=(2026, 1, 1, 0, 0, 0))
-            info.compress_type = zipfile.ZIP_DEFLATED
-            info.external_attr = 0o100644 << 16
-            archive.writestr(info, (ROOT / "examples" / source).read_bytes())
-    return destination
+        ]),
+        ("order-package.zip", [("imsmanifest.xml", "order-manifest.xml"),
+                               ("items/order.xml", "order.xml"), ("items/order-subset.xml", "order-subset.xml")]),
+    ]
+    for filename, files in examples:
+        with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for path, source in files:
+                info = zipfile.ZipInfo(path, date_time=(2026, 1, 1, 0, 0, 0))
+                info.compress_type = zipfile.ZIP_DEFLATED
+                info.external_attr = 0o100644 << 16
+                archive.writestr(info, (ROOT / "examples" / source).read_bytes())
+    return ROOT / "web/sample-package.zip"
 
 
 def build_web(moon, env):
@@ -109,7 +115,7 @@ def extract_json(stdout):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.4.0",
+        "module": "Project2026-creator/qti-score", "version": "0.5.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "feature_cases": [],
     }
@@ -150,6 +156,12 @@ def verify(moon, env, output, offline=False):
             (["H", "H", "O"], 2), (["H", "O", "N"], 0),
             (None, 0), ([], 0),
         ]),
+        ("order.xml", [
+            (["DriverC", "DriverA", "DriverB"], 1), (["DriverC", "DriverB", "DriverA"], 0),
+            (["DriverA", "DriverC", "DriverB"], 0), (["DriverA", "DriverB", "DriverC"], 0),
+            (["DriverB", "DriverC", "DriverA"], 0), (["DriverB", "DriverA", "DriverC"], 0),
+            (None, 0), ([], 0),
+        ]),
     ]
     bridge_inputs = []
     for filename, cases in sources:
@@ -179,6 +191,10 @@ def verify(moon, env, output, offline=False):
     for name, cases in [
         ("numeric", [(100, 2), (100.5, 1), (104, 0.5), (95, 0.5), (105, 0.5), (110, 0), (None, 0), ("", 0)]),
         ("integer", [(42, 1), ("0042", 1), (41, 0), (None, 0)]),
+        ("order", [(["Analyze", "Design", "Develop", "Implement", "Evaluate"], 1),
+                   (["Develop", "Evaluate", "Analyze", "Implement", "Design"], 0), (None, 0), ([], 0)]),
+        ("order-subset", [(["Locate", "Adapt"], 1), (["Adapt", "Locate"], 0),
+                          (["Locate", "Adapt", "Rank"], 0), ([], 0)]),
     ]:
         item_path = ROOT / "examples" / (name + ".xml")
         xml = item_path.read_text(encoding="utf-8")
@@ -191,7 +207,7 @@ def verify(moon, env, output, offline=False):
             actual = extract_json(score_run.stdout)
             explanation = extract_json(explanation_run.stdout)
             if actual.get("ok") is not True or actual["result"]["score"] != expected or "steps" in actual:
-                raise AssertionError("Unexpected numeric CLI result: {}".format(actual))
+                raise AssertionError("Unexpected feature CLI result: {}".format(actual))
             if explanation.get("ok") is not True or explanation["result"] != actual["result"] or not explanation.get("steps"):
                 raise AssertionError("CLI explanation disagrees with score: {}".format(explanation))
             report["feature_cases"].append({"fixture": name, "response": response_object,
@@ -293,6 +309,7 @@ try {
          '{"attempt_id":"unknown","resource_id":"missing","response":{}}', 4, 0, 4, 1),
         ("empty", "\uFEFF\n \r\n", 0, 0, 0, 0),
         ("quoted-identities", quoted_attempts, 2, 2, 0, 0),
+        ("ordered-package", (ROOT / "examples/order-attempts.jsonl").read_text(encoding="utf-8"), 4, 3, 1, 1),
     ]
     batch_script = """
 import {readFileSync} from 'node:fs';
@@ -303,9 +320,10 @@ finally {bundle.dispose();}
 """
     report["batch_cases"] = []
     for name, source, count, scored, errors, expected_exit in batch_scenarios:
+        batch_archive = ROOT / "web/order-package.zip" if name == "ordered-package" else archive
         path = cache / ("batch-" + name + ".jsonl")
         path.write_text(source, encoding="utf-8")
-        arguments = [moon, "run", "cmd/main", "--", "package-batch", str(archive), str(path)]
+        arguments = [moon, "run", "cmd/main", "--", "package-batch", str(batch_archive), str(path)]
         cli = subprocess.run(arguments, cwd=str(ROOT), env=env, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, encoding="utf-8", errors="replace")
         parsed = extract_json(cli.stdout)
@@ -314,7 +332,7 @@ finally {bundle.dispose();}
                 [cli_report.get(key) for key in ["row_count", "scored_count", "error_count"]] != [count, scored, errors]:
             raise AssertionError("Unexpected package batch result: {}".format(parsed))
         sdk_evaluation = json.loads(command([node, "--input-type=module", "-e", batch_script,
-                                             (sdk / "index.mjs").as_uri(), str(archive)], env, source).stdout)
+                                             (sdk / "index.mjs").as_uri(), str(batch_archive)], env, source).stdout)
         if sdk_evaluation["report"] != cli_report:
             raise AssertionError("CLI and SDK batch reports differ")
         csv_run = subprocess.run(arguments + ["--csv"], cwd=str(ROOT), env=env,
@@ -337,6 +355,8 @@ finally {bundle.dispose();}
             raise AssertionError("Successful-row sums differ from authored expectations")
         if name == "quoted-identities" and [row["attempt_id"] for row in decoded] != ['学生,"A"', "'=1+2"]:
             raise AssertionError("CSV text quoting/prefix mismatch")
+        if name == "ordered-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [1, 1, 0, None]:
+            raise AssertionError("Ordered package batch did not preserve sequence semantics")
         report["batch_cases"].append({"name": name, "expected_exit": expected_exit,
                                       "cli_report": cli_report, "sdk_report": sdk_evaluation["report"],
                                       "csv": exported, "csv_decoded": decoded})
@@ -378,7 +398,7 @@ finally {bundle.dispose();}
     report["passed"] = True
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print("All checks passed; {} official, {} numeric, {} package and {} batch cases agree across entry points.".format(
+    print("All checks passed; {} official, {} feature, {} package and {} batch cases agree across entry points.".format(
         len(report["official_cases"]), len(report["feature_cases"]), len(package_cases), len(batch_scenarios)))
     print("Results: {}".format(output))
 

@@ -7,6 +7,10 @@ const score: Score = item.score(response);
 const explanation: Explanation = item.explain({ RESPONSE: 100.5 });
 const batch: BatchResult[] = item.scoreBatch([response, {}, { RESPONSE: null }] as const);
 const metadata: ItemDescription = describeItem('<xml/>');
+if (metadata.cardinality === 'ordered') {
+  const firstChoice: string = metadata.choices[0].identifier;
+  void firstChoice;
+}
 const oneShot: Score = evaluateItem('<xml/>', { RESPONSE: 'A' });
 for (const row of batch) {
   if (row.ok) { const value: number = row.result.score; void value; }

@@ -122,7 +122,7 @@ test "templates require RESPONSE and float SCORE" {
 ///|
 test "unsupported cardinalities, invalid numeric declarations and custom interactions fail closed" {
   rejected(
-    fixture("single").swap("cardinality=\"single\"", "cardinality=\"ordered\""),
+    fixture("single").swap("cardinality=\"single\"", "cardinality=\"record\""),
     "unsupported",
   )
   rejected(
