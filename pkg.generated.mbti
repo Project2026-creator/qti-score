@@ -12,6 +12,8 @@ pub fn describe_json(String) -> String
 
 pub fn evaluate_json(String, String) -> String
 
+pub fn explain_json(String, String) -> String
+
 pub fn response_from_json(Json) -> Response raise QtiError
 
 // Errors
@@ -24,6 +26,7 @@ pub(all) suberror QtiError {
 } derive(Eq, @debug.Debug)
 pub fn QtiError::code(Self) -> String
 pub fn QtiError::equal(Self, Self) -> Bool
+pub fn QtiError::location(Self) -> SourceLocation?
 pub fn QtiError::message(Self) -> String
 pub fn QtiError::not_equal(Self, Self) -> Bool
 pub fn QtiError::to_json(Self) -> Json
@@ -34,6 +37,8 @@ pub impl ToJson for QtiError
 pub(all) enum BaseType {
   Identifier
   Text
+  Integer
+  Float
 } derive(Eq, @debug.Debug)
 pub fn BaseType::equal(Self, Self) -> Bool
 pub fn BaseType::not_equal(Self, Self) -> Bool
@@ -55,6 +60,13 @@ pub fn Choice::equal(Self, Self) -> Bool
 pub fn Choice::not_equal(Self, Self) -> Bool
 pub fn Choice::to_repr(Self) -> @debug.Repr
 
+pub struct Explanation {
+  result : Score
+  steps : Array[ScoringStep]
+} derive(ToJson, @debug.Debug)
+pub fn Explanation::to_json(Self) -> Json
+pub fn Explanation::to_repr(Self) -> @debug.Repr
+
 pub struct Item {
   identifier : String
   title : String
@@ -70,6 +82,8 @@ pub struct Item {
 pub fn Item::choices(Self) -> Array[Choice]
 pub fn Item::correct_response(Self) -> Array[String]?
 pub fn Item::describe(Self) -> Json
+pub fn Item::explain(Self, Response) -> Explanation raise QtiError
+pub fn Item::explain_json(Self, String) -> Explanation raise QtiError
 pub fn Item::score(Self, Response) -> Score raise QtiError
 pub fn Item::score_json(Self, String) -> Score raise QtiError
 pub fn Item::to_repr(Self) -> @debug.Repr
@@ -88,6 +102,7 @@ pub(all) enum Response {
   Null
   Single(String)
   Multiple(Array[String])
+  Number(Double)
 } derive(Eq, @debug.Debug)
 pub fn Response::equal(Self, Self) -> Bool
 pub fn Response::not_equal(Self, Self) -> Bool
@@ -112,9 +127,27 @@ pub fn Score::to_json(Self) -> Json
 pub fn Score::to_repr(Self) -> @debug.Repr
 pub impl ToJson for Score
 
+pub struct ScoringStep {
+  operation : String
+  location : SourceLocation
+  details : Json
+} derive(ToJson, @debug.Debug)
+pub fn ScoringStep::to_json(Self) -> Json
+pub fn ScoringStep::to_repr(Self) -> @debug.Repr
+
+pub struct SourceLocation {
+  line : Int32
+  column : Int32
+} derive(Eq, ToJson, @debug.Debug)
+pub fn SourceLocation::equal(Self, Self) -> Bool
+pub fn SourceLocation::not_equal(Self, Self) -> Bool
+pub fn SourceLocation::to_json(Self) -> Json
+pub fn SourceLocation::to_repr(Self) -> @debug.Repr
+
 pub(all) enum Template {
   MatchCorrect
   MapResponse
+  NumericRules
 } derive(Eq, @debug.Debug)
 pub fn Template::equal(Self, Self) -> Bool
 pub fn Template::not_equal(Self, Self) -> Bool

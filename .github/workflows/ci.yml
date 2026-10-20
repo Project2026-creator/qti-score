@@ -25,5 +25,7 @@ jobs:
           node-version: '22'
       - name: Resolve Mooncakes dependencies
         run: moon update
+      - name: Install SDK type checker
+        run: npm ci --prefix sdk --ignore-scripts
       - name: Check QTI library and host entry points
         run: python tools/project.py check

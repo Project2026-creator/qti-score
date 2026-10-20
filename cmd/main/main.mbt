@@ -11,13 +11,13 @@ fn main {
     args[offset] == "--help" ||
     args[offset] == "help" {
     println(
-      "QTI Score 0.1.0\n  describe ITEM.xml\n  score ITEM.xml RESPONSE.json\n  batch ITEM.xml RESPONSES.jsonl\n\nResponses: {\"RESPONSE\": \"A\"}, {\"RESPONSE\": [\"A\",\"B\"]}, or {\"RESPONSE\": null}",
+      "QTI Score 0.2.0\n  describe ITEM.xml\n  score ITEM.xml RESPONSE.json\n  explain ITEM.xml RESPONSE.json\n  batch ITEM.xml RESPONSES.jsonl\n\nResponses: {\"RESPONSE\": \"A\"}, {\"RESPONSE\": [\"A\",\"B\"]}, {\"RESPONSE\": 100.5}, or {\"RESPONSE\": null}\nExplain is an explicit developer diagnostic and may reveal scoring rules.",
     )
     return
   }
   let command = args[offset]
   let expected = if command == "describe" { 2 } else { 3 }
-  if !["describe", "score", "batch"].contains(command) ||
+  if !["describe", "score", "explain", "batch"].contains(command) ||
     args.length() != offset + expected {
     println(
       "{\"ok\":false,\"error\":{\"code\":\"usage\",\"message\":\"Use --help for command syntax\"}}",
@@ -32,7 +32,16 @@ fn main {
       println(result.stringify())
     } else {
       let input = @fs.read_file_to_string(args[offset + 2])
-      if command == "score" {
+      if command == "explain" {
+        let explanation = item.explain_json(input)
+        let result : Json = {
+          "ok": true,
+          "item": item.describe(),
+          "result": explanation.result,
+          "steps": explanation.steps,
+        }
+        println(result.stringify())
+      } else if command == "score" {
         let score = item.score_json(input)
         let result : Json = {
           "ok": true,

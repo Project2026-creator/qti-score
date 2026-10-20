@@ -1,8 +1,8 @@
 # QTI Score
 
-A MoonBit library for compiling and scoring a focused subset of QTI 3 items. Supports single choice, multiple choice, and string text entry with the standard `match_correct` and `map_response` templates.
+A MoonBit library for compiling and scoring a focused subset of QTI 3 items. Supports choice, text and numeric entry, developer explanations, and an ESM JavaScript SDK backed by the same MoonBit core.
 
-QTI Score 将 QTI 3 题目编译成可重复使用的评分对象。核心库负责 XML 命名空间、响应类型、标准答案和映射规则；命令行与浏览器使用同一份实现。适用于测验平台接入、题目迁移验证和教育技术课程中的标准实验。
+QTI Score 将 QTI 3 题目编译成可重复使用的评分对象。核心库负责 XML 命名空间、响应类型、标准答案、映射和数值比较；命令行、浏览器与 JS SDK 使用同一份实现。适用于测验平台接入、题目迁移验证和教育技术课程中的标准实验。
 
 ## 快速运行
 
@@ -25,6 +25,12 @@ moon run cmd/main -- describe examples/single.xml
 # 文本填空：大小写部分得分 0.5
 moon run cmd/main -- score examples/text.xml examples/text-response.json
 
+# 数值填空：100.5 在绝对误差范围内，得 1 分
+moon run cmd/main -- score examples/numeric.xml examples/numeric-response.json
+
+# 显式获取开发者评分解释
+moon run cmd/main -- explain examples/numeric.xml examples/numeric-response.json
+
 # 同一题目的多次作答，逐行输出 JSON
 moon run cmd/main -- batch examples/multiple.xml examples/attempts.jsonl
 
@@ -32,7 +38,7 @@ moon run cmd/main -- batch examples/multiple.xml examples/attempts.jsonl
 python tools/project.py serve
 ```
 
-浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换三种示例、编辑或导入 XML，并查看作答和评分结果。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；`shuffle` 等呈现信息不改变评分计算，演示按原文顺序列出选项。
+浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换四种示例、编辑或导入 XML，并查看作答和评分结果。勾选“记录评分过程”后，提交作答会显示分支判断、映射贡献与分值限制。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；`shuffle` 等呈现信息不改变评分计算，演示按原文顺序列出选项。
 
 `tools/project.py` 优先使用 `--moon PATH` 或 `QTI_MOON` 指定的工具链，其次使用存在的 `_build/toolchain/bin/moon`，最后使用 PATH 中的 `moon`。它不会安装软件或修改系统工具链。首次准备环境请参见 [MoonBit 官方下载说明](https://www.moonbitlang.com/download/)；旧版工具链可能无法编译当前依赖使用的 `Int32` 类型。
 
@@ -65,9 +71,11 @@ let next = item.score_json("{\"RESPONSE\":[\"A\"]}")
 | `compile_item(xml, limits?)` | 编译题目并检查本库支持的语义边界 |
 | `Item::score(Response)` | 对类型化响应评分 |
 | `Item::score_json(text)` | 对 JSON 响应评分，复用题目 |
+| `Item::explain(Response)` / `Item::explain_json(text)` | 同一执行路径上的评分结果与开发者解释 |
 | `Item::describe()` | 返回题目、交互和选项的纯文本元信息 |
 | `evaluate_json(xml, response_json)` | 不抛异常的 JSON 宿主边界 |
 | `describe_json(xml)` | 不提交作答，编译并返回 JSON 元信息 |
+| `explain_json(xml, response_json)` | 显式返回结果与步骤的 JSON 宿主边界 |
 
 响应 JSON 为单个对象：
 
@@ -75,7 +83,7 @@ let next = item.score_json("{\"RESPONSE\":[\"A\"]}")
 {"RESPONSE":["A","C"]}
 ```
 
-单值用字符串；多值用字符串数组；`null` 或省略 `RESPONSE` 表示未作答。未知成员、重复键、数字或布尔响应会被拒绝。单基数响应必须用字符串，不能用单元素数组代替。
+标识符和文本单值用字符串，多值用字符串数组；数值题还接受有限 JSON 数字，例如 `{"RESPONSE":100.5}`。`null` 或省略 `RESPONSE` 表示未作答。未知成员、重复键、布尔响应会被拒绝；非数值题不能接收数字。单基数响应不能用单元素数组代替。类型化 API 对数值响应提供 `Response::Number(Double)`，也接受数值文本。
 
 评分对象包含：
 
@@ -84,6 +92,32 @@ let next = item.score_json("{\"RESPONSE\":[\"A\"]}")
 ```
 
 `matches_correct` 表示与作者声明的标准响应完全匹配，与映射得分分别计算。未声明标准响应时为 `null`。部分得分、同分替代答案都不自动等于“完全匹配”。
+
+数值题中该字段表示与标准值的精确数值相等；进入容差范围可获得分数，而 `matches_correct` 仍为 `false`。普通评分不返回解释；显式解释可能揭示评分规则，适合开发者诊断。每个步骤包含操作名、XML 源位置和结构化详情。
+
+## JavaScript SDK
+
+```sh
+python tools/project.py build-sdk
+node examples/use-sdk.mjs
+```
+
+独立 ESM 包生成到 `_build/sdk/qti-score/`，包括编译后的 MoonBit 核心、TypeScript 声明和许可文件，无运行时依赖。可以复制该目录，或用 `npm install /absolute/path/to/_build/sdk/qti-score` 接入自己的应用。SDK 尚未发布到 npm，包当前标记为 private。
+
+```js
+import { compileItem } from '@project2026-creator/qti-score';
+
+const item = compileItem(xmlText);
+try {
+  console.log(item.score({ RESPONSE: 100.5 }));
+  console.log(item.explain({ RESPONSE: 100.5 }));
+  console.log(item.scoreBatch([{ RESPONSE: 100 }, { RESPONSE: 'bad' }, {}]));
+} finally {
+  item.dispose();
+}
+```
+
+`compileItem` 编译一次，之后复用评分对象；`describe()` 每次返回独立元信息。单个模块最多保留 256 个活动编译对象，使用结束调用 `dispose()`；重复释放安全，释放后调用抛出 `disposed` 错误。`scoreBatch` 最多处理 4096 次作答，逐条返回成功或错误，错误不会中断后续行，索引从 0 开始。另有 `evaluateItem`、`describeItem` 一次性接口。浏览器工作台也通过 SDK 使用编译对象。完整接口与边界见 [SDK 文档](sdk/README.md)。
 
 ## 支持边界与评分语义
 
@@ -97,13 +131,27 @@ let next = item.score_json("{\"RESPONSE\":[\"A\"]}")
 - 空字符串、空多值容器与 `Null` 按 QTI NULL 处理。两种模板的 NULL 分支均得 **0**，跳过映射下界。非空文本不裁剪首尾空格。多值容器不得包含空字符串。
 - 非空响应受 `min-choices`／`max-choices` 约束；`max-choices=0` 表示不限制数量。题目中不存在的选项会报错。未作答可得到零分；阻止学习者跳题属于宿主应用的交互策略。
 
-首版不包含 QTI 2、多个响应的复合题、数值填空、ordered／record 类型、自定义评分表达式、模板变量、反馈执行、试卷编序和完整 XSD 校验。不支持的评分结构、属性、交互会明确返回错误。本库实现上述子集，未声称通过 1EdTech 产品认证。
+数值填空使用 `single/integer` 或 `single/float`，绑定 `qti-text-entry-interaction`。整数限定在 ±9,007,199,254,740,991 内；整数文本及原始 JSON 整数字面量不接受小数点或指数，防止先舍入后误判。浮点数允许十进制科学计数法，拒绝 NaN、无穷与溢出。数值文本去掉首尾空白，全空白视为 NULL；普通字符串保持原文。
+
+整数支持 `match_correct`；浮点题必须使用下列受限内联规则，避免将字符串匹配套到浮点比较上。数值 mapping 暂不支持。
+
+| 数值规则结构 | 当前支持 |
+|---|---|
+| `qti-response-processing` | 一个 `qti-response-condition`，最多 128 个有序分支 |
+| 分支 | 一个 `response-if`、若干 `response-else-if`、必需的最终 `response-else`；每个分支一个 SCORE 赋值 |
+| 条件 | `qti-is-null` 或 `qti-equal`；操作数为 RESPONSE、其正确值或数字常量 |
+| 数值相等 | exact、absolute、relative；容差为一或两个正数，边界默认包含，可分别排除 |
+| 赋值 | `qti-set-outcome-value identifier="SCORE"`，内容为有限 float 常量 |
+
+绝对容差以第一个操作数 x 为基准，比较第二个值 y 是否落在 `[x-t0, x+t1]`。相对容差按百分数计算为 `[x×(1-t0/100), x×(1+t1/100)]`；本库限定其第一个操作数为固定、非负的正确值或常量，负参考值可使用绝对容差。操作数顺序不会自动交换。比较使用 IEEE 754 双精度计算，不额外添加隐藏 epsilon。数值规则的 NULL 分支按作者赋值执行，未作答不强制归零。示例见 [numeric.xml](examples/numeric.xml)。
+
+当前不包含 QTI 2、多个响应的复合题、ordered／record 类型、通用评分表达式、模板变量、反馈执行、试卷编序和完整 XSD 校验。不支持的评分结构、属性、交互会明确返回错误。本库实现上述子集，未声称通过 1EdTech 产品认证。0.2.0 扩展了公开枚举 `BaseType`、`Response` 和 `Template`；使用穷尽模式匹配的调用者需要处理新增分支。
 
 默认 XML 上限为 **1,048,576 UTF-16 码元、128 层、30,000 个元素**；可传 `Limits` 调整，深度不允许超过 256。响应 JSON 上限为 1,048,576 码元、16 层；每次作答最多 4,096 个值，每个值最多 65,536 码元。DOCTYPE 和处理指令不在支持范围内。
 
 ## 错误与命令行退出码
 
-JSON 边界返回 `{ "ok": false, "error": { "code", "message", "location" } }`。XML 错误包含从 1 开始计数的行列位置，其余错误的 `location` 为 `null`。
+JSON 边界返回 `{ "ok": false, "error": { "code", "message", "location" } }`。XML 解析错误及已知位置的题目编译错误包含从 1 开始计数的行列位置；没有可定位 XML 节点的错误，其 `location` 为 `null`。
 
 | 错误码 | 含义 |
 |---|---|
@@ -122,17 +170,18 @@ moon fmt --check
 moon check --target all --deny-warn
 moon test --target all --deny-warn
 moon info --target all
+npm ci --prefix sdk --ignore-scripts
 python tools/project.py check
 ```
 
-最后一个命令会构建浏览器桥接模块，并以固定提交版本的官方单选、多选题目进行 **14 个评分场景**的核对，检查 CLI 与编译后的 MoonBit JS 桥接结果一致，同时检查 CLI 错误退出码。预期值根据标准模板及题目本身的映射编写，不由待测评分器生成。
+最后一个命令会构建浏览器桥接模块与独立 SDK，运行 SDK 接入测试和 TypeScript 类型检查，并以固定提交版本的官方单选、多选题目进行 **14 个评分场景**核对，另检查 **12 个本地数值场景**。CLI、桥接与 SDK 的结果必须一致，数值评分解释也逐步对照，同时检查 CLI 错误退出码。预期值根据标准规则与题目声明编写，不由待测评分器生成。TypeScript 是 SDK 的开发依赖，由前一条 npm 命令安装；普通 MoonBit 核心测试不依赖它。
 
 官方 XML 首次运行时下载到 `_build/reference/`，校验固定 SHA-256 后使用，后续可用 `--offline` 运行。结构化结果默认保存到 `_build/validation.json`，也可用 `--output PATH` 指定位置。检查还覆盖批处理空行、失败后继续处理及退出码。普通 MoonBit 测试使用仓库内自编题目，依赖下载后可离线运行。
 
 ## 依据与依赖
 
 - [QTI 3 规范、示例与评分模板](https://www.1edtech.org/standards/qti/index)
-- [QTI 3 信息模型](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/imsqti_asi_v3p0p1_infomodel_v1p0.html)，特别是 Mapping、MapEntry、MapResponse、Match
+- [QTI 3 信息模型](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/index.html)，特别是 Mapping、MapEntry、MapResponse、Match、Equal
 - [官方样例固定版本](https://github.com/1EdTech/qti-examples/tree/0a92fbbb6d2e620a1f7fad19977be4c418246bc0/qtiv3-examples/packaging/items)
 - `Milky2018/xml` 0.6.1：XML 与命名空间解析
 - `moonbit-community/casefold` 0.1.7：Unicode case folding

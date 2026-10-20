@@ -63,6 +63,18 @@ def build_web(moon, env):
     if not source.is_file():
         raise RuntimeError("Missing MoonBit bridge build output: {}".format(source))
     shutil.copyfile(str(source), str(destination))
+    shutil.copyfile(str(source), str(ROOT / "sdk/qti-core.mjs"))
+    return destination
+
+
+def package_sdk(bridge):
+    destination = ROOT / "_build/sdk/qti-score"
+    destination.mkdir(parents=True, exist_ok=True)
+    for name in ["package.json", "index.mjs", "index.d.mts", "README.md"]:
+        shutil.copyfile(str(ROOT / "sdk" / name), str(destination / name))
+    for name in ["LICENSE", "NOTICE"]:
+        shutil.copyfile(str(ROOT / name), str(destination / name))
+    shutil.copyfile(str(bridge), str(destination / "qti-core.mjs"))
     return destination
 
 
@@ -78,9 +90,9 @@ def extract_json(stdout):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.1.0",
+        "module": "Project2026-creator/qti-score", "version": "0.2.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
-        "checks": [], "official_revision": REVISION, "official_cases": [],
+        "checks": [], "official_revision": REVISION, "official_cases": [], "feature_cases": [],
     }
     for arguments in [["fmt", "--check"], ["check", "--target", "all", "--deny-warn"],
                       ["test", "--target", "all", "--deny-warn"]]:
@@ -92,6 +104,21 @@ def verify(moon, env, output, offline=False):
     node = shutil.which("node")
     if not node:
         raise RuntimeError("Node.js is required for bridge comparison")
+    sdk = package_sdk(bridge)
+    sdk_env = env.copy()
+    sdk_env["QTI_SDK_URL"] = (sdk / "index.mjs").as_uri()
+    sdk_tests = command([node, "--test", str(ROOT / "sdk/sdk_test.mjs")], sdk_env)
+    report["checks"].append({"command": ["node", "--test", "sdk/sdk_test.mjs"],
+                             "sdk": str(sdk), "returncode": sdk_tests.returncode,
+                             "output": (sdk_tests.stdout + sdk_tests.stderr).strip()})
+    tsc = ROOT / "sdk/node_modules/typescript/lib/tsc.js"
+    if not tsc.is_file():
+        raise RuntimeError("TypeScript development dependency missing; run npm ci --prefix sdk --ignore-scripts")
+    type_args = [node, str(tsc), "--noEmit", "--strict", "--module", "nodenext", "--target", "es2022",
+                 "--lib", "es2022,dom", str(ROOT / "sdk/types_test.mts")]
+    types = command(type_args, env)
+    report["checks"].append({"command": ["node", "sdk/node_modules/typescript/lib/tsc.js"] + type_args[2:],
+                             "returncode": types.returncode, "output": (types.stdout + types.stderr).strip()})
     cache = ROOT / "_build" / "reference"
     cache.mkdir(parents=True, exist_ok=True)
     sources = [
@@ -130,22 +157,59 @@ def verify(moon, env, output, offline=False):
                       "expected_score": expected, "cli_result": actual["result"]}
             report["official_cases"].append(record)
             bridge_inputs.append({"xml": xml, "response": response_object})
+    for name, cases in [
+        ("numeric", [(100, 2), (100.5, 1), (104, 0.5), (95, 0.5), (105, 0.5), (110, 0), (None, 0), ("", 0)]),
+        ("integer", [(42, 1), ("0042", 1), (41, 0), (None, 0)]),
+    ]:
+        item_path = ROOT / "examples" / (name + ".xml")
+        xml = item_path.read_text(encoding="utf-8")
+        for response, expected in cases:
+            response_object = {"RESPONSE": response}
+            response_path = cache / "response.json"
+            response_path.write_text(json.dumps(response_object), encoding="utf-8")
+            score_run = command([moon, "run", "cmd/main", "--", "score", str(item_path), str(response_path)], env)
+            explanation_run = command([moon, "run", "cmd/main", "--", "explain", str(item_path), str(response_path)], env)
+            actual = extract_json(score_run.stdout)
+            explanation = extract_json(explanation_run.stdout)
+            if actual.get("ok") is not True or actual["result"]["score"] != expected or "steps" in actual:
+                raise AssertionError("Unexpected numeric CLI result: {}".format(actual))
+            if explanation.get("ok") is not True or explanation["result"] != actual["result"] or not explanation.get("steps"):
+                raise AssertionError("CLI explanation disagrees with score: {}".format(explanation))
+            report["feature_cases"].append({"fixture": name, "response": response_object,
+                                            "expected_score": expected, "cli_result": actual["result"],
+                                            "explanation": explanation["steps"]})
+            bridge_inputs.append({"xml": xml, "response": response_object})
     # Node is only a host. It imports the compiled MoonBit bridge; no JavaScript
     # scorer or XML parser is used in this comparison.
     script = """
 import {readFileSync} from 'node:fs';
 const bridge = await import(process.argv[1]);
+const sdk = await import(process.argv[2]);
 const cases = JSON.parse(readFileSync(0, 'utf8'));
-console.log(JSON.stringify(cases.map(c => JSON.parse(bridge.evaluate(c.xml, JSON.stringify(c.response))))));
+const compiled = new Map();
+try {
+  console.log(JSON.stringify(cases.map(c => {
+    if (!compiled.has(c.xml)) compiled.set(c.xml, sdk.compileItem(c.xml));
+    const item = compiled.get(c.xml);
+    return {bridge: JSON.parse(bridge.evaluate(c.xml, JSON.stringify(c.response))),
+      sdk_result: item.score(c.response), explanation: item.explain(c.response)};
+  })));
+} finally { for (const item of compiled.values()) item.dispose(); }
 """
-    bridge_run = command([node, "--input-type=module", "-e", script, bridge.as_uri()], env,
+    bridge_run = command([node, "--input-type=module", "-e", script, bridge.as_uri(), (sdk / "index.mjs").as_uri()], env,
                          json.dumps(bridge_inputs, ensure_ascii=False))
     bridge_results = json.loads(bridge_run.stdout)
-    for record, result in zip(report["official_cases"], bridge_results):
-        if result.get("ok") is not True or result["result"] != record["cli_result"]:
+    records = report["official_cases"] + report["feature_cases"]
+    for record, comparison in zip(records, bridge_results):
+        result = comparison["bridge"]
+        if result.get("ok") is not True or result["result"] != record["cli_result"] or \
+                comparison["sdk_result"] != record["cli_result"] or comparison["explanation"]["result"] != record["cli_result"]:
             raise AssertionError("CLI and browser bridge differ: {}".format(record))
         record["bridge_result"] = result["result"]
-    if len(bridge_results) != len(report["official_cases"]):
+        record["sdk_result"] = comparison["sdk_result"]
+        if "explanation" in record and record["explanation"] != comparison["explanation"]["steps"]:
+            raise AssertionError("CLI and SDK explanation steps differ")
+    if len(bridge_results) != len(records):
         raise AssertionError("Missing bridge results")
     # A real CLI failure must return a nonzero code as well as a JSON error.
     bad = cache / "invalid-response.json"
@@ -178,17 +242,18 @@ console.log(JSON.stringify(cases.map(c => JSON.parse(bridge.evaluate(c.xml, JSON
     report["checks"].append({"command": ["moon"] + mixed_args[1:], "returncode": mixed_run.returncode,
                              "expected_nonzero": True, "results": mixed_results})
     report["official_cases_passed"] = len(report["official_cases"])
+    report["feature_cases_passed"] = len(report["feature_cases"])
     report["entry_point_parity"] = True
     report["passed"] = True
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print("All checks passed; {} official cases agree across CLI and browser bridge.".format(len(report["official_cases"])))
+    print("All checks passed; {} official and {} feature cases agree across CLI, bridge and SDK.".format(len(report["official_cases"]), len(report["feature_cases"])))
     print("Results: {}".format(output))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["build-web", "serve", "check"])
+    parser.add_argument("action", choices=["build-web", "build-sdk", "serve", "check"])
     parser.add_argument("--moon", help="Path to MoonBit CLI (also accepts QTI_MOON environment variable)")
     parser.add_argument("--port", type=int, default=4173)
     parser.add_argument("--output", type=Path, default=ROOT / "_build/validation.json")
@@ -199,6 +264,9 @@ def main():
         verify(moon, env, args.output.resolve(), args.offline)
     else:
         destination = build_web(moon, env)
+        if args.action == "build-sdk":
+            print("Built SDK: {}".format(package_sdk(destination)))
+            return
         if args.action == "build-web":
             print("Built {}".format(destination))
             return

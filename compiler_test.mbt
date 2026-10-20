@@ -120,14 +120,14 @@ test "templates require RESPONSE and float SCORE" {
 }
 
 ///|
-test "unsupported cardinalities, numeric text and custom interactions fail closed" {
+test "unsupported cardinalities, invalid numeric declarations and custom interactions fail closed" {
   rejected(
     fixture("single").swap("cardinality=\"single\"", "cardinality=\"ordered\""),
     "unsupported",
   )
   rejected(
     fixture("text").swap("base-type=\"string\"", "base-type=\"float\""),
-    "unsupported",
+    "invalid_item",
   )
   rejected(
     fixture("single").swap("qti-choice-interaction", "qti-custom-interaction"),

@@ -1,6 +1,7 @@
 const $ = id => document.getElementById(id);
 const source = $('xml-source');
 let engine;
+let compiledItem;
 let item;
 let activeXml = '';
 let loading = 0;
@@ -13,7 +14,7 @@ function showError(id, error) {
 
 function response() {
   if (!item) return { RESPONSE: null };
-  if (item.base_type === 'string') return { RESPONSE: $('text-answer')?.value || '' };
+  if (item.base_type !== 'identifier') return { RESPONSE: $('text-answer')?.value || '' };
   const values = [...$('answer-controls').querySelectorAll('input:checked')].map(input => input.value);
   return { RESPONSE: item.cardinality === 'single' ? values[0] ?? null : values };
 }
@@ -26,7 +27,40 @@ function resetResult() {
   $('score-value').textContent = '—';
   $('result-message').textContent = '提交作答后，在这里查看结果。';
   $('match-message').textContent = '';
+  $('score-trace').textContent = '勾选记录评分过程后，重新提交作答。';
+  $('trace-summary').replaceChildren();
   showError('score-error', null);
+}
+
+function renderExplanation(steps) {
+  const labels = { exact: '精确比较', absolute: '绝对误差', relative: '相对误差' };
+  const list = $('trace-summary');
+  list.replaceChildren();
+  for (const step of steps) {
+    const detail = step.details;
+    let text;
+    switch (step.operation) {
+      case 'response': text = detail.status === 'unanswered' ? '未作答，进入空响应处理。' : `接收 ${detail.count} 个响应值。`; break;
+      case 'null_response': text = '空响应按标准模板得 0 分，跳过映射上下界。'; break;
+      case 'match_correct': text = `${detail.matched ? '完全匹配' : '未完全匹配'}，得 ${detail.score} 分。`; break;
+      case 'duplicate_ignored': text = `重复值 ${detail.value} 不重复计分。`; break;
+      case 'map_value': text = `${detail.value}：${detail.used_default ? '使用默认映射' : `命中第 ${detail.entry_index + 1} 项映射`}，贡献 ${detail.contribution} 分。`; break;
+      case 'mapping_bounds': text = `映射合计 ${detail.raw_score} 分，${detail.adjusted ? '按上下界调整为' : '最终为'} ${detail.score} 分。`; break;
+      case 'numeric_condition': {
+        const condition = detail.condition;
+        const name = labels[condition.mode] || (condition.operator === 'is_null' ? '空响应检查' : '默认分支');
+        const range = condition.lower === undefined ? '' : `，区间 ${condition.include_lower ? '[' : '('}${condition.lower}, ${condition.upper}${condition.include_upper ? ']' : ')'}`;
+        text = `第 ${detail.branch + 1} 条规则：${name}${range}，${detail.selected ? '命中' : '未命中'}。`;
+        break;
+      }
+      case 'set_score': text = `设置得分为 ${detail.score}。`; break;
+      default: text = step.operation;
+    }
+    const row = document.createElement('li');
+    row.textContent = `${text}（XML ${step.location.line}:${step.location.column}）`;
+    list.append(row);
+  }
+  $('score-trace').textContent = JSON.stringify(steps, null, 2);
 }
 
 function renderQuestion() {
@@ -38,9 +72,9 @@ function renderQuestion() {
   fieldset.replaceChildren();
   const legend = document.createElement('legend');
   legend.className = 'sr-only';
-  legend.textContent = item.base_type === 'string' ? '填写答案' : '选择答案';
+  legend.textContent = item.base_type !== 'identifier' ? '填写答案' : '选择答案';
   fieldset.append(legend);
-  if (item.base_type === 'string') {
+  if (item.base_type !== 'identifier') {
     const label = document.createElement('label');
     label.className = 'text-label';
     label.htmlFor = 'text-answer';
@@ -50,6 +84,7 @@ function renderQuestion() {
     input.id = 'text-answer';
     input.className = 'text-answer';
     input.autocomplete = 'off';
+    if (item.base_type === 'integer' || item.base_type === 'float') input.inputMode = 'decimal';
     input.maxLength = 65536;
     fieldset.append(label, input);
   } else {
@@ -76,18 +111,23 @@ function renderQuestion() {
 function compile() {
   if (!engine) return;
   showError('compile-error', null);
-  const result = JSON.parse(engine.describe(source.value));
-  if (!result.ok) {
+  try {
+    const next = engine.compileItem(source.value);
+    compiledItem?.dispose();
+    compiledItem = next;
+    item = compiledItem.describe();
+  } catch (error) {
+    compiledItem?.dispose();
+    compiledItem = null;
     item = null;
     activeXml = '';
     $('submit-score').disabled = true;
     $('answer-controls').disabled = true;
     $('source-status').textContent = '题目尚未编译成功';
     resetResult();
-    showError('compile-error', result.error);
+    showError('compile-error', error);
     return;
   }
-  item = result.item;
   activeXml = source.value;
   $('source-status').textContent = '已编译 · 可提交作答';
   $('submit-score').disabled = false;
@@ -118,22 +158,34 @@ $('answer-form').addEventListener('submit', event => {
   event.preventDefault();
   if (!item || source.value !== activeXml) return;
   showError('score-error', null);
-  const result = JSON.parse(engine.evaluate(activeXml, JSON.stringify(response())));
-  if (!result.ok) {
+  let value;
+  try {
+    if ($('enable-trace').checked) {
+      const explanation = compiledItem.explain(response());
+      value = explanation.result;
+      renderExplanation(explanation.steps);
+      $('trace-panel').open = true;
+    } else {
+      value = compiledItem.score(response());
+      $('trace-summary').replaceChildren();
+      $('score-trace').textContent = '本次评分未记录解释。';
+    }
+  } catch (error) {
     resetResult();
-    showError('score-error', result.error);
+    showError('score-error', error);
     return;
   }
-  const value = result.result;
   $('score-value').textContent = String(value.score);
-  $('result-message').textContent = value.status === 'unanswered' ? '当前没有作答，按模板记为 0 分。' : '已按题目声明的模板完成评分。';
-  $('match-message').textContent = value.status === 'unanswered' ? '' : value.matches_correct === null ? '题目未提供标准响应。' : value.matches_correct ? '与标准响应完全匹配。' : '未与标准响应完全匹配；映射模板仍可给予部分分数。';
+  $('result-message').textContent = value.status === 'unanswered' ? '当前没有作答，已按题目声明的规则评分。' : '已按题目声明的规则完成评分。';
+  $('match-message').textContent = value.status === 'unanswered' ? '' : value.matches_correct === null ? '题目未提供标准响应。' : value.matches_correct ? '与标准响应完全匹配。' : '未与标准响应完全匹配；评分规则仍可给予部分分数。';
 });
 $('answer-controls').addEventListener('input', () => { updateResponse(); resetResult(); });
 $('clear-answer').addEventListener('click', () => { $('answer-form').reset(); updateResponse(); resetResult(); });
 $('compile').addEventListener('click', compile);
 source.addEventListener('input', () => {
   ++loading;
+  compiledItem?.dispose();
+  compiledItem = null;
   $('source-status').textContent = '源文件已修改，请重新编译';
   $('submit-score').disabled = true;
   $('answer-controls').disabled = true;
@@ -160,7 +212,7 @@ $('file-input').addEventListener('change', async event => {
 });
 
 try {
-  engine = await import('./qti-score.mjs');
+  engine = await import('../sdk/index.mjs');
   await loadExample('single');
 } catch (error) {
   $('source-status').textContent = '内核未载入';

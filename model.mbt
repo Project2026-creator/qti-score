@@ -19,12 +19,15 @@ pub(all) enum Cardinality {
 pub(all) enum BaseType {
   Identifier
   Text
+  Integer
+  Float
 } derive(Debug, Eq)
 
 ///|
 pub(all) enum Template {
   MatchCorrect
   MapResponse
+  NumericRules
 } derive(Debug, Eq)
 
 ///|
@@ -34,6 +37,7 @@ pub(all) enum Response {
   Null
   Single(String)
   Multiple(Array[String])
+  Number(Double)
 } derive(Debug, Eq)
 
 ///|
@@ -43,7 +47,8 @@ pub(all) enum ResponseStatus {
 } derive(Debug, Eq)
 
 ///|
-/// `matches_correct` is exact QTI match, independent of mapping credit. It is
+/// `matches_correct` is exact match for identifiers/strings and exact numeric
+/// equality for numbers, independent of mapping or tolerance credit. It is
 /// None when the author did not provide a correct response.
 pub struct Score {
   score : Double
@@ -77,6 +82,7 @@ priv struct MapEntry {
   folded_key : String
   value : Double
   case_sensitive : Bool
+  source : SourceLocation
 } derive(Debug)
 
 ///|
@@ -85,6 +91,7 @@ priv struct Mapping {
   default_value : Double
   lower_bound : Double?
   upper_bound : Double?
+  source : SourceLocation
 } derive(Debug)
 
 ///|
@@ -103,7 +110,30 @@ pub struct Item {
   priv choices : Array[Choice]
   priv correct : Array[String]?
   priv mapping : Mapping?
+  priv numeric_rule : NumericRule?
+  priv processing_source : SourceLocation
 } derive(Debug)
+
+///|
+pub struct SourceLocation {
+  line : Int32
+  column : Int32
+} derive(Debug, Eq, ToJson)
+
+///|
+/// Developer diagnostics, returned only by explicit explain calls. Details may
+/// reveal authored scoring rules and must not be sent to a learner by default.
+pub struct ScoringStep {
+  operation : String
+  location : SourceLocation
+  details : Json
+} derive(Debug, ToJson)
+
+///|
+pub struct Explanation {
+  result : Score
+  steps : Array[ScoringStep]
+} derive(Debug, ToJson)
 
 ///|
 pub fn Item::choices(self : Item) -> Array[Choice] {
@@ -177,3 +207,24 @@ pub extend Choice with Debug::{to_repr}
 
 ///|
 pub extend Item with Debug::{to_repr}
+
+///|
+pub extend SourceLocation with Eq::{equal, not_equal}
+
+///|
+pub extend SourceLocation with Debug::{to_repr}
+
+///|
+pub extend SourceLocation with ToJson::{to_json}
+
+///|
+pub extend ScoringStep with Debug::{to_repr}
+
+///|
+pub extend ScoringStep with ToJson::{to_json}
+
+///|
+pub extend Explanation with Debug::{to_repr}
+
+///|
+pub extend Explanation with ToJson::{to_json}

@@ -1,16 +1,59 @@
 ///|
-/// Score one attempt. Empty responses are always scored as zero by both
-/// supported templates. Multiple match uses bag equality; mapping counts each
-/// distinct input value only once. An invalid selection raises QtiError rather
-/// than awarding a score for a response that could not be submitted.
+/// Score without collecting developer diagnostics.
 pub fn Item::score(self : Item, response : Response) -> Score raise QtiError {
+  self.execute(response, None)
+}
+
+///|
+/// Execute the same scorer with an explicit developer trace. Trace details can
+/// reveal mapping rules; hosts decide whether to expose them to their users.
+pub fn Item::explain(
+  self : Item,
+  response : Response,
+) -> Explanation raise QtiError {
+  let steps : Array[ScoringStep] = []
+  let result = self.execute(response, Some(steps))
+  { result, steps, }
+}
+
+///|
+fn record_step(
+  steps : Array[ScoringStep]?,
+  operation : String,
+  location : SourceLocation,
+  details : Json,
+) -> Unit {
+  if steps is Some(steps) {
+    steps.push({ operation, location, details, })
+  }
+}
+
+///|
+fn Item::execute(
+  self : Item,
+  response : Response,
+  steps : Array[ScoringStep]?,
+) -> Score raise QtiError {
   let values : Array[String] = match response {
     Null => []
+    Number(value) => {
+      if !self.base_type.is_numeric() {
+        raise InvalidResponse("numeric response requires a numeric item")
+      }
+      if value.is_inf() || value.is_nan() {
+        raise InvalidResponse("numeric response must be finite")
+      }
+      if self.base_type == Integer &&
+        (value.abs() > 9007199254740991.0 || value.trunc() != value) {
+        raise InvalidResponse("integer response must be a safe integer")
+      }
+      [value.to_string()]
+    }
     Single(s) => {
       if self.cardinality != Single {
         raise InvalidResponse("expected a multiple response")
       }
-      if s == "" {
+      if s == "" || (self.base_type.is_numeric() && s.trim() == "") {
         []
       } else {
         [s]
@@ -33,15 +76,72 @@ pub fn Item::score(self : Item, response : Response) -> Score raise QtiError {
       "response exceeds 4096 values or 65536 UTF-16 code units per value",
     )
   }
-  if values.is_empty() {
+  let empty = values.is_empty()
+  record_step(steps, "response", self.processing_source, {
+    "status": if empty {
+      "unanswered"
+    } else {
+      "answered"
+    },
+    "count": values.length(),
+  })
+  if self.base_type.is_numeric() {
+    let numeric = if empty {
+      None
+    } else {
+      // JSON numbers are validated before use; textual integers have stricter
+      // lexical rules than the decimal spelling produced by Number::to_string.
+      Some(
+        match response {
+          Number(n) => n
+          _ =>
+            numeric_value(values[0], self.base_type) catch {
+              _ =>
+                raise InvalidResponse(
+                  "invalid finite \{self.base_type.name()} response",
+                )
+            }
+        },
+      )
+    }
+    let correct = self.correct.map(xs => {
+      numeric_value(xs[0], self.base_type) catch {
+        _ => abort("compiled numeric correct response is invalid")
+      }
+    })
+    let matches_correct = correct.map(c => numeric == Some(c))
+    let score = if self.template == NumericRules {
+      self.numeric_rule.unwrap().score(numeric, correct, steps)
+    } else {
+      let score = if matches_correct == Some(true) { 1.0 } else { 0.0 }
+      record_step(steps, "match_correct", self.processing_source, {
+        "matched": matches_correct == Some(true),
+        "score": score,
+      })
+      score
+    }
+    return {
+      score,
+      status: if empty {
+        Unanswered
+      } else {
+        Answered
+      },
+      matches_correct,
+    }
+  }
+  if empty {
+    record_step(steps, "null_response", self.processing_source, {
+      "score": 0,
+      "mapping_bounds_applied": false,
+    })
     return {
       score: 0.0,
       status: Unanswered,
       matches_correct: self.correct.map(_ => false),
     }
   }
-  // Selection cardinality counts selections, while map_response de-duplicates
-  // values for scoring. Duplicates are retained for exact bag match.
+  // Selection limits count selections; mappings de-duplicate only for scoring.
   if self.max_choices != 0 && values.length() > self.max_choices {
     raise InvalidResponse("more responses than max-choices=\{self.max_choices}")
   }
@@ -59,18 +159,30 @@ pub fn Item::score(self : Item, response : Response) -> Score raise QtiError {
   }
   let matches_correct = self.correct.map(correct => bag_equal(values, correct))
   let score = match self.template {
-    MatchCorrect => if matches_correct == Some(true) { 1.0 } else { 0.0 }
+    MatchCorrect => {
+      let score = if matches_correct == Some(true) { 1.0 } else { 0.0 }
+      record_step(steps, "match_correct", self.processing_source, {
+        "matched": matches_correct == Some(true),
+        "score": score,
+      })
+      score
+    }
     MapResponse => {
       let mapping = self.mapping.unwrap()
       let seen : Map[String, Bool] = Map([])
       let mut total = 0.0
       for value in values {
         if seen.contains(value) {
+          record_step(steps, "duplicate_ignored", self.processing_source, {
+            "value": value,
+          })
           continue
         }
         seen[value] = true
         let mut mapped = mapping.default_value
-        for entry in mapping.entries {
+        let mut entry_index : Json = Json::null()
+        let mut entry_source = mapping.source
+        for i, entry in mapping.entries {
           let equal = if self.base_type == Identifier || entry.case_sensitive {
             value == entry.key
           } else {
@@ -78,6 +190,8 @@ pub fn Item::score(self : Item, response : Response) -> Score raise QtiError {
           }
           if equal {
             mapped = entry.value
+            entry_index = Json(i)
+            entry_source = entry.source
             break
           }
         }
@@ -85,15 +199,39 @@ pub fn Item::score(self : Item, response : Response) -> Score raise QtiError {
         if total.is_inf() || total.is_nan() {
           raise InvalidResponse("mapped score exceeds finite numeric range")
         }
+        record_step(steps, "map_value", entry_source, {
+          "value": value,
+          "entry_index": entry_index,
+          "used_default": entry_index == Json::null(),
+          "contribution": mapped,
+          "running_total": total,
+        })
       }
+      let raw = total
       if mapping.lower_bound is Some(lo) && total < lo {
         total = lo
       }
       if mapping.upper_bound is Some(hi) && total > hi {
         total = hi
       }
+      let lo : Json = match mapping.lower_bound {
+        Some(n) => Json(n)
+        None => Json::null()
+      }
+      let hi : Json = match mapping.upper_bound {
+        Some(n) => Json(n)
+        None => Json::null()
+      }
+      record_step(steps, "mapping_bounds", mapping.source, {
+        "raw_score": raw,
+        "lower": lo,
+        "upper": hi,
+        "score": total,
+        "adjusted": total != raw,
+      })
       total
     }
+    NumericRules => abort("non-numeric item has numeric rules")
   }
   { score, status: Answered, matches_correct, }
 }

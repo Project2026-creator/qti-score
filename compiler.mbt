@@ -1,6 +1,6 @@
 ///|
-/// Compile the supported QTI 3 item profile. Templates are recognized by a
-/// closed URI allowlist, never downloaded or executed from the network.
+/// Compile the supported QTI 3 item profile, including checked numeric rules.
+/// Templates use a closed URI allowlist and are never downloaded or executed.
 pub fn compile_item(
   xml : String,
   limits~ : Limits = Limits::default(),
@@ -40,15 +40,31 @@ pub fn compile_item(
   let base_type = match declaration.required("base-type") {
     "identifier" => BaseType::Identifier
     "string" => BaseType::Text
+    "integer" => BaseType::Integer
+    "float" => BaseType::Float
     other => raise Unsupported(declaration.location(), "base-type '\{other}'")
   }
   let correct = match declaration.one("qti-correct-response", required=false) {
     None => None
     Some(n) => Some(parse_correct(n, cardinality, base_type))
   }
+  if base_type.is_numeric() && cardinality != Single {
+    raise Unsupported(
+      declaration.location(),
+      "numeric responses require single cardinality",
+    )
+  }
   let mapping = match declaration.one("qti-mapping", required=false) {
     None => None
-    Some(n) => Some(parse_mapping(n, base_type))
+    Some(n) => {
+      if base_type.is_numeric() {
+        raise Unsupported(
+          n.location(),
+          "numeric mappings are outside this profile",
+        )
+      }
+      Some(parse_mapping(n, base_type))
+    }
   }
   let outcome = root.one("qti-outcome-declaration").unwrap()
   outcome.only_attributes([
@@ -85,9 +101,25 @@ pub fn compile_item(
     }
   }
   let processing = root.one("qti-response-processing").unwrap()
-  processing.only_attributes(["template"])
-  processing.only_children([])
-  let template = parse_template(processing.required("template"))
+  let (template, numeric_rule) = if processing.attr("template") is Some(uri) {
+    processing.only_attributes(["template"])
+    processing.only_children([])
+    (parse_template(uri), None)
+  } else {
+    if !base_type.is_numeric() {
+      raise Unsupported(
+        processing.location(),
+        "inline rules require a numeric response",
+      )
+    }
+    (NumericRules, Some(parse_numeric_rule(processing, correct, base_type)))
+  }
+  if base_type == Float && template != NumericRules {
+    raise Unsupported(
+      processing.location(),
+      "float responses require numeric inline rules, not match_correct",
+    )
+  }
   if template == MatchCorrect && correct is None {
     raise InvalidItem(
       declaration.location(),
@@ -172,10 +204,10 @@ pub fn compile_item(
       None => title
     }
   } else {
-    if cardinality != Single || base_type != Text {
+    if cardinality != Single || base_type == Identifier {
       raise Unsupported(
         interaction.location(),
-        "text entry requires single string response",
+        "text entry requires a single string, integer or float response",
       )
     }
     interaction.only_attributes([
@@ -229,6 +261,8 @@ pub fn compile_item(
     choices,
     correct,
     mapping,
+    numeric_rule,
+    processing_source: processing.source(),
   }
 }
 
@@ -273,6 +307,9 @@ fn parse_correct(
     let value = child.content.to_string()
     if base_type == Identifier {
       values.push(identifier(value.trim().to_owned(), child.location()))
+    } else if base_type.is_numeric() {
+      ignore(authored_number(value, base_type, child))
+      values.push(value.trim().to_owned())
     } else {
       if value == "" {
         raise InvalidItem(child.location(), "empty correct string is NULL")
@@ -325,9 +362,10 @@ fn parse_mapping(node : Node, base_type : BaseType) -> Mapping raise QtiError {
       folded_key,
       value: number(child, "mapped-value"),
       case_sensitive,
+      source: child.source(),
     })
   }
-  { entries, default_value, lower_bound, upper_bound, }
+  { entries, default_value, lower_bound, upper_bound, source: node.source(), }
 }
 
 ///|

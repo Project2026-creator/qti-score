@@ -5,5 +5,19 @@ import {
 supported_targets = "js"
 
 options(
-  link: { "js": { "exports": [ "evaluate", "describe" ], "format": "esm" } },
+  link: {
+    "js": {
+      "exports": [
+        "evaluate",
+        "describe",
+        "explain",
+        "compile",
+        "describe_compiled",
+        "score_compiled",
+        "explain_compiled",
+        "release",
+      ],
+      "format": "esm",
+    },
+  },
 )
