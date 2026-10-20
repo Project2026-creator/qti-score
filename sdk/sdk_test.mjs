@@ -12,6 +12,80 @@ const core = await import(new URL('./qti-core.mjs', sdkURL));
 const fixture = name => readFileSync(new URL(`../examples/${name}.xml`, import.meta.url), 'utf8');
 const hasCode = code => cause => cause instanceof QtiScoreError && cause.code === code;
 const packageBytes = () => readFileSync(new URL('../web/sample-package.zip', import.meta.url));
+const packageAttempts = () => readFileSync(new URL('../examples/package-attempts.jsonl', import.meta.url), 'utf8');
+
+test('package batch groups attempts and retains errors without assigning zero scores', () => {
+  const bundle = importPackage(packageBytes());
+  try {
+    const { report, csv } = bundle.scoreAttempts(packageAttempts());
+    assert.equal(report.row_count, 6);
+    assert.equal(report.scored_count, 4);
+    assert.equal(report.error_count, 2);
+    assert.equal(report.answered_count, 3);
+    assert.equal(report.unanswered_count, 1);
+    assert.equal(report.has_errors, true);
+    assert.deepEqual(report.attempts.map(summary => summary.score_sum), [2, 0, 0.5]);
+    assert.deepEqual(report.attempts.map(summary => summary.all_rows_scored), [true, false, false]);
+    assert.equal(report.rows[3].result, null);
+    assert.equal(report.rows[3].item_id, 'measurement');
+    assert.equal(report.rows[3].error.code, 'invalid_response');
+    assert.equal(report.rows[4].error.code, 'unsupported');
+    assert.equal(report.rows[4].error.location.line, 7);
+    assert.ok(csv.includes('false,,,,"invalid_response"'));
+    assert.ok(csv.endsWith('\r\n'));
+    assert.equal(Object.hasOwn(report.rows[0], 'response'), false);
+    assert.equal(Object.hasOwn(report.rows[0], 'steps'), false);
+  } finally { bundle.dispose(); }
+});
+
+test('batch identity conflicts, malformed JSON and nonfinite responses stay row-local', () => {
+  const bundle = importPackage(packageBytes());
+  try {
+    const line = (attempt_id, resource_id, response) => JSON.stringify({ attempt_id, resource_id, response });
+    const { report } = bundle.scoreAttempts('\uFEFF\r\n' + [
+      line('a', 'choice', { RESPONSE: 'A' }), line('a', 'choice', {}), '{oops}',
+      '{"attempt_id":"b","resource_id":"measurement","response":{"RESPONSE":1e309}}',
+      line('c', 'choice', { RESPONSE: 'B' }),
+    ].join('\r\n'));
+    assert.deepEqual(report.rows.map(row => row.line), [2, 3, 4, 5, 6]);
+    assert.deepEqual(report.rows.map(row => row.ok), [false, false, false, false, true]);
+    assert.ok(report.rows[0].error.message.includes('duplicate'));
+    assert.ok(report.rows[1].error.message.includes('duplicate'));
+    assert.equal(report.unassigned_count, 1);
+    assert.equal(report.attempts[0].score_sum, null);
+    assert.equal(report.rows[4].result.score, 0);
+  } finally { bundle.dispose(); }
+});
+
+test('batch reports are fresh and CSV preserves quoted text with formula prefixes', () => {
+  const bundle = importPackage(packageBytes());
+  try {
+    const source = ['学生,"A"', '=1+2', '+1', '@name', '-name', '＝1'].map(attempt_id =>
+      JSON.stringify({ attempt_id, resource_id: 'choice', response: {} })).join('\n');
+    const first = bundle.scoreAttempts(source);
+    assert.ok(first.csv.includes('"学生,""A"""'));
+    assert.ok(first.csv.includes('"\'=1+2"'));
+    assert.equal(first.report.rows[1].attempt_id, '=1+2');
+    first.report.rows[0].result.score = 99;
+    first.report.attempts.length = 0;
+    const second = bundle.scoreAttempts(source);
+    assert.equal(second.report.rows[0].result.score, 0);
+    assert.equal(second.report.attempts.length, 6);
+    assert.equal(first.csv, second.csv);
+    assert.equal(bundle.scoreAttempts('').report.row_count, 0);
+  } finally { bundle.dispose(); }
+});
+
+test('batch input budgets and disposal are enforced without persistent result handles', () => {
+  const bundle = importPackage(packageBytes());
+  try {
+    assert.throws(() => bundle.scoreAttempts([]), hasCode('invalid_response'));
+    assert.throws(() => bundle.scoreAttempts(' '.repeat(4194305)), hasCode('limit_exceeded'));
+    assert.throws(() => bundle.scoreAttempts('{}\n'.repeat(4097)), hasCode('limit_exceeded'));
+    for (let i = 0; i < 6; i++) assert.equal(bundle.scoreAttempts(packageAttempts()).report.scored_count, 4);
+  } finally { bundle.dispose(); }
+  assert.throws(() => bundle.scoreAttempts(''), hasCode('disposed'));
+});
 
 test('ZIP import retains per-item diagnostics and scores supported resources', () => {
   const bundle = importPackage(packageBytes());
@@ -239,13 +313,15 @@ test('standalone package runs after being copied outside the repository', () => 
       const input=JSON.parse(readFileSync(0,'utf8'));
       const item=compileItem(input.xml);
       const bundle=importPackage(Buffer.from(input.zip,'base64'));
-      try { console.log(JSON.stringify({score:item.score({RESPONSE:100.5}).score,ready:bundle.describe().ready_count})); }
+      try { console.log(JSON.stringify({score:item.score({RESPONSE:100.5}).score,ready:bundle.describe().ready_count,
+        scored:bundle.scoreAttempts(input.attempts).report.scored_count})); }
       finally { item.dispose(); bundle.dispose(); }`;
     const child = spawnSync(process.execPath, ['--input-type=module', '-e', script],
-      { input: JSON.stringify({ xml: fixture('numeric'), zip: packageBytes().toString('base64') }), encoding: 'utf8', cwd: folder });
+      { input: JSON.stringify({ xml: fixture('numeric'), zip: packageBytes().toString('base64'), attempts: packageAttempts() }), encoding: 'utf8', cwd: folder });
     assert.equal(child.status, 0, child.stderr);
     assert.equal(JSON.parse(child.stdout).score, 1);
     assert.equal(JSON.parse(child.stdout).ready, 2);
+    assert.equal(JSON.parse(child.stdout).scored, 4);
   } finally {
     assert.ok(resolve(folder).startsWith(resolve(tmpdir()) + sep + 'qti-sdk-'));
     rmSync(folder, { recursive: true, force: true });

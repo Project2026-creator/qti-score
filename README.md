@@ -1,6 +1,6 @@
 # QTI Score
 
-A MoonBit library for importing QTI 3 ZIP content packages and scoring a focused subset of items. Supports choice, text and numeric entry, per-item compatibility reports, developer explanations, and an ESM JavaScript SDK backed by the same MoonBit core.
+A MoonBit library for importing QTI 3 ZIP content packages and scoring a focused subset of items. Supports choice, text and numeric entry, batch result reports and CSV export, developer explanations, and an ESM JavaScript SDK backed by the same MoonBit core.
 
 QTI Score 将 QTI 3 题目编译成可重复使用的评分对象。核心库负责 XML 命名空间、响应类型、标准答案、映射和数值比较；命令行、浏览器与 JS SDK 使用同一份实现。适用于测验平台接入、题目迁移验证和教育技术课程中的标准实验。
 
@@ -71,6 +71,47 @@ let data = bundle.read_file("assets/note.txt") // 精确、区分大小写的 ZI
 
 此功能是题包读取与评分接入子集：metadata、organizations 保留在原始清单中但不执行，未实现完整 CP/XSD 校验、试卷编序或资源渲染。0.3.0 新增 `QtiError::InvalidPackage`；穷尽匹配该错误枚举的调用者需处理新增分支。
 
+## 跨题批量评分与导出
+
+导入题包后，可以一次评分多个作答 ID、多个题目的 JSONL 记录。每个非空行包含 `attempt_id`、清单 `resource_id` 和 `response` 对象：
+
+```json
+{"attempt_id":"class-01","resource_id":"choice","response":{"RESPONSE":"A"}}
+{"attempt_id":"class-01","resource_id":"measurement","response":{"RESPONSE":100.5}}
+```
+
+`attempt_id` 标识一次测验作答；同一 ID 可跨题共享。`response: {}` 或 `{"RESPONSE":null}` 表示未作答，整个 `response` 字段仍须存在且为对象。同一批次中相同 `(attempt_id, resource_id)` 的**所有行均报错**，不会自动挑选其中一次；修正冲突后重新评分即可。重复检测也包括身份有效但响应形状错误的行。
+
+```sh
+python tools/project.py build-web
+moon run cmd/main -- package-batch web/sample-package.zip examples/package-attempts.jsonl
+moon run cmd/main -- package-batch web/sample-package.zip examples/package-attempts.jsonl --csv
+```
+
+示例实际预期为 6 条记录、4 条评分成功、2 条错误，其中 1 条合法未作答。错误行的 `result` 为 `null`，错误不按零分处理。报告保留原始行号、资源 ID、可用的题目 ID、评分结果与结构化错误；按作答 ID 另列成功／失败／已答／未答数量和成功行分数和。字段 `all_rows_scored` 仅表示所提交行全部评分成功。未提交的题目不补零，不据此推断试卷总分、满分、权重或完成状态。
+
+```moonbit
+let report = bundle.score_attempts_jsonl(jsonl_text)
+println(report.to_json())
+let csv = report.to_csv()
+let rows = report.rows() // 独立数组，保留输入顺序
+let attempts = report.attempts() // 按作答 ID 首次出现的顺序
+```
+
+```js
+const { report, csv } = bundle.scoreAttempts(jsonlText);
+console.log(report.rows, report.attempts);
+// 两种格式来自同一次 MoonBit 评分，无需另行解析或评分。
+```
+
+浏览器展开“题包批量评分与结果导出”，载入示例或 UTF-8 JSONL 文件，查看逐行结果并下载 JSON／CSV。修改输入或更换题包会清除旧结果并禁用导出，重新评分后恢复。导出不附带原始响应对象、正确答案或评分解释；错误消息仍可能描述无效的输入值。
+
+输入限制为 **4,194,304 UTF-16 码元、4096 条非空记录**；每行最多 1,048,576 码元、JSON 深度 16。前两项超限导致整体失败，单行格式或评分错误保留在该行，继续处理后续记录。允许空行、CRLF 和文件开头的一个 BOM；拒绝重复 JSON 成员及未知外层字段。`attempt_id` 长度 1–256、`resource_id` 长度 1–4096，均不允许首尾空白或控制字符，不会裁剪或合并不同 ID。无法验证作答 ID 的行计入 `unassigned_count`。
+
+成功行使用原始 Double 分数按输入顺序相加，可包含负分和作者为 NULL 设置的非零分。无成功行时 `score_sum` 为 `null`；求和首次出现非有限数时也为 `null`，并通过 `sum_error` 报错，原始逐题分数仍保留。`has_errors` 包含行错误与汇总错误。CLI 在这些情况下输出完整报告并退出 1；整体成功退出 0，参数错误退出 2。JSON 模式的 `ok:true` 表示批次已完成处理，需同时检查报告和退出码；整体不可处理时仍输出常规 JSON 错误，包括请求 CSV 时。
+
+CSV 固定 12 列，错误行得分留空；按 [RFC 4180](https://www.rfc-editor.org/rfc/rfc4180) 处理逗号、双引号和 CRLF。文本字段以 `= + - @` 及其全角形式开头（含空白后），或以制表／换行开头时添加单引号前缀，以减少表格公式解释风险；数字得分不改变，JSON 保持原始 ID。此转换不保证各表格应用保存后仍保留前缀，需要精确交换数据时使用 JSON。核心 CSV 不带 BOM，网页下载添加 UTF-8 BOM，便于显示中文。导出处理依据见 [OWASP CSV Injection](https://owasp.org/www-community/attacks/CSV_Injection)。
+
 `tools/project.py` 优先使用 `--moon PATH` 或 `QTI_MOON` 指定的工具链，其次使用存在的 `_build/toolchain/bin/moon`，最后使用 PATH 中的 `moon`。它不会安装软件或修改系统工具链。首次准备环境请参见 [MoonBit 官方下载说明](https://www.moonbitlang.com/download/)；旧版工具链可能无法编译当前依赖使用的 `Int32` 类型。
 
 ## 作为库使用
@@ -110,6 +151,8 @@ let next = item.score_json("{\"RESPONSE\":[\"A\"]}")
 | `read_content_package(bytes, limits?)` | 在内存中导入有大小限制的 ZIP 题包 |
 | `ContentPackage::item(resource_id)` | 获取已编译的可评分题目 |
 | `ContentPackage::describe()` / `resource_files(id)` / `read_file(path)` | 兼容报告、传递依赖文件和原始字节 |
+| `ContentPackage::score_attempts_jsonl(text)` | 跨题批量评分、重复检测与作答汇总 |
+| `BatchReport::to_json()` / `to_csv()` / `rows()` / `attempts()` | 导出报告和独立结果数组 |
 
 响应 JSON 为单个对象：
 
@@ -216,6 +259,8 @@ python tools/project.py check
 最后一个命令会构建浏览器桥接模块与独立 SDK，运行 SDK 接入测试和 TypeScript 类型检查，并以固定提交版本的官方单选、多选题目进行 **14 个评分场景**核对，另检查 **12 个本地数值场景**。CLI、桥接与 SDK 的结果必须一致，数值评分解释也逐步对照，同时检查 CLI 错误退出码。预期值根据标准规则与题目声明编写，不由待测评分器生成。TypeScript 是 SDK 的开发依赖，由前一条 npm 命令安装；普通 MoonBit 核心测试不依赖它。
 
 检查还对照 CLI 与 SDK 的完整题包报告及 2 个题包评分／解释场景，并验证不支持和未知资源的非零退出码。核心测试覆盖 Store/Deflate/数据描述符、CRC、解压限额、URI 编码、xml:base、缺失文件、长依赖链与循环；SDK 测试覆盖字节隔离、独立安装和对象生命周期。
+
+跨题批量检查包含 5 组输入：混合成功／失败、全成功、重复及格式错误、空批次、带逗号／引号／公式前缀的 ID。逐项对照 CLI 与 SDK 的完整 JSON 报告和 CSV 字节，并用 Python 标准库的独立 CSV 解析器检查列数、得分空值、错误码及文本转义。核心另覆盖整数原始词法、负分、非零 NULL 分与汇总溢出。
 
 官方 XML 首次运行时下载到 `_build/reference/`，校验固定 SHA-256 后使用，后续可用 `--offline` 运行。结构化结果默认保存到 `_build/validation.json`，也可用 `--output PATH` 指定位置。检查还覆盖批处理空行、失败后继续处理及退出码。普通 MoonBit 测试使用仓库内自编题目，依赖下载后可离线运行。
 

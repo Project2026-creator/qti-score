@@ -1,4 +1,7 @@
+import { createBatchPanel } from './batch.mjs';
+
 const $ = id => document.getElementById(id);
+const batchPanel = createBatchPanel();
 const source = $('xml-source');
 let engine;
 let compiledItem;
@@ -139,6 +142,7 @@ function compile() {
 function clearPackage() {
   contentPackage?.dispose();
   contentPackage = null;
+  batchPanel.setPackage(null);
   $('package-report').hidden = true;
   $('package-items').replaceChildren();
   $('resource-list').replaceChildren();
@@ -243,6 +247,7 @@ async function loadPackage(readBytes, name) {
     catch (error) { next.dispose(); throw error; }
     contentPackage?.dispose();
     contentPackage = next;
+    batchPanel.setPackage(next, report.identifier);
     compiledItem?.dispose();
     compiledItem = null;
     item = null;

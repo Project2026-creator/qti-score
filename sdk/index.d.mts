@@ -73,6 +73,45 @@ export interface ContentPackage {
   getItem(resourceId: string): CompiledItem;
   resourceFiles(resourceId: string): string[];
   readFile(path: string): Uint8Array;
+  scoreAttempts(jsonl: string): PackageBatchEvaluation;
   dispose(): void;
 }
 export function importPackage(bytes: Uint8Array): ContentPackage;
+
+export type PackageBatchRow = {
+  readonly line: number;
+  readonly attempt_id: string | null;
+  readonly resource_id: string | null;
+  readonly item_id: string | null;
+} & (
+  | { readonly ok: true; readonly result: Score; readonly error: null }
+  | { readonly ok: false; readonly result: null; readonly error: ErrorDetail }
+);
+export interface AttemptSummary {
+  readonly attempt_id: string;
+  readonly row_count: number;
+  readonly scored_count: number;
+  readonly error_count: number;
+  readonly answered_count: number;
+  readonly unanswered_count: number;
+  readonly all_rows_scored: boolean;
+  readonly score_sum: number | null;
+  readonly sum_error: ErrorDetail | null;
+}
+export interface PackageBatchReport {
+  readonly package_identifier: string;
+  readonly row_count: number;
+  readonly attempt_count: number;
+  readonly scored_count: number;
+  readonly error_count: number;
+  readonly answered_count: number;
+  readonly unanswered_count: number;
+  readonly unassigned_count: number;
+  readonly has_errors: boolean;
+  readonly rows: readonly PackageBatchRow[];
+  readonly attempts: readonly AttemptSummary[];
+}
+export interface PackageBatchEvaluation {
+  readonly report: PackageBatchReport;
+  readonly csv: string;
+}

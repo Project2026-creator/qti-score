@@ -148,6 +148,12 @@ class ContentPackage {
     const { base64 } = unwrap(core.package_file(this.#handle, packageKey(path)));
     return Uint8Array.from(atob(base64), character => character.charCodeAt(0));
   }
+  scoreAttempts(jsonl) {
+    this.#assertLive();
+    if (typeof jsonl !== 'string') throw error('invalid_response', 'Batch JSONL must be a string');
+    const { report, csv } = unwrap(core.score_package_attempts(this.#handle, jsonl));
+    return { report, csv };
+  }
   dispose() {
     if (this.#disposed) return;
     core.release_package(this.#handle);

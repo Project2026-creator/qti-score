@@ -30,6 +30,18 @@ for (const entry of bundle.describe().items) {
 }
 const files: string[] = bundle.resourceFiles('resource-id');
 const bytes: Uint8Array = bundle.readFile(files[0]);
+const evaluation = bundle.scoreAttempts('');
+const csv: string = evaluation.csv;
+for (const row of evaluation.report.rows) {
+  if (row.ok) { const value: number = row.result.score; void value; }
+  else { const code: string = row.error.code; void code; }
+}
+const sum: number | null = evaluation.report.attempts[0]?.score_sum ?? null;
+// @ts-expect-error raw JSONL must be a string
+bundle.scoreAttempts([]);
+// @ts-expect-error report counters are read-only
+evaluation.report.scored_count = 0;
+void [csv, sum];
 bundle.getItem('resource-id').dispose();
 // @ts-expect-error ZIP input must be bytes
 importPackage('archive.zip');

@@ -23,6 +23,7 @@ options(
         "package_files",
         "package_file",
         "release_package",
+        "score_package_attempts",
       ],
       "format": "esm",
     },

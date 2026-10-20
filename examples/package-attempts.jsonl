@@ -1,0 +1,6 @@
+{"attempt_id":"class-01","resource_id":"choice","response":{"RESPONSE":"A"}}
+{"attempt_id":"class-01","resource_id":"measurement","response":{"RESPONSE":100.5}}
+{"attempt_id":"class-02","resource_id":"choice","response":{"RESPONSE":null}}
+{"attempt_id":"class-02","resource_id":"measurement","response":{"RESPONSE":"bad"}}
+{"attempt_id":"class-03","resource_id":"essay","response":{"RESPONSE":"reflection"}}
+{"attempt_id":"class-03","resource_id":"measurement","response":{"RESPONSE":104}}

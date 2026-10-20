@@ -11,12 +11,15 @@ fn main {
     args[offset] == "--help" ||
     args[offset] == "help" {
     println(
-      "QTI Score 0.3.0\n  describe ITEM.xml\n  score ITEM.xml RESPONSE.json\n  explain ITEM.xml RESPONSE.json\n  batch ITEM.xml RESPONSES.jsonl\n  inspect-package ARCHIVE.zip\n  package-score ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-explain ARCHIVE.zip RESOURCE_ID RESPONSE.json\n\nResponses: {\"RESPONSE\": \"A\"}, {\"RESPONSE\": [\"A\",\"B\"]}, {\"RESPONSE\": 100.5}, or {\"RESPONSE\": null}\nExplain is an explicit developer diagnostic and may reveal scoring rules.",
+      "QTI Score 0.4.0\n  describe ITEM.xml\n  score ITEM.xml RESPONSE.json\n  explain ITEM.xml RESPONSE.json\n  batch ITEM.xml RESPONSES.jsonl\n  inspect-package ARCHIVE.zip\n  package-score ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-explain ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-batch ARCHIVE.zip ATTEMPTS.jsonl [--csv]\n\nResponses: {\"RESPONSE\": \"A\"}, {\"RESPONSE\": [\"A\",\"B\"]}, {\"RESPONSE\": 100.5}, or {\"RESPONSE\": null}\nBatch rows: {\"attempt_id\":\"a\",\"resource_id\":\"choice\",\"response\":{\"RESPONSE\":\"A\"}}\nExplain is an explicit developer diagnostic and may reveal scoring rules.",
     )
     return
   }
   let command = args[offset]
   let from_package = command == "package-score" || command == "package-explain"
+  let batch_csv = command == "package-batch" &&
+    args.length() == offset + 4 &&
+    args[offset + 3] == "--csv"
   let expected = if command == "describe" || command == "inspect-package" {
     2
   } else if from_package {
@@ -26,9 +29,9 @@ fn main {
   }
   if ![
       "describe", "score", "explain", "batch", "inspect-package", "package-score",
-      "package-explain",
+      "package-explain", "package-batch",
     ].contains(command) ||
-    args.length() != offset + expected {
+    (args.length() != offset + expected && !batch_csv) {
     println(
       "{\"ok\":false,\"error\":{\"code\":\"usage\",\"message\":\"Use --help for command syntax\"}}",
     )
@@ -36,6 +39,22 @@ fn main {
     return
   }
   try {
+    if command == "package-batch" {
+      let report = @qti.read_content_package(
+        @fs.read_file_to_bytes(args[offset + 1]),
+      ).score_attempts_jsonl(@fs.read_file_to_string(args[offset + 2]))
+      if batch_csv {
+        // println supplies the final LF; keep the preceding CR and all rows.
+        println(report.to_csv().strip_suffix("\n").unwrap())
+      } else {
+        let result : Json = { "ok": true, "report": report }
+        println(result.stringify())
+      }
+      if report.has_errors {
+        @sys.exit(1)
+      }
+      return
+    }
     if command == "inspect-package" {
       let bundle = @qti.read_content_package(
         @fs.read_file_to_bytes(args[offset + 1]),

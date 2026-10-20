@@ -23,6 +23,18 @@
       <div id="package-error" class="error" role="alert" hidden></div>
       <div id="package-report" hidden><div id="package-items" class="package-items" aria-label="题包中的题目"></div><p id="package-selection" class="package-status"></p><details class="package-resources"><summary>清单与资源依赖</summary><ul id="resource-list"></ul></details></div>
     </section>
+    <details class="batch-panel" id="batch-panel"><summary>题包批量评分与结果导出</summary><div class="batch-body">
+      <p id="batch-package" class="batch-help" role="status">请先导入题包，再进行批量评分。</p>
+      <p class="batch-help">每行一份 JSON：<code>{"attempt_id":"class-01","resource_id":"choice","response":{"RESPONSE":"A"}}</code>。相同作答 ID 跨题共享；同一作答 ID 与题目资源的重复行全部报错。最多 4096 条非空记录、4,194,304 个码元。</p>
+      <div class="batch-actions"><button id="sample-attempts" class="text-button" type="button">载入示例作答</button><button id="open-attempts" class="text-button" type="button">导入 JSONL ↥</button><input id="attempts-input" type="file" accept=".jsonl,.ndjson,.txt,application/x-ndjson,text/plain" hidden><span id="batch-filename">尚未载入作答</span></div>
+      <label class="sr-only" for="batch-source">批量作答 JSONL</label><textarea id="batch-source" spellcheck="false" autocapitalize="off" placeholder="每行包含 attempt_id、resource_id 和 response"></textarea>
+      <div class="batch-actions"><button id="run-batch" class="primary" type="button" disabled>批量评分 →</button><button id="download-json" class="secondary" type="button" disabled>导出 JSON</button><button id="download-csv" class="secondary" type="button" disabled>导出 CSV</button></div>
+      <div id="batch-error" class="error" role="alert" hidden></div>
+      <div id="batch-results" hidden><p id="batch-summary" class="batch-summary" role="status"></p><p class="batch-help">汇总仅相加评分成功的提交行。未提交的题目不补零；分数和不代表试卷总分或完成状态。</p>
+        <div class="batch-table"><table><caption>按作答 ID 汇总</caption><thead><tr><th>作答 ID</th><th>成功／提交</th><th>错误</th><th>成功行分数和</th><th>说明</th></tr></thead><tbody id="attempt-summaries"></tbody></table></div>
+        <div class="batch-table"><table><caption>逐行评分结果</caption><thead><tr><th>输入行</th><th>作答 ID</th><th>题目资源</th><th>结果</th><th>得分</th><th>错误详情</th></tr></thead><tbody id="batch-rows"></tbody></table></div>
+      </div>
+    </div></details>
     <div id="fatal-error" class="error" role="alert" hidden></div>
     <section class="workbench" aria-label="评分工作台">
       <section class="panel source-panel"><div class="panel-heading"><div><span class="step">01 / SOURCE</span><h2>题目定义</h2></div><button id="open-file" class="text-button" type="button">导入 XML ↥</button><input id="file-input" type="file" accept=".xml,text/xml,application/xml" hidden></div><div class="file-bar"><span id="filename">single.xml</span><span>QTI 3 XML</span></div><label class="sr-only" for="xml-source">QTI 题目 XML 源码</label><textarea id="xml-source" spellcheck="false" autocapitalize="off" aria-describedby="source-status"></textarea><div class="source-bottom"><span id="source-status" role="status">正在载入内核…</span><button id="compile" type="button" class="secondary">编译题目</button></div><div id="compile-error" class="error" role="alert" hidden></div></section>

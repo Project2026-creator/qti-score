@@ -56,3 +56,22 @@ Limits are 8 MiB compressed input, 512 entries, 4 MiB per expanded file and 16 M
 `describe()` includes package identifier, files, resources, dependencies, bounded resource issues and item compatibility entries. A `ready` entry has item metadata and no error; other entries carry an error with source position where available. `getItem` rethrows that error. Unknown IDs and missing files throw `invalid_package`. A readable package with unsupported items still imports successfully. ZIP corruption, invalid paths or malformed manifests fail the import.
 
 The supported packaging subset requires root `imsmanifest.xml`, accepts QTI 3 and common CP namespaces, resolves local `href` and inherited `xml:base`, and compiles `imsqti_item_xmlv3p0` resources. File paths are case-sensitive. Manifest URIs are decoded once; ZIP names are not decoded. Entry points must be listed in their resource's files. External URLs, fragments, queries, encoded separators and root escapes are rejected. Other resource types remain available as files and metadata; organizations, metadata semantics, test sequencing, full schema validation and asset rendering are outside this subset. See the repository README for the precise limits and namespaces.
+
+## Score attempts across package items
+
+```js
+const jsonl = [
+  { attempt_id: 'class-01', resource_id: 'choice', response: { RESPONSE: 'A' } },
+  { attempt_id: 'class-01', resource_id: 'measurement', response: { RESPONSE: 100.5 } },
+].map(row => JSON.stringify(row)).join('\n');
+const { report, csv } = bundle.scoreAttempts(jsonl);
+console.log(report.scored_count, report.error_count, report.attempts);
+```
+
+`scoreAttempts` returns a fresh `{report, csv}` from one MoonBit execution, with no persistent result handle. It accepts a JSONL string, not JavaScript response objects, so the core can reject duplicate JSON keys and preserve numeric spelling. Limits are 4,194,304 UTF-16 code units and 4096 nonblank rows; exceeding either throws. A line has a 1,048,576-code-unit limit and JSON depth 16; individual errors are retained and do not interrupt later rows. Blank lines and CRLF are accepted, and one leading BOM is removed. `attempt_id` must contain 1–256 code units and `resource_id` 1–4096, without edge whitespace or control characters. Unknown outer members are rejected. The response object is required; `{}` means unanswered.
+
+Every occurrence of a duplicate `(attempt_id, resource_id)` pair is an error, including rows with validated identities but invalid response shapes. No occurrence wins silently. Output rows retain physical one-based line numbers and are discriminated by `ok`: success has a `Score` and null error; failure has null result and an `ErrorDetail`. Identities are null where validation failed. `unassigned_count` counts rows without a valid attempt ID. No raw response objects, authored answers or explanation traces are attached; error messages may describe invalid values.
+
+Attempt summaries preserve first-appearance order and show row/error/answered counts plus the sum of successful rows' raw Double scores in input order. `all_rows_scored` refers only to submitted rows; omitted items are unknown. No full-test completion, weighting or maximum score is inferred. No successful rows means `score_sum:null`; nonfinite sequential addition also gives null and a `sum_error`. Individual results remain available. `report.has_errors` covers row and summary errors and does not make the method throw. Disposed packages and fatal input limits do throw.
+
+CSV has a fixed 12-column detail header and CRLF endings, with failure scores left blank. Commas, quotes and line breaks are quoted. Formula-like text cells receive an apostrophe prefix (ASCII/fullwidth `= + - @`, including after whitespace, or leading tab/CR/LF); numeric scores are unchanged. JSON preserves exact identities and is preferred for lossless data interchange. Spreadsheet applications may change prefixes when resaving. Core CSV has no BOM; the host chooses its encoding. The browser demo downloads it as UTF-8 with a BOM.

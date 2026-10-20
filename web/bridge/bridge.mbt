@@ -192,3 +192,17 @@ pub fn release_package(handle : Int32) -> Bool {
   packages.items.remove(handle)
   existed
 }
+
+///|
+pub fn score_package_attempts(handle : Int32, jsonl : String) -> String {
+  guard packages.items.get(handle) is Some(bundle) else {
+    return handle_error("invalid_handle", "package is unavailable or disposed")
+  }
+  let result : Json = try {
+    let report = bundle.score_attempts_jsonl(jsonl)
+    { "ok": true, "report": report, "csv": report.to_csv() }
+  } catch {
+    error => { "ok": false, "error": error }
+  }
+  result.stringify()
+}

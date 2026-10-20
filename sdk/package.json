@@ -1,8 +1,8 @@
 {
   "name": "@project2026-creator/qti-score",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
-  "description": "QTI 3 scoring and bounded ZIP package import with a MoonBit core",
+  "description": "QTI 3 scoring, ZIP packages and batch result exports with a MoonBit core",
   "type": "module",
   "exports": {
     ".": {

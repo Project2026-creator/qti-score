@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Build the browser demo, serve it, or verify the QTI entry points (stdlib only)."""
 import argparse
+import csv
 import datetime
 import functools
 import hashlib
 import http.server
+import io
 import json
 import os
 from pathlib import Path
@@ -107,7 +109,7 @@ def extract_json(stdout):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.3.0",
+        "module": "Project2026-creator/qti-score", "version": "0.4.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "feature_cases": [],
     }
@@ -280,6 +282,64 @@ try {
             raise AssertionError("Package CLI failure did not preserve error and exit status")
         report["checks"].append({"command": ["moon"] + arguments[1:], "returncode": failed.returncode,
                                  "expected_nonzero": True, "result": result})
+    sample_attempts = (ROOT / "examples/package-attempts.jsonl").read_text(encoding="utf-8")
+    sample_lines = sample_attempts.splitlines()
+    quoted_attempts = "\n".join(json.dumps({"attempt_id": identity, "resource_id": "choice", "response": {}}, ensure_ascii=False)
+                                for identity in ['学生,"A"', '=1+2'])
+    batch_scenarios = [
+        ("mixed", sample_attempts, 6, 4, 2, 1),
+        ("valid", "\n".join(sample_lines[:2]), 2, 2, 0, 0),
+        ("duplicates", "\uFEFF\r\n" + sample_lines[0] + "\r\n" + sample_lines[0] + "\r\n{broken\r\n" +
+         '{"attempt_id":"unknown","resource_id":"missing","response":{}}', 4, 0, 4, 1),
+        ("empty", "\uFEFF\n \r\n", 0, 0, 0, 0),
+        ("quoted-identities", quoted_attempts, 2, 2, 0, 0),
+    ]
+    batch_script = """
+import {readFileSync} from 'node:fs';
+const {importPackage}=await import(process.argv[1]);
+const bundle=importPackage(readFileSync(process.argv[2]));
+try {console.log(JSON.stringify(bundle.scoreAttempts(readFileSync(0,'utf8'))));}
+finally {bundle.dispose();}
+"""
+    report["batch_cases"] = []
+    for name, source, count, scored, errors, expected_exit in batch_scenarios:
+        path = cache / ("batch-" + name + ".jsonl")
+        path.write_text(source, encoding="utf-8")
+        arguments = [moon, "run", "cmd/main", "--", "package-batch", str(archive), str(path)]
+        cli = subprocess.run(arguments, cwd=str(ROOT), env=env, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, encoding="utf-8", errors="replace")
+        parsed = extract_json(cli.stdout)
+        cli_report = parsed.get("report", {})
+        if cli.returncode != expected_exit or parsed.get("ok") is not True or \
+                [cli_report.get(key) for key in ["row_count", "scored_count", "error_count"]] != [count, scored, errors]:
+            raise AssertionError("Unexpected package batch result: {}".format(parsed))
+        sdk_evaluation = json.loads(command([node, "--input-type=module", "-e", batch_script,
+                                             (sdk / "index.mjs").as_uri(), str(archive)], env, source).stdout)
+        if sdk_evaluation["report"] != cli_report:
+            raise AssertionError("CLI and SDK batch reports differ")
+        csv_run = subprocess.run(arguments + ["--csv"], cwd=str(ROOT), env=env,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        exported = csv_run.stdout.decode("utf-8")
+        if csv_run.returncode != expected_exit or exported != sdk_evaluation["csv"]:
+            raise AssertionError("CLI and SDK CSV export differ")
+        decoded = list(csv.DictReader(io.StringIO(exported, newline="")))
+        if len(decoded) != count or len(exported.split("\r\n")[0].split(",")) != 12:
+            raise AssertionError("CSV row count or fixed header mismatch")
+        for row, detail in zip(decoded, cli_report["rows"]):
+            if row["line"] != str(detail["line"]) or row["ok"] != str(detail["ok"]).lower():
+                raise AssertionError("CSV identity/status mismatch")
+            if detail["ok"]:
+                if float(row["score"]) != detail["result"]["score"] or row["status"] != detail["result"]["status"]:
+                    raise AssertionError("CSV score mismatch")
+            elif row["score"] != "" or row["error_code"] != detail["error"]["code"]:
+                raise AssertionError("CSV failure was silently converted to a score")
+        if name == "mixed" and [attempt["score_sum"] for attempt in cli_report["attempts"]] != [2, 0, 0.5]:
+            raise AssertionError("Successful-row sums differ from authored expectations")
+        if name == "quoted-identities" and [row["attempt_id"] for row in decoded] != ['学生,"A"', "'=1+2"]:
+            raise AssertionError("CSV text quoting/prefix mismatch")
+        report["batch_cases"].append({"name": name, "expected_exit": expected_exit,
+                                      "cli_report": cli_report, "sdk_report": sdk_evaluation["report"],
+                                      "csv": exported, "csv_decoded": decoded})
     # A real CLI failure must return a nonzero code as well as a JSON error.
     bad = cache / "invalid-response.json"
     bad.write_text('{"RESPONSE":"not-a-choice"}', encoding="utf-8")
@@ -313,11 +373,13 @@ try {
     report["official_cases_passed"] = len(report["official_cases"])
     report["feature_cases_passed"] = len(report["feature_cases"])
     report["package_cases_passed"] = len(package_cases)
+    report["batch_cases_passed"] = len(batch_scenarios)
     report["entry_point_parity"] = True
     report["passed"] = True
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print("All checks passed; {} official and {} feature cases agree across CLI, bridge and SDK.".format(len(report["official_cases"]), len(report["feature_cases"])))
+    print("All checks passed; {} official, {} numeric, {} package and {} batch cases agree across entry points.".format(
+        len(report["official_cases"]), len(report["feature_cases"]), len(package_cases), len(batch_scenarios)))
     print("Results: {}".format(output))
 
 

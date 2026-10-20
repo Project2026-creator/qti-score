@@ -37,6 +37,21 @@ pub fn QtiError::to_repr(Self) -> @debug.Repr
 pub impl ToJson for QtiError
 
 // Types and methods
+pub struct AttemptSummary {
+  attempt_id : String
+  row_count : Int32
+  scored_count : Int32
+  error_count : Int32
+  answered_count : Int32
+  unanswered_count : Int32
+  all_rows_scored : Bool
+  score_sum : Double?
+  sum_error : QtiError?
+} derive(@debug.Debug)
+pub fn AttemptSummary::to_json(Self) -> Json
+pub fn AttemptSummary::to_repr(Self) -> @debug.Repr
+pub impl ToJson for AttemptSummary
+
 pub(all) enum BaseType {
   Identifier
   Text
@@ -46,6 +61,36 @@ pub(all) enum BaseType {
 pub fn BaseType::equal(Self, Self) -> Bool
 pub fn BaseType::not_equal(Self, Self) -> Bool
 pub fn BaseType::to_repr(Self) -> @debug.Repr
+
+pub struct BatchReport {
+  package_identifier : String
+  row_count : Int32
+  attempt_count : Int32
+  scored_count : Int32
+  error_count : Int32
+  answered_count : Int32
+  unanswered_count : Int32
+  unassigned_count : Int32
+  has_errors : Bool
+  // private fields
+}
+pub fn BatchReport::attempts(Self) -> Array[AttemptSummary]
+pub fn BatchReport::rows(Self) -> Array[BatchRow]
+pub fn BatchReport::to_csv(Self) -> String
+pub fn BatchReport::to_json(Self) -> Json
+pub impl ToJson for BatchReport
+
+pub struct BatchRow {
+  line : Int32
+  attempt_id : String?
+  resource_id : String?
+  item_id : String?
+  result : Score?
+  error : QtiError?
+} derive(@debug.Debug)
+pub fn BatchRow::to_json(Self) -> Json
+pub fn BatchRow::to_repr(Self) -> @debug.Repr
+pub impl ToJson for BatchRow
 
 pub(all) enum Cardinality {
   Single
@@ -71,6 +116,7 @@ pub fn ContentPackage::describe(Self) -> Json
 pub fn ContentPackage::item(Self, String) -> Item raise QtiError
 pub fn ContentPackage::read_file(Self, String) -> Bytes raise QtiError
 pub fn ContentPackage::resource_files(Self, String) -> Array[String] raise QtiError
+pub fn ContentPackage::score_attempts_jsonl(Self, String) -> BatchReport raise QtiError
 
 pub struct Explanation {
   result : Score
