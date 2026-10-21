@@ -15,7 +15,7 @@ pub fn explain(xml : String, response : String) -> String {
 
 ///|
 priv struct CompiledItems {
-  items : Map[Int32, @qti.Item]
+  items : Map[Int32, @qti.AssessmentItem]
   mut next_id : Int32
 }
 
@@ -40,7 +40,7 @@ pub fn compile(xml : String) -> String {
     )
   }
   let result : Json = try {
-    let item = @qti.compile_item(xml)
+    let item = @qti.compile_assessment_item(xml)
     let handle = compiled.next_id
     compiled.next_id += 1
     compiled.items[handle] = item
@@ -147,7 +147,7 @@ pub fn package_item(handle : Int32, resource_id : String) -> String {
     )
   }
   let result : Json = try {
-    let item = bundle.item(resource_id)
+    let item = bundle.assessment_item(resource_id)
     let item_handle = compiled.next_id
     compiled.next_id += 1
     compiled.items[item_handle] = item

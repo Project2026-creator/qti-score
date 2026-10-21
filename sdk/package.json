@@ -1,8 +1,8 @@
 {
   "name": "@project2026-creator/qti-score",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
-  "description": "QTI 3 choice, ordering, matching, gap filling, hottext, inline choice, sliders and numeric scoring, ZIP packages and batch result exports",
+  "description": "QTI 3 choice, ordering, matching, gap filling, hottext, inline choice, sliders, composite items and numeric scoring, ZIP packages and batch result exports",
   "type": "module",
   "exports": {
     ".": {

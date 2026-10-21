@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1" identifier="composite-bank"><resources>
+  <resource identifier="platform" type="imsqti_item_xmlv3p0" href="items/composite.xml"><file href="items/composite.xml"/></resource>
+  <resource identifier="resources" type="imsqti_item_xmlv3p0" href="items/composite-numeric.xml"><file href="items/composite-numeric.xml"/></resource>
+</resources></manifest>

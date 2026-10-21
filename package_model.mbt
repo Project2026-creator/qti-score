@@ -31,7 +31,7 @@ priv struct PackageResource {
 priv struct PackageItem {
   resource_id : String
   path : String?
-  item : Item?
+  item : AssessmentItem?
   error : QtiError?
 }
 

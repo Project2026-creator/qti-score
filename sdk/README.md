@@ -98,6 +98,16 @@ Version 0.7.0 supports text `qti-gap-match-interaction`: `gap_matching` exposes 
 
 Responses use the existing string-pair API, e.g. `{RESPONSE:['Feedback G1','Adjust G2','Feedback G3']}` or a string for a single gap. Reversed/unknown/duplicate pairs, duplicate gap occupancy, missing required gaps in nonempty responses and excess word use are errors. Metadata is fresh, without correct pairs, and keeps prompt/word-bank text outside the passage. Existing item kinds retain their previous metadata shape. The browser demo uses inline native selects and a contextual text preview; image choices, dynamic visibility, match-group and arbitrary HTML rendering are outside this profile.
 
+## Composite text/numeric items
+
+Version 0.11.0 extends the existing compileItem/getItem/score/explain/scoreBatch and package batch entry points to composite items. Responses are plain objects keyed by authored response identifiers, e.g. `{PLATFORM:'LMS',COUNT:4}`. Known omitted/null fields are unanswered; any invalid field rejects the entire attempt. JavaScript accessors, undefined/nonfinite values and unknown core identifiers are rejected, never silently omitted. At most eight fields are encoded. Existing single items still reject fields other than RESPONSE.
+
+The initial composite profile supports 2–8 single string/integer/float text entries, one float SCORE, and an explicit zero initialization followed by one guarded contribution per response. Non-NULL responses may add map-response; exact non-float matches may add a literal weight. The assignment is sum(SCORE, contribution), evaluated in authored order. Defaults, other operators/branches/outcomes and composite choice/media interactions are explicitly unsupported. NULL guards prevent accidental substitution of zero for the standard sum operator's NULL propagation. Integer lexical rules, numeric mapping equality, string case folding and mapping bounds reuse the existing core.
+
+`ItemDescription` is now `SingleItemDescription | CompositeItemDescription`. Check `metadata.kind === 'composite'` before using `responses`/`passage`; the other branch retains the old metadata shape and omits kind. Code that directly accesses single-only properties should narrow this union. Composite metadata has no fabricated single response identifier or choices and never returns correct values/mappings. Returned arrays/objects are isolated. All known correct values must match for matches_correct=true; if any correct response is absent it is null. Status is answered when at least one normalized scalar is non-NULL.
+
+Developer traces add composite_condition and composite_add with the response identifier; raw scoring returns only the existing Score shape. Compiled handle limits, disposal, independent package item lifetimes and batch error isolation remain unchanged. The browser presents inline text fields, preserves scalar input spelling and can clear all responses.
+
 ## Numeric sliders and mappings
 
 Version 0.10.0 adds `qti-slider-interaction` for single integer/float responses, with no new response type or SDK method. `describe().slider` contains effective `lower_bound`, `upper_bound`, `step` (null for a continuous float scale), `step_label`, `orientation` and `reverse`. Descriptions are independent copies and omit scoring rules. Other item kinds omit this field.

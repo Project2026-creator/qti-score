@@ -217,48 +217,10 @@ fn Item::execute(
       record_step(steps, "match_correct", self.processing_source, details)
       score
     }
-    MapResponse => {
-      let mapping = self.mapping.unwrap()
-      let seen : Map[String, Bool] = Map([])
-      let mut total = 0.0
-      for value in values {
-        if seen.contains(value) {
-          record_step(steps, "duplicate_ignored", self.processing_source, {
-            "value": value,
-          })
-          continue
-        }
-        seen[value] = true
-        let mut mapped = mapping.default_value
-        let mut entry_index : Json = Json::null()
-        let mut entry_source = mapping.source
-        for i, entry in mapping.entries {
-          let equal = if self.base_type != Text || entry.case_sensitive {
-            value == entry.key
-          } else {
-            @casefold.casefold(value) == entry.folded_key
-          }
-          if equal {
-            mapped = entry.value
-            entry_index = Json(i)
-            entry_source = entry.source
-            break
-          }
-        }
-        total += mapped
-        if total.is_inf() || total.is_nan() {
-          raise InvalidResponse("mapped score exceeds finite numeric range")
-        }
-        record_step(steps, "map_value", entry_source, {
-          "value": value,
-          "entry_index": entry_index,
-          "used_default": entry_index == Json::null(),
-          "contribution": mapped,
-          "running_total": total,
-        })
-      }
-      mapping.bounded_score(total, steps)
-    }
+    MapResponse =>
+      self.mapping
+      .unwrap()
+      .score_values(values, self.base_type, steps, self.processing_source)
     NumericRules => abort("non-numeric item has numeric rules")
   }
   { score, status: Answered, matches_correct, }

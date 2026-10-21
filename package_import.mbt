@@ -68,7 +68,7 @@ pub fn read_content_package(
   let resolved : Map[String, Array[String]] = Map([])
   let issues : Map[String, Array[QtiError]] = Map([])
   let imported : Array[PackageItem] = []
-  let compiled_paths : Map[String, Item] = Map([])
+  let compiled_paths : Map[String, AssessmentItem] = Map([])
   let failed_paths : Map[String, QtiError] = Map([])
   for resource in resources {
     let (paths, diagnostics) = package_closure(resource, by_id, files)
@@ -77,7 +77,7 @@ pub fn read_content_package(
     if resource.kind != "imsqti_item_xmlv3p0" {
       continue
     }
-    let item : Item? = try {
+    let item : AssessmentItem? = try {
       if !diagnostics.is_empty() {
         raise diagnostics[0]
       }
@@ -93,12 +93,12 @@ pub fn read_content_package(
       if compiled_paths.get(path) is Some(item) {
         Some(item)
       } else {
-        let outcome : Result[Item, QtiError] = try {
+        let outcome : Result[AssessmentItem, QtiError] = try {
           let data = files.get(path).unwrap()
           let source = @utf8.decode(data[:], ignore_bom=true) catch {
             _ => raise InvalidPackage(path, "item XML must be UTF-8")
           }
-          Ok(compile_item(source))
+          Ok(compile_assessment_item(source))
         } catch {
           error => Err(error)
         }
@@ -142,6 +142,20 @@ pub fn ContentPackage::item(
   self : ContentPackage,
   resource_id : String,
 ) -> Item raise QtiError {
+  match self.assessment_item(resource_id) {
+    Single(item) => item
+    Composite(_) =>
+      raise Unsupported(
+        "resource", "use assessment_item for a composite resource",
+      )
+  }
+}
+
+///|
+pub fn ContentPackage::assessment_item(
+  self : ContentPackage,
+  resource_id : String,
+) -> AssessmentItem raise QtiError {
   for entry in self.imported {
     if entry.resource_id == resource_id {
       if entry.item is Some(item) {

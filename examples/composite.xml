@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="platform-and-group" title="学习平台与任务分组">
+  <qti-response-declaration identifier="PLATFORM" cardinality="single" base-type="string">
+    <qti-correct-response><qti-value>LMS</qti-value></qti-correct-response>
+    <qti-mapping default-value="0" lower-bound="0" upper-bound="2"><qti-map-entry map-key="LMS" mapped-value="2" case-sensitive="true"/><qti-map-entry map-key="lms" mapped-value="1" case-sensitive="true"/></qti-mapping>
+  </qti-response-declaration>
+  <qti-response-declaration identifier="COUNT" cardinality="single" base-type="integer"><qti-correct-response><qti-value>4</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>两个空可以分别作答。第一空按缩写形式评分，第二空答对得 2 分；总分由题目规则相加。</p></qti-content-body></qti-rubric-block>
+    <p>学习管理系统的常用英文缩写是 <qti-text-entry-interaction response-identifier="PLATFORM" expected-length="8" placeholder-text="填写英文缩写"/>。</p>
+    <p>将 20 份学习任务平均分给 5 个小组，每组得到 <qti-text-entry-interaction response-identifier="COUNT" expected-length="3" placeholder-text="填写整数"/> 份。</p>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">0</qti-base-value></qti-set-outcome-value>
+    <qti-response-condition><qti-response-if><qti-not><qti-is-null><qti-variable identifier="PLATFORM"/></qti-is-null></qti-not><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-map-response identifier="PLATFORM"/></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+    <qti-response-condition><qti-response-if><qti-match><qti-variable identifier="COUNT"/><qti-correct identifier="COUNT"/></qti-match><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">2</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+  </qti-response-processing>
+</qti-assessment-item>

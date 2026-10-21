@@ -1,4 +1,5 @@
-export type ResponseObject = { RESPONSE?: string | number | readonly string[] | null };
+export type ResponseValue = string | number | readonly string[] | null;
+export type ResponseObject = Readonly<Partial<Record<string, ResponseValue>>>;
 export interface SourceLocation { readonly line: number; readonly column: number }
 export interface ErrorDetail { readonly code: string; readonly message: string; readonly location: SourceLocation | null }
 export interface Score {
@@ -32,7 +33,8 @@ export interface SliderDescription {
   readonly orientation: 'horizontal' | 'vertical';
   readonly reverse: boolean;
 }
-export interface ItemDescription {
+export interface SingleItemDescription {
+  readonly kind?: 'single';
   readonly identifier: string;
   readonly title: string;
   readonly response_identifier: 'RESPONSE';
@@ -50,9 +52,31 @@ export interface ItemDescription {
   readonly slider?: SliderDescription;
   readonly instructions?: readonly string[];
 }
+export interface CompositeItemDescription {
+  readonly kind: 'composite';
+  readonly identifier: string;
+  readonly title: string;
+  readonly prompt: string;
+  readonly template: 'composite_rules';
+  readonly responses: readonly { readonly identifier: string; readonly cardinality: 'single'; readonly base_type: 'string' | 'integer' | 'float'; readonly placeholder: string }[];
+  readonly passage: readonly ({ readonly text: string } | { readonly response: string })[];
+  readonly instructions?: readonly string[];
+  readonly response_identifier?: never;
+  readonly cardinality?: never;
+  readonly base_type?: never;
+  readonly choices?: never;
+  readonly min_choices?: never;
+  readonly max_choices?: never;
+  readonly slider?: never;
+  readonly hottext?: never;
+  readonly inline_choice?: never;
+  readonly matching?: never;
+  readonly gap_matching?: never;
+}
+export type ItemDescription = SingleItemDescription | CompositeItemDescription;
 export type JsonValue = null | boolean | number | string | readonly JsonValue[] | { readonly [key: string]: JsonValue };
 export interface ScoringStep {
-  readonly operation: 'response' | 'null_response' | 'match_correct' | 'duplicate_ignored' | 'map_value' | 'mapping_bounds' | 'numeric_condition' | 'set_score';
+  readonly operation: 'response' | 'null_response' | 'match_correct' | 'duplicate_ignored' | 'map_value' | 'mapping_bounds' | 'numeric_condition' | 'set_score' | 'composite_condition' | 'composite_add';
   readonly location: SourceLocation;
   readonly details: Readonly<Record<string, JsonValue>>;
 }

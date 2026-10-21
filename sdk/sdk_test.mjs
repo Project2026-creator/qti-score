@@ -14,6 +14,67 @@ const hasCode = code => cause => cause instanceof QtiScoreError && cause.code ==
 const packageBytes = () => readFileSync(new URL('../web/sample-package.zip', import.meta.url));
 const packageAttempts = () => readFileSync(new URL('../examples/package-attempts.jsonl', import.meta.url), 'utf8');
 
+test('composite descriptions and multi-field responses preserve existing compiled-item methods', () => {
+  const item = compileItem(fixture('composite'));
+  try {
+    const metadata = item.describe();
+    assert.equal(metadata.kind,'composite');
+    assert.deepEqual(metadata.responses.map(b=>b.identifier),['PLATFORM','COUNT']);
+    assert.equal(metadata.response_identifier,undefined);
+    assert.equal(metadata.passage.filter(p=>p.response).length,2);
+    metadata.responses[0].identifier='Changed'; metadata.passage.length=0;
+    assert.equal(item.describe().responses[0].identifier,'PLATFORM');
+    const input={PLATFORM:'LMS',COUNT:4};
+    assert.deepEqual(item.score(input),{score:4,status:'answered',matches_correct:true});
+    assert.deepEqual(input,{PLATFORM:'LMS',COUNT:4});
+    assert.equal(item.explain(input).result.score,4);
+    assert.equal(item.score({COUNT:'04'}).score,2);
+    assert.equal(item.score({}).status,'unanswered');
+  } finally { item.dispose(); }
+});
+
+test('composite invalid fields and accessors cannot silently become missing responses', () => {
+  const item = compileItem(fixture('composite'));
+  try {
+    const rows=item.scoreBatch([{PLATFORM:'lms',COUNT:4},{PLATFORM:'LMS',COUNT:4.5},{OTHER:4},{COUNT:4},{}]);
+    assert.deepEqual(rows.map(r=>r.ok?r.result.score:r.error.code),[3,'invalid_response','invalid_response',2,0]);
+    let accessed=false;
+    assert.throws(()=>item.score({get PLATFORM(){accessed=true;return 'LMS';}}),hasCode('invalid_response'));
+    assert.equal(accessed,false);
+    for(const input of [{COUNT:undefined},{COUNT:Infinity},{COUNT:[4]},{COUNT:['4']},{PLATFORM:4}]) assert.throws(()=>item.score(input),hasCode('invalid_response'));
+    assert.throws(()=>item.score(Object.fromEntries(Array.from({length:9},(_,i)=>[`X${i}`,null]))),hasCode('limit_exceeded'));
+    assert.throws(()=>compileItem(fixture('composite').replace('identifier="COUNT" cardinality','identifier="PLATFORM" cardinality')),hasCode('invalid_item'));
+  } finally {item.dispose();}
+});
+
+test('composite numeric mappings retain scalar numerical equality and row-local errors', () => {
+  const item=compileItem(fixture('composite-numeric'));
+  try {
+    assert.equal(item.score({RATIO:0.75,TOTAL:20}).score,3);
+    assert.equal(item.score({RATIO:'7e-1',TOTAL:'020'}).score,2);
+    assert.equal(item.score({RATIO:0.7500000000000001}).score,0);
+    assert.equal(item.score({TOTAL:20}).matches_correct,false);
+    const explanation=item.explain({RATIO:0.7});
+    assert.ok(explanation.steps.some(s=>s.operation==='composite_add'&&s.details.identifier==='RATIO'&&s.details.contribution===1));
+  }finally{item.dispose();}
+  assert.throws(()=>compileItem(fixture('composite').replace('base-type="integer"','base-type="float"')),hasCode('unsupported'));
+});
+
+test('composite package batches and independent item lifetimes work with unchanged SDK entry points',()=>{
+  const bundle=importPackage(readFileSync(new URL('../web/composite-package.zip',import.meta.url)));
+  const item=bundle.getItem('platform');
+  try {
+    assert.equal(bundle.describe().ready_count,2);
+    const {report,csv}=bundle.scoreAttempts(readFileSync(new URL('../examples/composite-attempts.jsonl',import.meta.url),'utf8'));
+    assert.deepEqual([report.row_count,report.scored_count,report.error_count],[6,5,1]);
+    assert.deepEqual(report.rows.map(r=>r.ok?r.result.score:null),[4,3,3,1,null,0]);
+    assert.deepEqual(report.attempts.map(a=>a.score_sum),[7,3,1,null,0]);
+    assert.ok(csv.includes('invalid_response'));
+    bundle.dispose();
+    assert.equal(item.score({COUNT:4}).score,2);
+  }finally{item.dispose();bundle.dispose();}
+});
+
 test('slider metadata and numerical mappings retain NULL and defensive-copy semantics', () => {
   const item = compileItem(fixture('slider'));
   try {

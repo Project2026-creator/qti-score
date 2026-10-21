@@ -34,22 +34,25 @@ function encodeResponse(response) {
   if (prototype !== Object.prototype && prototype !== null) {
     throw error('invalid_response', 'Expected a plain response object');
   }
-  for (const key of Reflect.ownKeys(response)) {
-    if (key !== 'RESPONSE') throw error('invalid_response', 'Unknown response identifier');
+  const keys = Reflect.ownKeys(response);
+  if (keys.length > 8) throw error('limit_exceeded', 'At most eight response variables');
+  const encoded = Object.create(null);
+  for (const key of keys) {
+    if (typeof key !== 'string') throw error('invalid_response', 'Unknown response identifier');
+    const descriptor = Object.getOwnPropertyDescriptor(response, key);
+    if (!Object.hasOwn(descriptor, 'value')) throw error('invalid_response', 'Response must contain data, not an accessor');
+    let value = descriptor.value;
+    if (Array.isArray(value)) {
+      if (value.length > 4096) throw error('limit_exceeded', 'Response exceeds 4096 values');
+      value = Array.from(value);
+      if (value.some(part => typeof part !== 'string')) throw error('invalid_response', 'Multiple response members must be strings');
+    } else if (value !== null && typeof value !== 'string' &&
+        !(typeof value === 'number' && Number.isFinite(value))) {
+      throw error('invalid_response', 'Response must be a string, finite number, string array, or null');
+    }
+    encoded[key] = value;
   }
-  if (!Object.hasOwn(response, 'RESPONSE')) return '{}';
-  const descriptor = Object.getOwnPropertyDescriptor(response, 'RESPONSE');
-  if (!Object.hasOwn(descriptor, 'value')) throw error('invalid_response', 'Response must contain data, not an accessor');
-  let value = descriptor.value;
-  if (Array.isArray(value)) {
-    if (value.length > 4096) throw error('limit_exceeded', 'Response exceeds 4096 values');
-    value = Array.from(value);
-    if (value.some(part => typeof part !== 'string')) throw error('invalid_response', 'Multiple response members must be strings');
-  } else if (value !== null && typeof value !== 'string' &&
-      !(typeof value === 'number' && Number.isFinite(value))) {
-    throw error('invalid_response', 'Response must be a string, finite number, string array, or null');
-  }
-  return JSON.stringify({ RESPONSE: value });
+  return JSON.stringify(encoded);
 }
 
 class CompiledItem {

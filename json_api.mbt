@@ -230,7 +230,7 @@ pub fn QtiError::location(self : QtiError) -> SourceLocation? {
 /// No-throw JSON boundary for JavaScript and other string-based hosts.
 pub fn evaluate_json(xml : String, response_json : String) -> String {
   let result : Json = try {
-    let item = compile_item(xml)
+    let item = compile_assessment_item(xml)
     let score = item.score_json(response_json)
     { "ok": true, "item": item.describe(), "result": score }
   } catch {
@@ -242,7 +242,10 @@ pub fn evaluate_json(xml : String, response_json : String) -> String {
 ///|
 /// Compile and describe without submitting an attempt.
 pub fn describe_json(xml : String) -> String {
-  let result : Json = { "ok": true, "item": compile_item(xml).describe() } catch {
+  let result : Json = {
+    "ok": true,
+    "item": compile_assessment_item(xml).describe(),
+  } catch {
     e => { "ok": false, "error": e }
   }
   result.stringify()
@@ -252,7 +255,7 @@ pub fn describe_json(xml : String) -> String {
 /// Explicit developer-diagnostic boundary; normal evaluate_json has no trace.
 pub fn explain_json(xml : String, response_json : String) -> String {
   let result : Json = try {
-    let item = compile_item(xml)
+    let item = compile_assessment_item(xml)
     let explanation = item.explain_json(response_json)
     {
       "ok": true,

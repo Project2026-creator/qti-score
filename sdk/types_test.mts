@@ -7,6 +7,13 @@ const score: Score = item.score(response);
 const explanation: Explanation = item.explain({ RESPONSE: 100.5 });
 const batch: BatchResult[] = item.scoreBatch([response, {}, { RESPONSE: null }] as const);
 const metadata: ItemDescription = describeItem('<xml/>');
+if (metadata.kind === 'composite') {
+  const id: string = metadata.responses[0].identifier;
+  const multi: ResponseObject = { PLATFORM: 'LMS', COUNT: 4 };
+  // @ts-expect-error composite descriptions do not expose single-item choices
+  metadata.choices[0];
+  void [id, multi];
+}
 if (metadata.slider) {
   const step: number | null = metadata.slider.step;
   const orientation: 'horizontal' | 'vertical' = metadata.slider.orientation;

@@ -5,6 +5,7 @@ import { createGapControl } from './gap.mjs';
 import { createHottextControl } from './hottext.mjs';
 import { createInlineChoiceControl } from './inline-choice.mjs';
 import { createSliderControl } from './slider.mjs';
+import { createCompositeControl } from './composite.mjs';
 
 const $ = id => document.getElementById(id);
 const batchPanel = createBatchPanel();
@@ -17,6 +18,7 @@ let gapControl;
 let hottextControl;
 let inlineChoiceControl;
 let sliderControl;
+let compositeControl;
 let contentPackage;
 let item;
 let activeXml = '';
@@ -30,6 +32,7 @@ function showError(id, error) {
 
 function response() {
   if (!item) return { RESPONSE: null };
+  if (item.kind === 'composite') return compositeControl?.response() || {};
   if (item.slider) return sliderControl?.response() || { RESPONSE: null };
   if (item.inline_choice) return inlineChoiceControl?.response() || { RESPONSE: null };
   if (item.gap_matching) return gapControl?.response() || { RESPONSE: null };
@@ -74,6 +77,8 @@ function renderExplanation(steps) {
         text = `第 ${detail.branch + 1} 条规则：${name}${range}，${detail.selected ? '命中' : '未命中'}。`;
         break;
       }
+      case 'composite_condition': text = `${detail.identifier}：${detail.selected ? '执行本空评分' : '跳过本空评分'}。`; break;
+      case 'composite_add': text = `${detail.identifier} 贡献 ${detail.contribution}，累计 ${detail.score}。`; break;
       case 'set_score': text = `设置得分为 ${detail.score}。`; break;
       default: text = step.operation;
     }
@@ -88,6 +93,7 @@ function renderQuestion() {
   $('item-id').textContent = `ITEM / ${item.identifier}`;
   $('question-title').textContent = item.title;
   $('question-prompt').textContent = item.prompt;
+  $('question-prompt').hidden = item.kind === 'composite';
   const instructions = $('item-instructions');
   instructions.replaceChildren(...(item.instructions || []).map(text => {
     const paragraph = document.createElement('p'); paragraph.textContent = text; return paragraph;
@@ -101,12 +107,15 @@ function renderQuestion() {
   hottextControl = null;
   inlineChoiceControl = null;
   sliderControl = null;
+  compositeControl = null;
   fieldset.replaceChildren();
   const legend = document.createElement('legend');
   legend.className = 'sr-only';
-  legend.textContent = item.slider ? '选择数值' : item.inline_choice ? '文中下拉选词' : item.hottext ? '选择原文片段' : item.gap_matching ? '在文段中选词' : item.base_type === 'directedPair' ? '添加配对' : item.cardinality === 'ordered' ? '排列答案' : item.base_type !== 'identifier' ? '填写答案' : '选择答案';
+  legend.textContent = item.kind === 'composite' ? '填写多个答案' : item.slider ? '选择数值' : item.inline_choice ? '文中下拉选词' : item.hottext ? '选择原文片段' : item.gap_matching ? '在文段中选词' : item.base_type === 'directedPair' ? '添加配对' : item.cardinality === 'ordered' ? '排列答案' : item.base_type !== 'identifier' ? '填写答案' : '选择答案';
   fieldset.append(legend);
-  if (item.slider) {
+  if (item.kind === 'composite') {
+    compositeControl = createCompositeControl(fieldset, item);
+  } else if (item.slider) {
     sliderControl = createSliderControl(fieldset, item, () => { updateResponse(); resetResult(); });
   } else if (item.inline_choice) {
     inlineChoiceControl = createInlineChoiceControl(fieldset, item);
@@ -367,7 +376,7 @@ $('answer-form').addEventListener('submit', event => {
   $('match-message').textContent = matchMessage;
 });
 $('answer-controls').addEventListener('input', () => { updateResponse(); resetResult(); });
-$('clear-answer').addEventListener('click', () => { $('answer-form').reset(); orderControl?.reset(); matchControl?.reset(); gapControl?.reset(); hottextControl?.reset(); inlineChoiceControl?.reset(); sliderControl?.reset(); updateResponse(); resetResult(); });
+$('clear-answer').addEventListener('click', () => { $('answer-form').reset(); orderControl?.reset(); matchControl?.reset(); gapControl?.reset(); hottextControl?.reset(); inlineChoiceControl?.reset(); sliderControl?.reset(); compositeControl?.reset(); updateResponse(); resetResult(); });
 $('compile').addEventListener('click', () => { ++loading; compile(); });
 source.addEventListener('input', () => {
   ++loading;
@@ -420,7 +429,7 @@ $('sample-package').addEventListener('click', () => loadPackage(async () => {
 }, 'sample-package.zip'));
 
 try {
-  engine = await import('../sdk/index.mjs');
+  engine = await import('../sdk/index.mjs?v=0.11.0');
   await loadExample('single');
 } catch (error) {
   $('source-status').textContent = '内核未载入';

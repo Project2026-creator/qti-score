@@ -6,6 +6,11 @@ pub fn compile_item(
   limits~ : Limits = Limits::default(),
 ) -> Item raise QtiError {
   let root = parse_document(xml, limits)
+  compile_single_root(root)
+}
+
+///|
+fn compile_single_root(root : Node) -> Item raise QtiError {
   if root.name() != "qti-assessment-item" ||
     root.element.name.namespace_uri != Some(qti_namespace) {
     raise Unsupported(root.location(), "expected a QTI 3 qti-assessment-item")

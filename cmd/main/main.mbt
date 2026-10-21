@@ -64,11 +64,11 @@ fn main {
       return
     }
     let item = if from_package {
-      @qti.read_content_package(@fs.read_file_to_bytes(args[offset + 1])).item(
+      @qti.read_content_package(@fs.read_file_to_bytes(args[offset + 1])).assessment_item(
         args[offset + 2],
       )
     } else {
-      @qti.compile_item(@fs.read_file_to_string(args[offset + 1]))
+      @qti.compile_assessment_item(@fs.read_file_to_string(args[offset + 1]))
     }
     if command == "describe" {
       let result : Json = { "ok": true, "item": item.describe() }

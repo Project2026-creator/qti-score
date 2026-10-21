@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="resource-summary" title="资源比例与数量">
+  <qti-response-declaration identifier="RATIO" cardinality="single" base-type="float"><qti-correct-response><qti-value>0.75</qti-value></qti-correct-response><qti-mapping default-value="0"><qti-map-entry map-key="0.75" mapped-value="2"/><qti-map-entry map-key="0.7" mapped-value="1"/></qti-mapping></qti-response-declaration>
+  <qti-response-declaration identifier="TOTAL" cardinality="single" base-type="integer"><qti-correct-response><qti-value>20</qti-value></qti-correct-response><qti-mapping default-value="0"><qti-map-entry map-key="20" mapped-value="1"/></qti-mapping></qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <p>20 份资源中有 15 份满足给定要求，其比例为 <qti-text-entry-interaction response-identifier="RATIO" placeholder-text="填写小数"/>。</p>
+    <p>这组资源共有 <qti-text-entry-interaction response-identifier="TOTAL" placeholder-text="填写整数"/> 份。</p>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">0</qti-base-value></qti-set-outcome-value>
+    <qti-response-condition><qti-response-if><qti-not><qti-is-null><qti-variable identifier="RATIO"/></qti-is-null></qti-not><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-map-response identifier="RATIO"/></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+    <qti-response-condition><qti-response-if><qti-not><qti-is-null><qti-variable identifier="TOTAL"/></qti-is-null></qti-not><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-map-response identifier="TOTAL"/></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+  </qti-response-processing>
+</qti-assessment-item>

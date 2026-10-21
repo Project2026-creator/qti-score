@@ -167,8 +167,8 @@ pub fn ContentPackage::score_attempts_jsonl(
       if parsed.error is Some(error) {
         raise error
       }
-      let item = self.item(parsed.resource_id.unwrap())
-      item_id = Some(item.identifier)
+      let item = self.assessment_item(parsed.resource_id.unwrap())
+      item_id = Some(item.identifier())
       Ok(item.score_json(parsed.response.unwrap().stringify()))
     } catch {
       error => Err(error)

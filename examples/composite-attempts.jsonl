@@ -1,0 +1,6 @@
+{"attempt_id":"learner-01","resource_id":"platform","response":{"PLATFORM":"LMS","COUNT":4}}
+{"attempt_id":"learner-01","resource_id":"resources","response":{"RATIO":0.75,"TOTAL":20}}
+{"attempt_id":"learner-02","resource_id":"platform","response":{"PLATFORM":"lms","COUNT":"04"}}
+{"attempt_id":"learner-03","resource_id":"resources","response":{"RATIO":0.7}}
+{"attempt_id":"learner-04","resource_id":"platform","response":{"PLATFORM":"LMS","COUNT":4.5}}
+{"attempt_id":"learner-05","resource_id":"platform","response":{}}

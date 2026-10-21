@@ -32,6 +32,19 @@ OFFICIAL_HASHES = {
 }
 
 
+class DevelopmentHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        # Rebuilt modules must not be mixed with a previous SDK in browser cache.
+        for name in ("If-Modified-Since", "If-None-Match"):
+            if name in self.headers:
+                del self.headers[name]
+        super().do_GET()
+
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
+
 class LoopbackHTTPServer(http.server.ThreadingHTTPServer):
     def server_bind(self):
         # Avoid reverse DNS: older Windows Python can fail to decode localized
@@ -88,6 +101,8 @@ def build_sample_package():
                                                   ("items/inline-choice-required.xml", "inline-choice-required.xml")]))
     examples.append(("slider-package.zip", [("imsmanifest.xml", "slider-manifest.xml"),
                                            ("items/slider.xml", "slider.xml"), ("items/slider-float.xml", "slider-float.xml")]))
+    examples.append(("composite-package.zip", [("imsmanifest.xml", "composite-manifest.xml"),
+                                              ("items/composite.xml", "composite.xml"), ("items/composite-numeric.xml", "composite-numeric.xml")]))
     for filename, files in examples:
         with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path, source in files:
@@ -133,7 +148,7 @@ def extract_json(stdout):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.10.0",
+        "module": "Project2026-creator/qti-score", "version": "0.11.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }
@@ -243,6 +258,11 @@ def verify(moon, env, output, offline=False):
     for name, cases in [
         ("numeric", [(100, 2), (100.5, 1), (104, 0.5), (95, 0.5), (105, 0.5), (110, 0), (None, 0), ("", 0)]),
         ("integer", [(42, 1), ("0042", 1), (41, 0), (None, 0)]),
+        ("composite", [({"PLATFORM":"LMS","COUNT":4},4), ({"PLATFORM":"lms","COUNT":4},3),
+                       ({"PLATFORM":"LMS"},2), ({"COUNT":4},2), ({"PLATFORM":"Unknown","COUNT":3},0),
+                       ({},0), ({"PLATFORM":None,"COUNT":None},0), ({"COUNT":"04"},2)]),
+        ("composite-numeric", [({"RATIO":0.75,"TOTAL":20},3), ({"RATIO":0.7,"TOTAL":20},2),
+                               ({"RATIO":0.7},1), ({"TOTAL":20},1), ({},0), ({"RATIO":0,"TOTAL":0},0)]),
         ("slider", [(40, 2), (30, 1), (50, 1), (0, 0), (100, 0), (None, 0), ("", 0)]),
         ("slider-float", [(0.75, 2), (0.7, 1), (0.8, 1), (0.5, 0), (1, 0), (None, 0), ("", 0)]),
         ("inline-choice", [("Improve", 1), ("Rank", 0), ("Archive", 0), (None, 0), ("", 0)]),
@@ -268,7 +288,7 @@ def verify(moon, env, output, offline=False):
         item_path = ROOT / "examples" / (name + ".xml")
         xml = item_path.read_text(encoding="utf-8")
         for response, expected in cases:
-            response_object = {"RESPONSE": response}
+            response_object = response if name.startswith("composite") else {"RESPONSE": response}
             response_path = cache / "response.json"
             response_path.write_text(json.dumps(response_object), encoding="utf-8")
             score_run = command([moon, "run", "cmd/main", "--", "score", str(item_path), str(response_path)], env)
@@ -387,6 +407,7 @@ try {
     batch_scenarios.append(("hottext-package", (ROOT / "examples/hottext-attempts.jsonl").read_text(encoding="utf-8"), 5, 4, 1, 1))
     batch_scenarios.append(("inline-choice-package", (ROOT / "examples/inline-choice-attempts.jsonl").read_text(encoding="utf-8"), 6, 4, 2, 1))
     batch_scenarios.append(("slider-package", (ROOT / "examples/slider-attempts.jsonl").read_text(encoding="utf-8"), 7, 5, 2, 1))
+    batch_scenarios.append(("composite-package", (ROOT / "examples/composite-attempts.jsonl").read_text(encoding="utf-8"), 6, 5, 1, 1))
     batch_script = """
 import {readFileSync} from 'node:fs';
 const {importPackage}=await import(process.argv[1]);
@@ -407,6 +428,8 @@ finally {bundle.dispose();}
             batch_archive = ROOT / "web/inline-choice-package.zip"
         if name == "slider-package":
             batch_archive = ROOT / "web/slider-package.zip"
+        if name == "composite-package":
+            batch_archive = ROOT / "web/composite-package.zip"
         path = cache / ("batch-" + name + ".jsonl")
         path.write_text(source, encoding="utf-8")
         arguments = [moon, "run", "cmd/main", "--", "package-batch", str(batch_archive), str(path)]
@@ -453,6 +476,8 @@ finally {bundle.dispose();}
             raise AssertionError("Inline choice package batch scores differ from authored expectations")
         if name == "slider-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [2, 2, 1, 1, None, None, 0]:
             raise AssertionError("Slider package batch scores differ from authored expectations")
+        if name == "composite-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [4, 3, 3, 1, None, 0]:
+            raise AssertionError("Composite package batch scores differ from authored expectations")
         report["batch_cases"].append({"name": name, "expected_exit": expected_exit,
                                       "cli_report": cli_report, "sdk_report": sdk_evaluation["report"],
                                       "csv": exported, "csv_decoded": decoded})
@@ -518,7 +543,7 @@ def main():
         if args.action == "build-web":
             print("Built {}".format(destination))
             return
-        handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(ROOT))
+        handler = functools.partial(DevelopmentHandler, directory=str(ROOT))
         server = LoopbackHTTPServer(("127.0.0.1", args.port), handler)
         print("QTI Score: http://127.0.0.1:{}/web/".format(args.port), flush=True)
         try:

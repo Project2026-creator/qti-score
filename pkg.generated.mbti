@@ -6,6 +6,10 @@ import {
 }
 
 // Values
+pub fn compile_assessment_item(String, limits? : Limits) -> AssessmentItem raise QtiError
+
+pub fn compile_composite_item(String, limits? : Limits) -> CompositeItem raise QtiError
+
 pub fn compile_item(String, limits? : Limits) -> Item raise QtiError
 
 pub fn describe_json(String) -> String
@@ -37,6 +41,16 @@ pub fn QtiError::to_repr(Self) -> @debug.Repr
 pub impl ToJson for QtiError
 
 // Types and methods
+pub(all) enum AssessmentItem {
+  Single(Item)
+  Composite(CompositeItem)
+} derive(@debug.Debug)
+pub fn AssessmentItem::describe(Self) -> Json
+pub fn AssessmentItem::explain_json(Self, String) -> Explanation raise QtiError
+pub fn AssessmentItem::identifier(Self) -> String
+pub fn AssessmentItem::score_json(Self, String) -> Score raise QtiError
+pub fn AssessmentItem::to_repr(Self) -> @debug.Repr
+
 pub struct AttemptSummary {
   attempt_id : String
   row_count : Int32
@@ -110,10 +124,23 @@ pub fn Choice::equal(Self, Self) -> Bool
 pub fn Choice::not_equal(Self, Self) -> Bool
 pub fn Choice::to_repr(Self) -> @debug.Repr
 
+pub struct CompositeItem {
+  identifier : String
+  title : String
+  // private fields
+} derive(@debug.Debug)
+pub fn CompositeItem::describe(Self) -> Json
+pub fn CompositeItem::explain_json(Self, String) -> Explanation raise QtiError
+pub fn CompositeItem::explain_responses(Self, Map[String, Response]) -> Explanation raise QtiError
+pub fn CompositeItem::score_json(Self, String) -> Score raise QtiError
+pub fn CompositeItem::score_responses(Self, Map[String, Response]) -> Score raise QtiError
+pub fn CompositeItem::to_repr(Self) -> @debug.Repr
+
 pub struct ContentPackage {
   identifier : String
   // private fields
 }
+pub fn ContentPackage::assessment_item(Self, String) -> AssessmentItem raise QtiError
 pub fn ContentPackage::describe(Self) -> Json
 pub fn ContentPackage::item(Self, String) -> Item raise QtiError
 pub fn ContentPackage::read_file(Self, String) -> Bytes raise QtiError
