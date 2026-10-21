@@ -116,6 +116,7 @@ pub struct Item {
   priv mapping : Mapping?
   priv numeric_rule : NumericRule?
   priv matching : MatchInteraction?
+  priv gap_passage : Array[GapPart]?
   priv processing_source : SourceLocation
 } derive(Debug)
 

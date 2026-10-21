@@ -2,11 +2,18 @@
 let qti_namespace = "http://www.imsglobal.org/xsd/imsqtiasi_v3p0"
 
 ///|
+priv enum NodePart {
+  Text(String)
+  Element(Node)
+}
+
+///|
 priv struct Node {
   element : @xml.NamespaceElement
   line : Int32
   column : Int32
   children : Array[Node]
+  parts : Array[NodePart]
   content : StringBuilder
   all_text : StringBuilder
 }
@@ -18,6 +25,7 @@ fn node(element : @xml.NamespaceElement, span : @xml.SourceSpan) -> Node {
     line: span.start.line,
     column: span.start.column,
     children: [],
+    parts: [],
     content: StringBuilder(),
     all_text: StringBuilder(),
   }
@@ -160,6 +168,7 @@ fn parse_document(input : String, limits : Limits) -> Node raise QtiError {
         let current = node(element, event.span)
         if stack.last() is Some(parent) {
           parent.children.push(current)
+          parent.parts.push(Element(current))
         } else {
           root = Some(current)
         }
@@ -173,6 +182,7 @@ fn parse_document(input : String, limits : Limits) -> Node raise QtiError {
         // constructed later in document order.
         if stack.last() is Some(parent) {
           parent.content.write_string(text)
+          parent.parts.push(Text(text))
         }
         for parent in stack {
           parent.all_text.write_string(text)

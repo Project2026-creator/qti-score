@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1" identifier="gap-bank">
+  <resources>
+    <resource identifier="cycle" type="imsqti_item_xmlv3p0" href="items/gap.xml"><file href="items/gap.xml"/></resource>
+    <resource identifier="purpose" type="imsqti_item_xmlv3p0" href="items/gap-single.xml"><file href="items/gap-single.xml"/></resource>
+  </resources>
+</manifest>

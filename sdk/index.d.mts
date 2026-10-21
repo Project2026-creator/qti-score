@@ -13,6 +13,8 @@ export interface MatchDescription {
   readonly max_associations: number;
   readonly sets: readonly [readonly MatchChoice[], readonly MatchChoice[]];
 }
+export type GapPassagePart = { readonly text: string } | { readonly gap: string };
+export interface GapMatchDescription extends MatchDescription { readonly passage: readonly GapPassagePart[] }
 export interface ItemDescription {
   readonly identifier: string;
   readonly title: string;
@@ -25,6 +27,7 @@ export interface ItemDescription {
   readonly max_choices: number;
   readonly choices: readonly Choice[];
   readonly matching?: MatchDescription;
+  readonly gap_matching?: GapMatchDescription;
 }
 export type JsonValue = null | boolean | number | string | readonly JsonValue[] | { readonly [key: string]: JsonValue };
 export interface ScoringStep {

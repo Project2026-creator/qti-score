@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="feedback-cycle" title="把反馈放回学习过程">
+  <qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="directedPair">
+    <qti-correct-response><qti-value>Feedback G1</qti-value><qti-value>Adjust G2</qti-value><qti-value>Feedback G3</qti-value></qti-correct-response>
+    <qti-mapping default-value="-0.5" lower-bound="0" upper-bound="3">
+      <qti-map-entry map-key="Feedback G1" mapped-value="1"/>
+      <qti-map-entry map-key="Adjust G2" mapped-value="1"/>
+      <qti-map-entry map-key="Feedback G3" mapped-value="1"/>
+    </qti-mapping>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body><qti-gap-match-interaction response-identifier="RESPONSE" max-associations="0">
+    <qti-prompt>在文段中选择合适的词语。“反馈”最多使用两次。</qti-prompt>
+    <qti-gap-text identifier="Feedback" match-max="2">反馈</qti-gap-text>
+    <qti-gap-text identifier="Adjust" match-max="1">调整</qti-gap-text>
+    <qti-gap-text identifier="Rank" match-max="1">排名</qti-gap-text>
+    <p>形成性评价先收集<qti-gap identifier="G1" label="第一空" required="true"/>，再依据证据<qti-gap identifier="G2" label="第二空"/>教学。<br/>下一轮学习继续收集<qti-gap identifier="G3" label="第三空"/>。</p>
+  </qti-gap-match-interaction></qti-item-body>
+  <qti-response-processing template="https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/map_response.xml"/>
+</qti-assessment-item>

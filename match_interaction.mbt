@@ -122,22 +122,25 @@ fn parse_match_interaction(
     }
     groups.push(choices)
   }
+  match_interaction(groups[0], groups[1], minimum, maximum)
+}
+
+///|
+fn match_interaction(
+  sources : Array[MatchChoice],
+  targets : Array[MatchChoice],
+  minimum : Int32,
+  maximum : Int32,
+) -> MatchInteraction {
   let source_index : Map[String, MatchChoice] = Map([])
   let target_index : Map[String, MatchChoice] = Map([])
-  for choice in groups[0] {
+  for choice in sources {
     source_index[choice.identifier] = choice
   }
-  for choice in groups[1] {
+  for choice in targets {
     target_index[choice.identifier] = choice
   }
-  {
-    sources: groups[0],
-    targets: groups[1],
-    source_index,
-    target_index,
-    minimum,
-    maximum,
-  }
+  { sources, targets, source_index, target_index, minimum, maximum, }
 }
 
 ///|

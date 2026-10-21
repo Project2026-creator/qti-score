@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REVISION = "0a92fbbb6d2e620a1f7fad19977be4c418246bc0"
 OFFICIAL_BASE = "https://raw.githubusercontent.com/1EdTech/qti-examples/{}/qtiv3-examples/packaging/items/".format(REVISION)
 OFFICIAL_HASHES = {
+    "gap_match.xml": "440e984a6ff4af86f58c8057c47af7fe2e9af1e4fbecb058a05e39689ab4935e",
     "match.xml": "fcc3f989c6bcf37b8e164217f82afdb8d8ec59f057dffd7b22bfb34c2a5e8bb3",
     "choice.xml": "9d762846f7ab3232de9549a956991afa761f2fd1f1dc276e98efe85c16ffea1e",
     "choice_multiple.xml": "c0cdfc4017844b8b8b54a52eac149ea227d2c0dfd33cd0086ff9b1c2871a2cb7",
@@ -74,6 +75,8 @@ def build_sample_package():
     examples.append(("match-package.zip", [("imsmanifest.xml", "match-manifest.xml"),
                                            ("items/match.xml", "match.xml"),
                                            ("items/match-single.xml", "match-single.xml")]))
+    examples.append(("gap-package.zip", [("imsmanifest.xml", "gap-manifest.xml"),
+                                         ("items/gap.xml", "gap.xml"), ("items/gap-single.xml", "gap-single.xml")]))
     for filename, files in examples:
         with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path, source in files:
@@ -119,9 +122,9 @@ def extract_json(stdout):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.6.0",
+        "module": "Project2026-creator/qti-score", "version": "0.7.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
-        "checks": [], "official_revision": REVISION, "official_cases": [], "feature_cases": [],
+        "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }
     for arguments in [["fmt", "--check"], ["check", "--target", "all", "--deny-warn"],
                       ["test", "--target", "all", "--deny-warn"]]:
@@ -171,6 +174,9 @@ def verify(moon, env, output, offline=False):
         (["C R", "D M", "L M", "P T"], 3), (["P T", "L M", "D M", "C R"], 3),
         (["C R"], 1), (["D M"], 0.5), (["C T"], 0), (["C R", "D M"], 1.5), (None, 0), ([], 0),
     ]))
+    sources.append(("gap_match.xml", [(["W G1", "Su G2"], 3), (["Su G2", "W G1"], 3),
+                                      (["W G1"], 1), (["Su G2"], 2), (["Sp G1"], 0),
+                                      (["W G1", "A G2"], 0), (None, 0), ([], 0)]))
     bridge_inputs = []
     for filename, cases in sources:
         path = cache / filename
@@ -184,6 +190,23 @@ def verify(moon, env, output, offline=False):
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         if digest != OFFICIAL_HASHES[filename]:
             raise RuntimeError("Official reference hash mismatch: {}".format(path))
+        if filename == "gap_match.xml":
+            # The pinned original omits max-associations (default 1) despite two
+            # authored correct pairs. Reject it, then score a labelled correction.
+            rejected = subprocess.run([moon, "run", "cmd/main", "--", "describe", str(path)],
+                                      cwd=str(ROOT), env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                      encoding="utf-8", errors="replace")
+            rejection = extract_json(rejected.stdout)
+            if rejected.returncode != 1 or rejection.get("error", {}).get("code") != "invalid_item":
+                raise AssertionError("Pinned gap sample must reject its inconsistent default maximum")
+            report["official_rejections"].append({"source": uri, "sha256": digest, "result": rejection,
+                                                   "reason": "max-associations defaults to 1, but correct-response contains 2 pairs"})
+            old = '<qti-gap-match-interaction response-identifier="RESPONSE" shuffle="false">'
+            if xml.count(old) != 1:
+                raise AssertionError("Unexpected pinned gap source structure")
+            xml = xml.replace(old, old[:-1] + ' max-associations="0">')
+            path = cache / "gap_match_max0.xml"
+            path.write_text(xml, encoding="utf-8")
         for response, expected in cases:
             response_object = {"RESPONSE": response}
             response_path = cache / "response.json"
@@ -194,11 +217,19 @@ def verify(moon, env, output, offline=False):
                 raise AssertionError("Official {} response {}: expected {}, got {}".format(filename, response, expected, actual))
             record = {"source": uri, "sha256": digest, "response": response_object,
                       "expected_score": expected, "cli_result": actual["result"]}
-            report["official_cases"].append(record)
+            if filename == "gap_match.xml":
+                record["adjustment"] = 'Add max-associations="0" to the gap-match interaction; original source hash is preserved above'
+                report["derived_cases"].append(record)
+            else:
+                report["official_cases"].append(record)
             bridge_inputs.append({"xml": xml, "response": response_object})
     for name, cases in [
         ("numeric", [(100, 2), (100.5, 1), (104, 0.5), (95, 0.5), (105, 0.5), (110, 0), (None, 0), ("", 0)]),
         ("integer", [(42, 1), ("0042", 1), (41, 0), (None, 0)]),
+        ("gap", [(["Feedback G1", "Adjust G2", "Feedback G3"], 3),
+                 (["Feedback G3", "Feedback G1", "Adjust G2"], 3), (["Feedback G1"], 1),
+                 (["Feedback G1", "Rank G2"], 0.5), (["Rank G1"], 0), (None, 0), ([], 0)]),
+        ("gap-single", [("Improve Goal", 1), ("Rank Goal", 0), (None, 0), ("", 0)]),
         ("match", [(["Quiz Diagnose", "Portfolio Growth", "Observation Diagnose"], 3),
                    (["Observation Diagnose", "Portfolio Growth", "Quiz Diagnose"], 3),
                    (["Quiz Diagnose"], 1), (["Quiz Diagnose", "Portfolio Diagnose"], 0.5),
@@ -247,7 +278,7 @@ try {
     bridge_run = command([node, "--input-type=module", "-e", script, bridge.as_uri(), (sdk / "index.mjs").as_uri()], env,
                          json.dumps(bridge_inputs, ensure_ascii=False))
     bridge_results = json.loads(bridge_run.stdout)
-    records = report["official_cases"] + report["feature_cases"]
+    records = report["official_cases"] + report["derived_cases"] + report["feature_cases"]
     for record, comparison in zip(records, bridge_results):
         result = comparison["bridge"]
         if result.get("ok") is not True or result["result"] != record["cli_result"] or \
@@ -325,6 +356,7 @@ try {
         ("ordered-package", (ROOT / "examples/order-attempts.jsonl").read_text(encoding="utf-8"), 4, 3, 1, 1),
     ]
     batch_scenarios.append(("matching-package", (ROOT / "examples/match-attempts.jsonl").read_text(encoding="utf-8"), 4, 3, 1, 1))
+    batch_scenarios.append(("gap-package", (ROOT / "examples/gap-attempts.jsonl").read_text(encoding="utf-8"), 5, 4, 1, 1))
     batch_script = """
 import {readFileSync} from 'node:fs';
 const {importPackage}=await import(process.argv[1]);
@@ -337,6 +369,8 @@ finally {bundle.dispose();}
         batch_archive = ROOT / "web/order-package.zip" if name == "ordered-package" else archive
         if name == "matching-package":
             batch_archive = ROOT / "web/match-package.zip"
+        if name == "gap-package":
+            batch_archive = ROOT / "web/gap-package.zip"
         path = cache / ("batch-" + name + ".jsonl")
         path.write_text(source, encoding="utf-8")
         arguments = [moon, "run", "cmd/main", "--", "package-batch", str(batch_archive), str(path)]
@@ -375,6 +409,8 @@ finally {bundle.dispose();}
             raise AssertionError("Ordered package batch did not preserve sequence semantics")
         if name == "matching-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [3, 0.5, None, 0]:
             raise AssertionError("Matching package batch scores differ from authored expectations")
+        if name == "gap-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [3, 1, 0.5, None, 0]:
+            raise AssertionError("Gap package batch scores differ from authored expectations")
         report["batch_cases"].append({"name": name, "expected_exit": expected_exit,
                                       "cli_report": cli_report, "sdk_report": sdk_evaluation["report"],
                                       "csv": exported, "csv_decoded": decoded})
@@ -416,8 +452,8 @@ finally {bundle.dispose();}
     report["passed"] = True
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print("All checks passed; {} official, {} feature, {} package and {} batch cases agree across entry points.".format(
-        len(report["official_cases"]), len(report["feature_cases"]), len(package_cases), len(batch_scenarios)))
+    print("All checks passed; {} official, {} derived, {} feature, {} package and {} batch cases agree across entry points.".format(
+        len(report["official_cases"]), len(report["derived_cases"]), len(report["feature_cases"]), len(package_cases), len(batch_scenarios)))
     print("Results: {}".format(output))
 
 

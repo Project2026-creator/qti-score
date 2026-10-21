@@ -14,6 +14,53 @@ const hasCode = code => cause => cause instanceof QtiScoreError && cause.code ==
 const packageBytes = () => readFileSync(new URL('../web/sample-package.zip', import.meta.url));
 const packageAttempts = () => readFileSync(new URL('../examples/package-attempts.jsonl', import.meta.url), 'utf8');
 
+test('gap matching preserves contextual passage and validates words and required gaps', () => {
+  const item = compileItem(fixture('gap'));
+  try {
+    const metadata = item.describe();
+    assert.equal(metadata.matching, undefined);
+    const { passage, sets } = metadata.gap_matching;
+    assert.deepEqual(sets.map(s => s.length), [3, 3]);
+    assert.equal(passage.map(p => p.text ?? `[${p.gap}]`).join(''), '形成性评价先收集[G1]，再依据证据[G2]教学。\n下一轮学习继续收集[G3]。\n');
+    const rows = item.scoreBatch([
+      {RESPONSE:['Feedback G1','Adjust G2','Feedback G3']}, {RESPONSE:['Feedback G1','Rank G2']},
+      {RESPONSE:['Feedback G1','Feedback G2','Feedback G3']}, {RESPONSE:['Adjust G2']},
+      {RESPONSE:['Feedback G1','Rank G1']}, {},
+    ]);
+    assert.deepEqual(rows.map(r => r.ok ? r.result.score : r.error.code), [3,0.5,'invalid_response','invalid_response','invalid_response',0]);
+    passage.length = 0; sets[0][0].identifier = 'changed';
+    assert.equal(item.describe().gap_matching.passage.length, 10);
+    assert.equal(item.describe().gap_matching.sets[0][0].identifier, 'Feedback');
+    assert.equal(item.explain({RESPONSE:['Feedback G1']}).result.score, 1);
+  } finally { item.dispose(); }
+});
+
+test('single gap uses string pairs and leaves whitespace content safe as metadata text', () => {
+  const source = fixture('gap-single').replace('评价的主要目的是', '&lt;script&gt;&amp;<strong>正文</strong>');
+  const item = compileItem(source);
+  try {
+    const plain = item.describe().gap_matching.passage.map(p => p.text ?? `[${p.gap}]`).join('');
+    assert.equal(plain, '<script>&正文[Goal]。\n');
+    assert.equal(item.score({RESPONSE:'Improve Goal'}).score, 1);
+    assert.equal(item.score({RESPONSE:''}).status, 'unanswered');
+    assert.throws(() => item.score({RESPONSE:['Improve Goal']}),hasCode('invalid_response'));
+  } finally { item.dispose(); }
+});
+
+test('gap packages and batch exports share the scorer and independent item lifetime', () => {
+  const bundle = importPackage(readFileSync(new URL('../web/gap-package.zip', import.meta.url)));
+  const item = bundle.getItem('cycle');
+  try {
+    assert.equal(bundle.describe().ready_count, 2);
+    const { report, csv } = bundle.scoreAttempts(readFileSync(new URL('../examples/gap-attempts.jsonl', import.meta.url),'utf8'));
+    assert.deepEqual(report.rows.map(r => r.ok ? r.result.score : r.error.code), [3,1,0.5,'invalid_response',0]);
+    assert.deepEqual(report.attempts.map(a => a.score_sum), [4,0.5,null,0]);
+    assert.ok(csv.includes('false,,,,"invalid_response"'));
+    bundle.dispose();
+    assert.equal(item.score({RESPONSE:['Feedback G1']}).score, 1);
+  } finally { item.dispose(); bundle.dispose(); }
+});
+
 test('matching supports many-to-one partial credit and preserves pair direction', () => {
   const item = compileItem(fixture('match'));
   try {

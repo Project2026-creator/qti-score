@@ -135,7 +135,15 @@ pub fn Item::describe(self : Item) -> Json {
     "choices": choices,
   }
   if self.matching is Some(spec) && description is Object(fields) {
-    fields["matching"] = spec.describe()
+    if self.gap_passage is Some(passage) {
+      let gap_description = spec.describe()
+      if gap_description is Object(details) {
+        details["passage"] = Json(passage.map(part => part.describe()))
+      }
+      fields["gap_matching"] = gap_description
+    } else {
+      fields["matching"] = spec.describe()
+    }
   }
   description
 }

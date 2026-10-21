@@ -1,6 +1,6 @@
 # QTI Score
 
-A MoonBit library for importing QTI 3 ZIP content packages and scoring a focused subset of items. Supports choice, ordering, directed matching, text and numeric entry, batch result reports and CSV export, developer explanations, and an ESM JavaScript SDK backed by the same MoonBit core.
+A MoonBit library for importing QTI 3 ZIP content packages and scoring a focused subset of items. Supports choice, ordering, directed matching, gap filling, text and numeric entry, batch result reports and CSV export, developer explanations, and an ESM JavaScript SDK backed by the same MoonBit core.
 
 QTI Score 将 QTI 3 题目编译成可重复使用的评分对象。核心库负责 XML 命名空间、响应类型、标准答案、映射和数值比较；命令行、浏览器与 JS SDK 使用同一份实现。适用于测验平台接入、题目迁移验证和教育技术课程中的标准实验。
 
@@ -38,7 +38,7 @@ moon run cmd/main -- batch examples/multiple.xml examples/attempts.jsonl
 python tools/project.py serve
 ```
 
-浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换八个示例、编辑或导入 XML，并查看作答和评分结果。勾选“记录评分过程”后，提交作答会显示分支判断、映射贡献、顺序比较与分值限制。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；`shuffle` 等呈现信息不改变评分计算，演示按原文顺序初始显示选项。
+浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换十个示例、编辑或导入 XML，并查看作答和评分结果。勾选“记录评分过程”后，提交作答会显示分支判断、映射贡献、顺序比较与分值限制。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；`shuffle` 等呈现信息不改变评分计算，演示按原文顺序初始显示选项。
 
 ## 排序题
 
@@ -90,7 +90,7 @@ moon run cmd/main -- explain examples/match.xml examples/match-response.json
 
 `describe()` 的 `base_type` 增加 `directedPair`。配对题额外返回 `matching`，包含 `min_associations`、`max_associations` 和两组 `sets`；各选项含标识符、纯文本及 `match_min`/`match_max`，不含正确配对。原有 `choices` 保持为空，`min_choices`/`max_choices` 对应整体关联范围。其他题目的元信息形状保持原样。公开枚举 `BaseType` 新增 `DirectedPair`，穷尽匹配的调用者需处理新增分支。
 
-网页用原生下拉框和按钮添加/移除关联，可通过键盘操作；单组模式再次添加会替换原关联。初始不自动作答，修改后清除旧结果，次数与配对合法性在提交时由核心检查。演示按原文显示选项，不执行随机呈现。`match-group`、模板控制显示、无向关联及填缝配对暂不支持，遇到相应结构明确报错。
+网页用原生下拉框和按钮添加/移除关联，可通过键盘操作；单组模式再次添加会替换原关联。初始不自动作答，修改后清除旧结果，次数与配对合法性在提交时由核心检查。演示按原文显示选项，不执行随机呈现。`match-group`、模板控制显示、无向关联及图形配对暂不支持，遇到相应结构明确报错。
 
 ```sh
 python tools/project.py build-web
@@ -99,6 +99,25 @@ moon run cmd/main -- package-batch web/match-package.zip examples/match-attempts
 ```
 
 独立配对题包包含两个示例；批量示例有 4 行，成功分数为 3、0.5、未作答 0，另有一行因来源超出关联次数失败。报告继续保留错误行，CLI 退出 1。可在网页导入相同 ZIP 和 JSONL 直接验证。
+
+## 选词填空
+
+支持 `qti-gap-match-interaction` 的文本词库 `qti-gap-text` 与文段空位 `qti-gap`。响应仍是有向配对：词项标识符在前，空位标识符在后。多个空位使用 `multiple/directedPair` 数组；一个空位也可使用 `single/directedPair` 字符串。完全匹配和映射部分分数复用前述评分模板。
+
+```sh
+moon run cmd/main -- score examples/gap.xml examples/gap-response.json
+moon run cmd/main -- explain examples/gap.xml examples/gap-response.json
+python tools/project.py build-web
+moon run cmd/main -- package-batch web/gap-package.zip examples/gap-attempts.jsonl
+```
+
+示例响应为 `{"RESPONSE":["Feedback G1","Adjust G2","Feedback G3"]}`，得 3 分。词项 `Feedback` 可使用两次；每个空位最多接收一个词。空位 `required="true"` 表示非空响应中必须填写该空；词项的 `match-min`/`match-max` 分别约束使用次数。整体 `min-associations` 默认 0，`max-associations` 默认 **1**，0 表示不限；多空题通常需要作者显式设置合适的最大值。一个文段包含多个空位时必须使用 multiple，single 的最大值必须为 1。NULL/空容器保留未作答的模板评分，交互中的必填约束不会隐式生成作答。未知/反向配对、重复关联、向同一空位填两个词、超出词语复用次数或漏填必填空位的非空响应均明确报错。
+
+XML 编译保留文字、实体、CDATA、嵌套文字与空位的顺序。`describe().gap_matching` 包含与 `matching` 相同的 `sets` 和数量限制，并额外包含 `passage`：按文档顺序排列的 `{text:string}` 或 `{gap:string}`。第一组是可选词，第二组是空位，空位的 `match_min` 为 0 或 1，`match_max` 固定为 1；`text` 是作者的 label，缺省为空位 ID。元信息不含正确配对或映射条目。普通配对仍返回 `matching`，现有其他题型的元信息不变，原生响应类型和已有 SDK 方法无需改变。
+
+网页在文段内使用可键盘操作的原生下拉框，并实时显示填词后的纯文本文段。清空恢复所有空位未作答；更改词语清除旧评分。演示保留常见纯文本段落、换行和文字嵌套顺序，不注入原始 HTML、不执行作者脚本或随机呈现。当前接受 p/div/blockquote/ul/ol/li 等文段和常见文字标签；图像词库、其他富媒体、match-group、模板控制显示及本段未列出的结构均不支持。依据见 [QTI 信息模型](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/index.html) 的 Gap（5.55）、GapMatchInteraction（5.57）、GapText（5.58）。
+
+独立题包 `web/gap-package.zip` 包含多空、单空两个示例。`examples/gap-attempts.jsonl` 包含 5 行，4 行成功（3、1、0.5、未作答 0 分）、1 行因词项使用过多失败，CLI 输出完整报告并退出 1。
 
 ## QTI ZIP 题包
 
@@ -261,7 +280,7 @@ try {
 ## 支持边界与评分语义
 
 - QTI 3 命名空间必须是 `http://www.imsglobal.org/xsd/imsqtiasi_v3p0`；支持默认命名空间、前缀与 XHTML 题干元素。
-- 每道题一个 `RESPONSE`，一个 `single/float` 类型的 `SCORE`，以及一个选择、排序、配对或文本填空交互。标识符采用 ASCII NCName 子集；题干与文本答案支持 Unicode。
+- 每道题一个 `RESPONSE`，一个 `single/float` 类型的 `SCORE`，以及一个选择、排序、配对、选词填空或文本填空交互。标识符采用 ASCII NCName 子集；题干与文本答案支持 Unicode。
 - 单选／多选使用 `identifier` 类型；文本填空使用 `single/string`。支持正确答案、映射、分值上下界和可选的初始 SCORE 值。
 - 识别 `purl.imsglobal.org/spec/qti/v3p0/rptemplates/` 和官方示例中旧的 `www.imsglobal.org/question/qti_v3p0/rptemplates/` 地址；两者均接受 HTTP／HTTPS 和可选 `.xml` 后缀。匹配完整 URI，不根据文件名猜测模板，不下载模板。
 - `match_correct` 在完全匹配时固定赋值 **1**，其他情况赋值 **0**。`normal-maximum` 是元信息，不缩放该模板的分数。
@@ -316,11 +335,13 @@ npm ci --prefix sdk --ignore-scripts
 python tools/project.py check
 ```
 
-最后一个命令会构建浏览器桥接模块与独立 SDK，运行 SDK 接入测试和 TypeScript 类型检查，并以固定提交版本的官方单选、多选、排序、配对题目进行 **30 个评分场景**核对，另检查 **12 个本地数值场景**、**8 个本地排序场景**和 **11 个本地配对场景**。CLI、桥接与 SDK 的结果必须一致，本地场景的评分解释也逐步对照，同时检查 CLI 错误退出码。排序官方题目的核对覆盖全部 6 种三项排列及两种 NULL 输入。预期值根据标准规则与题目声明编写，不由待测评分器生成。TypeScript 是 SDK 的开发依赖，由前一条 npm 命令安装；普通 MoonBit 核心测试不依赖它。
+最后一个命令会构建浏览器桥接模块与独立 SDK，运行 SDK 接入测试和 TypeScript 类型检查，并以固定提交版本的官方单选、多选、排序、配对题目进行 **30 个评分场景**核对，另检查 **12 个本地数值场景**、**8 个本地排序场景**、**11 个本地配对场景**和 **11 个本地选词场景**。CLI、桥接与 SDK 的结果必须一致，本地场景的评分解释也逐步对照，同时检查 CLI 错误退出码。排序官方题目的核对覆盖全部 6 种三项排列及两种 NULL 输入。预期值根据标准规则与题目声明编写，不由待测评分器生成。TypeScript 是 SDK 的开发依赖，由前一条 npm 命令安装；普通 MoonBit 核心测试不依赖它。
 
 检查还对照 CLI 与 SDK 的完整题包报告及 2 个题包评分／解释场景，并验证不支持和未知资源的非零退出码。核心测试覆盖 Store/Deflate/数据描述符、CRC、解压限额、URI 编码、xml:base、缺失文件、长依赖链与循环；SDK 测试覆盖字节隔离、独立安装和对象生命周期。
 
-跨题批量检查包含 7 组输入：混合成功／失败、全成功、重复及格式错误、空批次、带逗号／引号／公式前缀的 ID，以及独立排序题包、配对题包。逐项对照 CLI 与 SDK 的完整 JSON 报告和 CSV 字节，并用 Python 标准库的独立 CSV 解析器检查列数、得分空值、错误码及文本转义。核心另覆盖整数原始词法、负分、非零 NULL 分与汇总溢出。
+跨题批量检查包含 8 组输入：混合成功／失败、全成功、重复及格式错误、空批次、带逗号／引号／公式前缀的 ID，以及独立排序题包、配对题包和选词题包。逐项对照 CLI 与 SDK 的完整 JSON 报告和 CSV 字节，并用 Python 标准库的独立 CSV 解析器检查列数、得分空值、错误码及文本转义。核心另覆盖整数原始词法、负分、非零 NULL 分与汇总溢出。
+
+另检查固定官方 `gap_match.xml` 的一处声明冲突：原文件省略最大关联数，默认 1，与其两个标准配对不一致，预期返回 `invalid_item`。保留原文件的 SHA-256，并仅添加 `max-associations="0"`，对这个明确标注的派生版本运行 **8 个评分场景**。报告将其记为 `derived_cases`，原文件拒绝结果记为 `official_rejections`，与上述 30 个未修改官方场景分别列出。来源见 [固定官方文件](https://github.com/1EdTech/qti-examples/blob/0a92fbbb6d2e620a1f7fad19977be4c418246bc0/qtiv3-examples/packaging/items/gap_match.xml)。
 
 官方 XML 首次运行时下载到 `_build/reference/`，校验固定 SHA-256 后使用，后续可用 `--offline` 运行。结构化结果默认保存到 `_build/validation.json`，也可用 `--output PATH` 指定位置。检查还覆盖批处理空行、失败后继续处理及退出码。普通 MoonBit 测试使用仓库内自编题目，依赖下载后可离线运行。
 

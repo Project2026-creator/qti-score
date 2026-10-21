@@ -7,6 +7,12 @@ const score: Score = item.score(response);
 const explanation: Explanation = item.explain({ RESPONSE: 100.5 });
 const batch: BatchResult[] = item.scoreBatch([response, {}, { RESPONSE: null }] as const);
 const metadata: ItemDescription = describeItem('<xml/>');
+if (metadata.gap_matching) {
+  for (const part of metadata.gap_matching.passage) {
+    const text: string = 'text' in part ? part.text : part.gap;
+    void text;
+  }
+}
 if (metadata.base_type === 'directedPair' && metadata.matching) {
   const limit: number = metadata.matching.sets[0][0].match_max;
   const pair: ResponseObject = { RESPONSE: ['Quiz Diagnose'] };
