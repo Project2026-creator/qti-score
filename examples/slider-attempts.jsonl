@@ -1,0 +1,7 @@
+{"attempt_id":"learner-01","resource_id":"share","response":{"RESPONSE":40}}
+{"attempt_id":"learner-01","resource_id":"ratio","response":{"RESPONSE":0.75}}
+{"attempt_id":"learner-02","resource_id":"share","response":{"RESPONSE":"030"}}
+{"attempt_id":"learner-02","resource_id":"ratio","response":{"RESPONSE":0.7}}
+{"attempt_id":"learner-03","resource_id":"share","response":{"RESPONSE":45}}
+{"attempt_id":"learner-04","resource_id":"ratio","response":{"RESPONSE":1.1}}
+{"attempt_id":"learner-05","resource_id":"share","response":{}}

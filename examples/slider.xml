@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="feedback-share" title="估计课堂反馈所占比例">
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="integer">
+    <qti-correct-response><qti-value>40</qti-value></qti-correct-response>
+    <qti-mapping default-value="0" lower-bound="0" upper-bound="2"><qti-map-entry map-key="40" mapped-value="2"/><qti-map-entry map-key="30" mapped-value="1"/><qti-map-entry map-key="50" mapped-value="1"/></qti-mapping>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>移动滑杆、填写数值或采用当前位置来作答；初始位置尚未记录为答案。</p></qti-content-body></qti-rubric-block>
+    <qti-slider-interaction response-identifier="RESPONSE" lower-bound="0" upper-bound="100" step="10" step-label="true"><qti-prompt>一节 50 分钟的课程中，用于反馈与调整的时间是 20 分钟。这个时间占整节课的百分之多少？</qti-prompt></qti-slider-interaction>
+  </qti-item-body>
+  <qti-response-processing template="https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/map_response.xml"/>
+</qti-assessment-item>

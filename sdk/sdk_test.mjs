@@ -14,6 +14,68 @@ const hasCode = code => cause => cause instanceof QtiScoreError && cause.code ==
 const packageBytes = () => readFileSync(new URL('../web/sample-package.zip', import.meta.url));
 const packageAttempts = () => readFileSync(new URL('../examples/package-attempts.jsonl', import.meta.url), 'utf8');
 
+test('slider metadata and numerical mappings retain NULL and defensive-copy semantics', () => {
+  const item = compileItem(fixture('slider'));
+  try {
+    const metadata = item.describe();
+    assert.deepEqual(metadata.slider, {lower_bound:0,upper_bound:100,step:10,step_label:true,orientation:'horizontal',reverse:false});
+    metadata.slider.lower_bound = 1000;
+    assert.equal(item.describe().slider.lower_bound, 0);
+    assert.equal(describeItem(fixture('numeric')).slider, undefined);
+    assert.equal(item.score({}).status, 'unanswered');
+    assert.equal(item.score({RESPONSE:0}).status, 'answered');
+    assert.equal(item.score({RESPONSE:'0040'}).score, 2);
+    const partial = item.explain({RESPONSE:30});
+    assert.equal(partial.result.score, 1);
+    assert.ok(partial.steps.some(s => s.operation === 'map_value' && s.details.value === 30));
+    for (const value of [45,110,-10,40.5,'4e1',[],['40']]) assert.throws(() => item.score({RESPONSE:value}),hasCode('invalid_response'));
+  } finally { item.dispose(); }
+});
+
+test('floating sliders support stepped and continuous numeric rules without changing typed responses', () => {
+  const source = fixture('slider-float');
+  const item = compileItem(source);
+  const continuous = compileItem(source.replace(' step="0.05"',''));
+  try {
+    assert.equal(item.describe().slider.orientation, 'vertical');
+    assert.equal(item.score({RESPONSE:0.75}).score, 2);
+    assert.equal(item.score({RESPONSE:'7e-1'}).score, 1);
+    assert.throws(() => item.score({RESPONSE:0.743}),hasCode('invalid_response'));
+    assert.equal(continuous.describe().slider.step, null);
+    assert.equal(continuous.score({RESPONSE:0.743}).score, 1);
+    const rows = item.scoreBatch([{RESPONSE:0.75},{RESPONSE:0.74},{RESPONSE:0.8},{}]);
+    assert.deepEqual(rows.map(r => r.ok ? r.result.score : r.error.code),[2,'invalid_response',1,0]);
+  } finally { item.dispose(); continuous.dispose(); }
+});
+
+test('numeric map keys use value equality and reject alternate spellings of the same key', () => {
+  const source = fixture('slider');
+  assert.throws(() => compileItem(source.replace('map-key="30"','map-key="+0040"')),hasCode('invalid_item'));
+  const floats = source.replace('base-type="integer"','base-type="float"');
+  assert.throws(() => compileItem(floats.replace('map-key="30"','map-key="4e1"')),hasCode('invalid_item'));
+  const bounded = compileItem(source.replace('lower-bound="0" upper-bound="2"','lower-bound="1" upper-bound="1.5"'));
+  try {
+    assert.equal(bounded.score({}).score, 0);
+    assert.equal(bounded.score({RESPONSE:0}).score, 1);
+    assert.equal(bounded.score({RESPONSE:40}).score, 1.5);
+  } finally { bounded.dispose(); }
+});
+
+test('slider package batches share range validation and retain independent item lifetimes', () => {
+  const bundle = importPackage(readFileSync(new URL('../web/slider-package.zip', import.meta.url)));
+  const item = bundle.getItem('share');
+  try {
+    assert.equal(bundle.describe().ready_count, 2);
+    const {report,csv} = bundle.scoreAttempts(readFileSync(new URL('../examples/slider-attempts.jsonl',import.meta.url),'utf8'));
+    assert.deepEqual([report.row_count,report.scored_count,report.error_count],[7,5,2]);
+    assert.deepEqual(report.rows.map(r => r.ok ? r.result.score : null),[2,2,1,1,null,null,0]);
+    assert.equal(report.rows[6].result.status,'unanswered');
+    assert.ok(csv.includes('slider response does not lie on its step grid'));
+    bundle.dispose();
+    assert.equal(item.score({RESPONSE:40}).score,2);
+  } finally { item.dispose(); bundle.dispose(); }
+});
+
 test('inline choice metadata preserves context and cannot alter compiled scoring', () => {
   const item = compileItem(fixture('inline-choice'));
   try {

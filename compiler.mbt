@@ -71,12 +71,6 @@ pub fn compile_item(
           "ordered mappings are outside this profile",
         )
       }
-      if base_type.is_numeric() {
-        raise Unsupported(
-          n.location(),
-          "numeric mappings are outside this profile",
-        )
-      }
       Some(parse_mapping(n, base_type))
     }
   }
@@ -128,10 +122,10 @@ pub fn compile_item(
     }
     (NumericRules, Some(parse_numeric_rule(processing, correct, base_type)))
   }
-  if base_type == Float && template != NumericRules {
+  if base_type == Float && template == MatchCorrect {
     raise Unsupported(
       processing.location(),
-      "float responses require numeric inline rules, not match_correct",
+      "float responses require numeric inline rules or map_response, not match_correct",
     )
   }
   if template == MatchCorrect && correct is None {
@@ -165,6 +159,7 @@ pub fn compile_item(
   let mut gap_passage : Array[GapPart]? = None
   let mut hottext_passage : Array[HottextPart]? = None
   let mut inline_choice : InlineChoiceInteraction? = None
+  let mut slider : SliderInteraction? = None
   let gap_match = interaction.name() == "qti-gap-match-interaction"
   let hottext = interaction.name() == "qti-hottext-interaction"
   if (base_type == DirectedPair) !=
@@ -183,7 +178,27 @@ pub fn compile_item(
   let choices : Array[Choice] = []
   let mut min_choices = 0
   let mut max_choices = 1
-  let prompt = if interaction.name() == "qti-inline-choice-interaction" {
+  let prompt = if interaction.name() == "qti-slider-interaction" {
+    if cardinality != Single || !base_type.is_numeric() {
+      raise InvalidItem(
+        interaction.location(),
+        "slider requires a single integer or float response",
+      )
+    }
+    let spec = parse_slider_interaction(interaction, base_type)
+    if correct is Some(values) {
+      spec.validate(authored_number(values[0], base_type, declaration)) catch {
+        error => raise InvalidItem(declaration.location(), error.message())
+      }
+    }
+    slider = Some(spec)
+    let prompt = slider_body_text(body).trim().to_owned()
+    if prompt == "" {
+      title
+    } else {
+      prompt
+    }
+  } else if interaction.name() == "qti-inline-choice-interaction" {
     if base_type != Identifier || cardinality != Single {
       raise InvalidItem(
         interaction.location(),
@@ -381,6 +396,7 @@ pub fn compile_item(
     gap_passage,
     hottext_passage,
     inline_choice,
+    slider,
     instructions,
     processing_source: processing.source(),
   }
@@ -469,8 +485,14 @@ fn parse_mapping(node : Node, base_type : BaseType) -> Mapping raise QtiError {
     }
     let case_sensitive = xml_bool(child, "case-sensitive", default=false)
     let folded_key = @casefold.casefold(key)
+    let numeric_key = if base_type.is_numeric() {
+      Some(authored_number(key, base_type, child))
+    } else {
+      None
+    }
     if entries.any(e => {
         e.key == key ||
+        (numeric_key is Some(n) && e.numeric_key == Some(n)) ||
         (
           base_type == Text &&
           !case_sensitive &&
@@ -486,6 +508,7 @@ fn parse_mapping(node : Node, base_type : BaseType) -> Mapping raise QtiError {
     entries.push({
       key,
       folded_key,
+      numeric_key,
       value: number(child, "mapped-value"),
       case_sensitive,
       source: child.source(),
@@ -552,6 +575,7 @@ fn collect_interactions(
     !(name == "qti-prompt" &&
     [
       "qti-match-interaction", "qti-gap-match-interaction", "qti-hottext-interaction",
+      "qti-slider-interaction",
     ].contains(parent)) {
     raise InvalidItem(
       node.location(),
@@ -593,6 +617,7 @@ fn collect_interactions(
     name == "qti-match-interaction" ||
     name == "qti-gap-match-interaction" ||
     name == "qti-inline-choice-interaction" ||
+    name == "qti-slider-interaction" ||
     name == "qti-hottext-interaction" {
     found.push(node)
   } else if ![

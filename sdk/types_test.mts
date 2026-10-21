@@ -7,6 +7,15 @@ const score: Score = item.score(response);
 const explanation: Explanation = item.explain({ RESPONSE: 100.5 });
 const batch: BatchResult[] = item.scoreBatch([response, {}, { RESPONSE: null }] as const);
 const metadata: ItemDescription = describeItem('<xml/>');
+if (metadata.slider) {
+  const step: number | null = metadata.slider.step;
+  const orientation: 'horizontal' | 'vertical' = metadata.slider.orientation;
+  const reverse: boolean = metadata.slider.reverse;
+  const lower: number = metadata.slider.lower_bound;
+  // @ts-expect-error slider metadata is read-only
+  metadata.slider.lower_bound = -1;
+  void [step, orientation, reverse, lower];
+}
 if (metadata.inline_choice) {
   for (const part of metadata.inline_choice.passage) {
     const text: string = 'text' in part ? part.text : part.response;

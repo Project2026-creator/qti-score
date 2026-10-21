@@ -84,6 +84,7 @@ pub struct Choice {
 priv struct MapEntry {
   key : String
   folded_key : String
+  numeric_key : Double?
   value : Double
   case_sensitive : Bool
   source : SourceLocation
@@ -119,6 +120,7 @@ pub struct Item {
   priv gap_passage : Array[GapPart]?
   priv hottext_passage : Array[HottextPart]?
   priv inline_choice : InlineChoiceInteraction?
+  priv slider : SliderInteraction?
   priv instructions : Array[String]
   priv processing_source : SourceLocation
 } derive(Debug)

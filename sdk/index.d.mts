@@ -24,6 +24,14 @@ export interface InlineChoiceDescription {
   readonly label: string;
   readonly placeholder: string;
 }
+export interface SliderDescription {
+  readonly lower_bound: number;
+  readonly upper_bound: number;
+  readonly step: number | null;
+  readonly step_label: boolean;
+  readonly orientation: 'horizontal' | 'vertical';
+  readonly reverse: boolean;
+}
 export interface ItemDescription {
   readonly identifier: string;
   readonly title: string;
@@ -39,6 +47,7 @@ export interface ItemDescription {
   readonly gap_matching?: GapMatchDescription;
   readonly hottext?: HottextDescription;
   readonly inline_choice?: InlineChoiceDescription;
+  readonly slider?: SliderDescription;
   readonly instructions?: readonly string[];
 }
 export type JsonValue = null | boolean | number | string | readonly JsonValue[] | { readonly [key: string]: JsonValue };

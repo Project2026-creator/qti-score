@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="resource-ratio" title="选择可访问资源的比例">
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="float">
+    <qti-correct-response><qti-value>0.75</qti-value></qti-correct-response>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>范围为 0–1，步长为 0.05。可用键盘移动滑杆，也可直接填写小数；清空后恢复未作答。</p></qti-content-body></qti-rubric-block>
+    <qti-slider-interaction response-identifier="RESPONSE" lower-bound="0" upper-bound="1" step="0.05" orientation="vertical" reverse="false"><qti-prompt>一组 20 份课程资源中，有 15 份符合给定的可访问要求。其比例是多少？准确得 2 分，绝对误差不超过 0.05 得 1 分。</qti-prompt></qti-slider-interaction>
+  </qti-item-body>
+  <qti-response-processing><qti-response-condition>
+    <qti-response-if><qti-is-null><qti-variable identifier="RESPONSE"/></qti-is-null><qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">0</qti-base-value></qti-set-outcome-value></qti-response-if>
+    <qti-response-else-if><qti-equal><qti-variable identifier="RESPONSE"/><qti-correct identifier="RESPONSE"/></qti-equal><qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">2</qti-base-value></qti-set-outcome-value></qti-response-else-if>
+    <qti-response-else-if><qti-equal tolerance-mode="absolute" tolerance="0.05"><qti-correct identifier="RESPONSE"/><qti-variable identifier="RESPONSE"/></qti-equal><qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">1</qti-base-value></qti-set-outcome-value></qti-response-else-if>
+    <qti-response-else><qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">0</qti-base-value></qti-set-outcome-value></qti-response-else>
+  </qti-response-condition></qti-response-processing>
+</qti-assessment-item>

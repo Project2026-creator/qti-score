@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1" identifier="slider-bank">
+  <resources>
+    <resource identifier="share" type="imsqti_item_xmlv3p0" href="items/slider.xml"><file href="items/slider.xml"/></resource>
+    <resource identifier="ratio" type="imsqti_item_xmlv3p0" href="items/slider-float.xml"><file href="items/slider-float.xml"/></resource>
+  </resources>
+</manifest>

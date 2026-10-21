@@ -146,6 +146,9 @@ pub fn Item::describe(self : Item) -> Json {
     }
   }
   if description is Object(fields) {
+    if self.slider is Some(spec) {
+      fields["slider"] = spec.describe()
+    }
     if self.inline_choice is Some(spec) {
       fields["inline_choice"] = spec.describe()
     }

@@ -1,6 +1,6 @@
 # QTI Score
 
-A MoonBit library for importing QTI 3 ZIP content packages and scoring a focused subset of items. Supports choice, ordering, directed matching, gap filling, contextual hottext, inline choice, text and numeric entry, batch result reports and CSV export, developer explanations, and an ESM JavaScript SDK backed by the same MoonBit core.
+A MoonBit library for importing QTI 3 ZIP content packages and scoring a focused subset of items. Supports choice, ordering, directed matching, gap filling, contextual hottext, inline choice, numeric sliders, text and numeric entry, batch result reports and CSV export, developer explanations, and an ESM JavaScript SDK backed by the same MoonBit core.
 
 QTI Score 将 QTI 3 题目编译成可重复使用的评分对象。核心库负责 XML 命名空间、响应类型、标准答案、映射和数值比较；命令行、浏览器与 JS SDK 使用同一份实现。适用于测验平台接入、题目迁移验证和教育技术课程中的标准实验。
 
@@ -38,7 +38,7 @@ moon run cmd/main -- batch examples/multiple.xml examples/attempts.jsonl
 python tools/project.py serve
 ```
 
-浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换十四个示例、编辑或导入 XML，并查看作答和评分结果。勾选“记录评分过程”后，提交作答会显示分支判断、映射贡献、顺序比较与分值限制。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；普通选择／排序的 `shuffle` 不改变评分计算，演示按原文顺序显示选项。文中下拉题的随机呈现暂未实现，明确拒绝 `shuffle="true"`。
+浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换十六个示例、编辑或导入 XML，并查看作答和评分结果。勾选“记录评分过程”后，提交作答会显示分支判断、映射贡献、顺序比较与分值限制。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；普通选择／排序的 `shuffle` 不改变评分计算，演示按原文顺序显示选项。文中下拉题的随机呈现暂未实现，明确拒绝 `shuffle="true"`。
 
 ## 排序题
 
@@ -155,6 +155,26 @@ moon run cmd/main -- package-batch web/inline-choice-package.zip examples/inline
 网页把可键盘操作的原生下拉框放回文段原位置，显示标签和未选提示，清空后恢复占位项；必答缺项由同一 MoonBit 内核检查。支持常见静态文字与段落、实体、CDATA、换行及命名空间；不渲染原始 HTML。随机排序、动态显示、富媒体、多响应复合题与未列出的结构均明确拒绝。依据见 [QTI 信息模型](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/index.html) 的 InlineChoice（5.73）和 InlineChoiceInteraction（5.74）。
 
 独立题包含可选与必答两个示例。批量文件有 6 行：4 行成功，分数为 1、2、0.5、未作答 0；另有必答漏答和未知选项两行错误。CLI 输出完整报告并退出 1。
+
+## 数值滑杆（Slider）与数值映射
+
+支持 `qti-slider-interaction`，绑定 `single/integer` 或 `single/float`。响应仍使用数值或数值文本，例如 `{"RESPONSE":40}`。整数可使用 `match_correct`；整数与浮点数均可使用 `map_response` 或已有的数值规则，浮点数仍不支持 `match_correct`。
+
+```sh
+moon run cmd/main -- score examples/slider.xml examples/slider-response.json
+python tools/project.py build-web
+moon run cmd/main -- package-batch web/slider-package.zip examples/slider-attempts.jsonl
+```
+
+范围必须有限、非负且下界不大于上界。整数下界向下、上界向上取整，保持安全整数范围；缺省步长为 1。浮点题未声明步长时采用连续范围，元信息的 `step` 为 `null`。显式步长必须为正；整数步长须为安全整数。离散响应须落在 `lower + k × step` 网格上；上界不在网格上时不会自动成为可选值。标准答案也检查相同约束。零宽范围可以显式选择其唯一值。
+
+整数网格比较严格相等；浮点网格仅容许计算舍入误差，其上限为步长的 `10⁻⁸`，实际误差界按 `8 × 2⁻⁵² × (|响应| + |下界| + |k × 步长|)` 计算，取两者较小值。此检查不修改响应，也不为评分增加容差。离散范围最多 1,048,576 个间隔；无法表示步长的浮点尺度明确拒绝。零步长、分数整数步长与超出上述边界的结构不在本处理子集内。
+
+`describe().slider` 包含 `lower_bound`、`upper_bound`、`step`、`step_label`、`orientation`、`reverse`，不含标准答案和映射。普通题型不增加该字段。网页提供原生滑杆、当前值提示和数值输入，支持水平、垂直、反向及键盘操作。步长标签是呈现提示，演示仅在水平且不超过 20 个间隔时提供刻度请求。初始滑杆显示下界但不记录作答；移动、填写或点击“采用滑杆当前位置”才作答，清空恢复 NULL。因此主动选择起点 0 与未作答有明确区别。文本输入保留原值交给 MoonBit 验证，不会静默钳制或替换为滑杆吸附后的值。
+
+数值映射也适用于普通数值填空。映射键按变量类型解析；`40` 与 `+0040` 是同一个整数键，浮点 `0.3` 与 `3e-1` 也是同一个键，语义重复键会报错。浮点键按 IEEE 754 数值严格比较，`case-sensitive` 不影响数值匹配。未知有效数值使用默认分值，再应用上下界；NULL 得 0 分并跳过映射下界。数值内联规则的 NULL 分值仍按作者赋值执行。越界／离开步长网格属于错误，不作为零分统计。
+
+依据见 [QTI 信息模型](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/index.html) 的 SliderInteraction（5.134）及 [实施指南的滑杆章节](https://www.imsglobal.org/spec/qti/v3p0/impl)。响应默认值、动态内容、富媒体上下文与复合题仍明确拒绝。独立题包含整数映射与浮点容差两个示例；批量作答共 7 行，5 成功、2 错误，成功行得分为 2、2、1、1、未作答 0，CLI 输出完整报告并退出 1。
 
 ## QTI ZIP 题包
 
@@ -317,18 +337,18 @@ try {
 ## 支持边界与评分语义
 
 - QTI 3 命名空间必须是 `http://www.imsglobal.org/xsd/imsqtiasi_v3p0`；支持默认命名空间、前缀与 XHTML 题干元素。
-- 每道题一个 `RESPONSE`，一个 `single/float` 类型的 `SCORE`，以及一个选择、排序、配对、选词填空、文段选词或文本填空交互。标识符采用 ASCII NCName 子集；题干与文本答案支持 Unicode。
+- 每道题一个 `RESPONSE`，一个 `single/float` 类型的 `SCORE`，以及一个选择、排序、配对、选词填空、文段选词、文中下拉、滑杆或文本填空交互。标识符采用 ASCII NCName 子集；题干与文本答案支持 Unicode。
 - 单选／多选使用 `identifier` 类型；文本填空使用 `single/string`。支持正确答案、映射、分值上下界和可选的初始 SCORE 值。
 - 识别 `purl.imsglobal.org/spec/qti/v3p0/rptemplates/` 和官方示例中旧的 `www.imsglobal.org/question/qti_v3p0/rptemplates/` 地址；两者均接受 HTTP／HTTPS 和可选 `.xml` 后缀。匹配完整 URI，不根据文件名猜测模板，不下载模板。
 - `match_correct` 在完全匹配时固定赋值 **1**，其他情况赋值 **0**。`normal-maximum` 是元信息，不缩放该模板的分数。
 - 多值完全匹配采用无序多重集比较，保留重复次数；`map_response` 对每个不同输入值只计一次，再对总和应用上下界。
 - 映射中的未知有效选项使用 `default-value`，省略时默认 **0**。文本映射按文档顺序取第一个匹配项，`case-sensitive` 默认 `false`，使用 Unicode case folding；标识符始终区分大小写。建议把具体的大小写敏感条目放在较宽泛的条目前。同名键及重复的不区分大小写键被拒绝。
-- 单值空字符串、空多值／有序容器与 `Null` 按 QTI NULL 处理。两种模板的 NULL 分支均得 **0**，跳过映射下界。非空文本不裁剪首尾空格。多值与有序容器不得包含空字符串成员。
-- 非空响应受 `min-choices`／`max-choices` 约束；选择题的 `max-choices=0` 表示不限制数量，排序题使用上文的范围规则。题目中不存在的选项会报错。未作答可得到零分；阻止学习者跳题属于宿主应用的交互策略。
+- 单值空字符串、空多值／有序容器与 `Null` 按 QTI NULL 处理。合法 NULL 在两种模板中均得 **0**，跳过映射下界；必答的文中下拉题先按上文约束拒绝空响应。非空文本不裁剪首尾空格。多值与有序容器不得包含空字符串成员。
+- 非空响应受 `min-choices`／`max-choices` 约束；选择题的 `max-choices=0` 表示不限制数量，排序题使用上文的范围规则。题目中不存在的选项会报错。文中下拉的必答约束由核心检查，其他题目的跳题策略由宿主应用决定。
 
 数值填空使用 `single/integer` 或 `single/float`，绑定 `qti-text-entry-interaction`。整数限定在 ±9,007,199,254,740,991 内；整数文本及原始 JSON 整数字面量不接受小数点或指数，防止先舍入后误判。浮点数允许十进制科学计数法，拒绝 NaN、无穷与溢出。数值文本去掉首尾空白，全空白视为 NULL；普通字符串保持原文。
 
-整数支持 `match_correct`；浮点题必须使用下列受限内联规则，避免将字符串匹配套到浮点比较上。数值 mapping 暂不支持。
+整数支持 `match_correct`；整数与浮点题也支持上文的数值 `map_response`。浮点题使用数值映射或下列受限内联规则，避免将字符串匹配套到浮点比较上。
 
 | 数值规则结构 | 当前支持 |
 |---|---|
@@ -372,11 +392,11 @@ npm ci --prefix sdk --ignore-scripts
 python tools/project.py check
 ```
 
-最后一个命令会构建浏览器桥接模块与独立 SDK，运行 SDK 接入测试和 TypeScript 类型检查，并以固定提交版本的官方单选、多选、排序、配对、文段选词及下拉选词题目进行 **42 个评分场景**核对，另检查 **12 个本地数值场景**、**8 个本地排序场景**、**11 个本地配对场景**、**11 个本地选词场景**、**12 个本地文段场景**和 **8 个本地下拉场景**。CLI、桥接与 SDK 的结果必须一致，本地场景的评分解释也逐步对照，同时检查 CLI 错误退出码。排序官方题目的核对覆盖全部 6 种三项排列及两种 NULL 输入。预期值根据标准规则与题目声明编写，不由待测评分器生成。TypeScript 是 SDK 的开发依赖，由前一条 npm 命令安装；普通 MoonBit 核心测试不依赖它。
+最后一个命令会构建浏览器桥接模块与独立 SDK，运行 SDK 接入测试和 TypeScript 类型检查，并以固定提交版本的官方单选、多选、排序、配对、文段选词、下拉选词及滑杆题目进行 **55 个评分场景**核对，另检查 **12 个本地数值场景**、**8 个本地排序场景**、**11 个本地配对场景**、**11 个本地选词场景**、**12 个本地文段场景**和 **8 个本地下拉场景**、**14 个本地滑杆场景**。CLI、桥接与 SDK 的结果必须一致，本地场景的评分解释也逐步对照，同时检查 CLI 错误退出码。排序官方题目的核对覆盖全部 6 种三项排列及两种 NULL 输入。预期值根据标准规则与题目声明编写，不由待测评分器生成。TypeScript 是 SDK 的开发依赖，由前一条 npm 命令安装；普通 MoonBit 核心测试不依赖它。
 
 检查还对照 CLI 与 SDK 的完整题包报告及 2 个题包评分／解释场景，并验证不支持和未知资源的非零退出码。核心测试覆盖 Store/Deflate/数据描述符、CRC、解压限额、URI 编码、xml:base、缺失文件、长依赖链与循环；SDK 测试覆盖字节隔离、独立安装和对象生命周期。
 
-跨题批量检查包含 10 组输入：混合成功／失败、全成功、重复及格式错误、空批次、带逗号／引号／公式前缀的 ID，以及独立排序题包、配对题包、选词题包、文段题包和下拉题包。逐项对照 CLI 与 SDK 的完整 JSON 报告和 CSV 字节，并用 Python 标准库的独立 CSV 解析器检查列数、得分空值、错误码及文本转义。核心另覆盖整数原始词法、负分、非零 NULL 分与汇总溢出。
+跨题批量检查包含 11 组输入：混合成功／失败、全成功、重复及格式错误、空批次、带逗号／引号／公式前缀的 ID，以及独立排序题包、配对题包、选词题包、文段题包、下拉题包和滑杆题包。逐项对照 CLI 与 SDK 的完整 JSON 报告和 CSV 字节，并用 Python 标准库的独立 CSV 解析器检查列数、得分空值、错误码及文本转义。核心另覆盖整数原始词法、负分、非零 NULL 分与汇总溢出。
 
 另检查固定官方 `gap_match.xml` 的一处声明冲突：原文件省略最大关联数，默认 1，与其两个标准配对不一致，预期返回 `invalid_item`。保留原文件的 SHA-256，并仅添加 `max-associations="0"`，对这个明确标注的派生版本运行 **8 个评分场景**。报告将其记为 `derived_cases`，原文件拒绝结果记为 `official_rejections`，与上述 37 个未修改官方场景分别列出。来源见 [固定官方文件](https://github.com/1EdTech/qti-examples/blob/0a92fbbb6d2e620a1f7fad19977be4c418246bc0/qtiv3-examples/packaging/items/gap_match.xml)。
 

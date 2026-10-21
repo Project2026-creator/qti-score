@@ -120,6 +120,9 @@ fn Item::execute(
         },
       )
     }
+    if self.slider is Some(spec) && numeric is Some(value) {
+      spec.validate(value)
+    }
     let correct = self.correct.map(xs => {
       numeric_value(xs[0], self.base_type) catch {
         _ => abort("compiled numeric correct response is invalid")
@@ -128,6 +131,10 @@ fn Item::execute(
     let matches_correct = correct.map(c => numeric == Some(c))
     let score = if self.template == NumericRules {
       self.numeric_rule.unwrap().score(numeric, correct, steps)
+    } else if self.template == MapResponse {
+      self.mapping
+      .unwrap()
+      .score_numeric(numeric, steps, self.processing_source)
     } else {
       let score = if matches_correct == Some(true) { 1.0 } else { 0.0 }
       record_step(steps, "match_correct", self.processing_source, {
@@ -250,29 +257,7 @@ fn Item::execute(
           "running_total": total,
         })
       }
-      let raw = total
-      if mapping.lower_bound is Some(lo) && total < lo {
-        total = lo
-      }
-      if mapping.upper_bound is Some(hi) && total > hi {
-        total = hi
-      }
-      let lo : Json = match mapping.lower_bound {
-        Some(n) => Json(n)
-        None => Json::null()
-      }
-      let hi : Json = match mapping.upper_bound {
-        Some(n) => Json(n)
-        None => Json::null()
-      }
-      record_step(steps, "mapping_bounds", mapping.source, {
-        "raw_score": raw,
-        "lower": lo,
-        "upper": hi,
-        "score": total,
-        "adjusted": total != raw,
-      })
-      total
+      mapping.bounded_score(total, steps)
     }
     NumericRules => abort("non-numeric item has numeric rules")
   }
