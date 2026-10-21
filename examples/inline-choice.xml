@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="formative-purpose" title="在情境中选择评价目的">
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
+    <qti-correct-response><qti-value>Improve</qti-value></qti-correct-response>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>从文中的下拉框选择一个词语，补全形成性评价的目的。可以清空后重新选择。</p></qti-content-body></qti-rubric-block>
+    <p>形成性评价在学习过程中收集证据，帮助教师<qti-inline-choice-interaction response-identifier="RESPONSE" data-prompt="请选择评价目的"><qti-label>评价目的</qti-label><qti-inline-choice identifier="Improve">改进教学</qti-inline-choice><qti-inline-choice identifier="Rank">公布排名</qti-inline-choice><qti-inline-choice identifier="Archive">归档材料</qti-inline-choice></qti-inline-choice-interaction>，并为学习者提供及时反馈。</p>
+  </qti-item-body>
+  <qti-response-processing template="https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/match_correct.xml"/>
+</qti-assessment-item>

@@ -14,6 +14,59 @@ const hasCode = code => cause => cause instanceof QtiScoreError && cause.code ==
 const packageBytes = () => readFileSync(new URL('../web/sample-package.zip', import.meta.url));
 const packageAttempts = () => readFileSync(new URL('../examples/package-attempts.jsonl', import.meta.url), 'utf8');
 
+test('inline choice metadata preserves context and cannot alter compiled scoring', () => {
+  const item = compileItem(fixture('inline-choice'));
+  try {
+    const metadata = item.describe();
+    assert.equal(metadata.inline_choice.passage.map(p => p.text ?? `[${p.response}]`).join(''),
+      '形成性评价在学习过程中收集证据，帮助教师[RESPONSE]，并为学习者提供及时反馈。\n');
+    assert.equal(metadata.inline_choice.label, '评价目的');
+    assert.equal(metadata.inline_choice.placeholder, '请选择评价目的');
+    assert.equal(metadata.inline_choice.required, false);
+    metadata.inline_choice.passage.length = 0;
+    metadata.inline_choice.required = true; metadata.choices[0].identifier = 'Changed';
+    assert.equal(item.describe().inline_choice.required, false);
+    assert.equal(item.describe().inline_choice.passage.filter(p => p.response).length, 1);
+    assert.equal(item.score({RESPONSE:'Improve'}).score, 1);
+    assert.equal(item.score({}).status, 'unanswered');
+    assert.equal(item.score({RESPONSE:''}).score, 0);
+    assert.equal(describeItem(fixture('single')).inline_choice, undefined);
+  } finally { item.dispose(); }
+});
+
+test('inline required selection and typed response validation use the shared core', () => {
+  const xml = fixture('inline-choice-required');
+  const item = compileItem(xml);
+  try {
+    assert.equal(item.score({RESPONSE:'Adapt'}).score, 2);
+    assert.equal(item.explain({RESPONSE:'Review'}).result.score, 0.5);
+    const rows = item.scoreBatch([{}, {RESPONSE:null}, {RESPONSE:''}, {RESPONSE:[]},
+      {RESPONSE:['Adapt']}, {RESPONSE:1}, {RESPONSE:'adapt'}, {RESPONSE:'Unknown'}, {RESPONSE:'Ignore'}]);
+    assert.deepEqual(rows.map(r => r.ok ? r.result.score : r.error.code),
+      Array(8).fill('invalid_response').concat(0));
+  } finally { item.dispose(); }
+  assert.throws(() => compileItem(xml.replace('shuffle="false"', 'shuffle="true"')), hasCode('unsupported'));
+  const minimum = compileItem(xml.replace('required="true"', 'min-choices="1"'));
+  try { assert.throws(() => minimum.score({}), hasCode('invalid_response')); }
+  finally { minimum.dispose(); }
+});
+
+test('inline package reports keep required omissions separate from optional unanswered zeroes', () => {
+  const bundle = importPackage(readFileSync(new URL('../web/inline-choice-package.zip', import.meta.url)));
+  const item = bundle.getItem('purpose');
+  try {
+    assert.equal(bundle.describe().ready_count, 2);
+    const {report,csv} = bundle.scoreAttempts(readFileSync(new URL('../examples/inline-choice-attempts.jsonl', import.meta.url), 'utf8'));
+    assert.deepEqual([report.scored_count, report.error_count], [4, 2]);
+    assert.deepEqual(report.rows.map(r => r.ok ? r.result.score : null), [1, 2, 0.5, null, 0, null]);
+    assert.equal(report.rows[3].error.code, 'invalid_response');
+    assert.equal(report.rows[4].result.status, 'unanswered');
+    assert.ok(csv.includes('inline choice requires a selection'));
+    bundle.dispose();
+    assert.equal(item.score({RESPONSE:'Improve'}).score, 1);
+  } finally { item.dispose(); bundle.dispose(); }
+});
+
 test('hottext metadata retains passage positions and safe candidate instructions', () => {
   const item = compileItem(fixture('hottext'));
   try {

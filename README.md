@@ -1,6 +1,6 @@
 # QTI Score
 
-A MoonBit library for importing QTI 3 ZIP content packages and scoring a focused subset of items. Supports choice, ordering, directed matching, gap filling, contextual hottext, text and numeric entry, batch result reports and CSV export, developer explanations, and an ESM JavaScript SDK backed by the same MoonBit core.
+A MoonBit library for importing QTI 3 ZIP content packages and scoring a focused subset of items. Supports choice, ordering, directed matching, gap filling, contextual hottext, inline choice, text and numeric entry, batch result reports and CSV export, developer explanations, and an ESM JavaScript SDK backed by the same MoonBit core.
 
 QTI Score 将 QTI 3 题目编译成可重复使用的评分对象。核心库负责 XML 命名空间、响应类型、标准答案、映射和数值比较；命令行、浏览器与 JS SDK 使用同一份实现。适用于测验平台接入、题目迁移验证和教育技术课程中的标准实验。
 
@@ -38,7 +38,7 @@ moon run cmd/main -- batch examples/multiple.xml examples/attempts.jsonl
 python tools/project.py serve
 ```
 
-浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换十二个示例、编辑或导入 XML，并查看作答和评分结果。勾选“记录评分过程”后，提交作答会显示分支判断、映射贡献、顺序比较与分值限制。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；`shuffle` 等呈现信息不改变评分计算，演示按原文顺序初始显示选项。
+浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换十四个示例、编辑或导入 XML，并查看作答和评分结果。勾选“记录评分过程”后，提交作答会显示分支判断、映射贡献、顺序比较与分值限制。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；普通选择／排序的 `shuffle` 不改变评分计算，演示按原文顺序显示选项。文中下拉题的随机呈现暂未实现，明确拒绝 `shuffle="true"`。
 
 ## 排序题
 
@@ -137,6 +137,24 @@ moon run cmd/main -- package-batch web/hottext-package.zip examples/hottext-atte
 同时支持直接位于 item-body 下、`view="candidate" use="instructions"` 的静态 `qti-rubric-block`，其中须有一个 `qti-content-body`。考生说明以 `instructions:string[]` 元信息和网页纯文本显示，适用于已有题型；其他角色/用途、动态或嵌套说明、内含交互及脚本均明确拒绝。本库不会把评分员或作者说明转为考生说明。普通文字段落、换行及常见文字嵌套保留顺序，不执行原文 HTML、CSS 或脚本。依据见 [QTI 信息模型](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/index.html) 的 HotText（5.65）、HotTextInteraction（5.66）与 RubricBlock（5.120）。
 
 独立题包 `web/hottext-package.zip` 包含单选、多选两个文段示例；批量示例 `examples/hottext-attempts.jsonl` 有 5 行，4 成功、1 因超过选择上限失败。成功行分数为 2、1、1、未作答 0；CLI 保留完整报告并退出 1。
+
+## 文中下拉选词（Inline Choice）
+
+支持单个 `qti-inline-choice-interaction`，绑定 `single/identifier`。候选项使用 `qti-inline-choice`，响应为所选标识符，例如 `{"RESPONSE":"Improve"}`；沿用 `match_correct` 和 `map_response`，支持映射部分得分。一个选项也合法；重复或保留 ID、未知答案／映射引用、错误响应类型会报错。
+
+```sh
+moon run cmd/main -- score examples/inline-choice.xml examples/inline-choice-response.json
+python tools/project.py build-web
+moon run cmd/main -- package-batch web/inline-choice-package.zip examples/inline-choice-attempts.jsonl
+```
+
+可选题的 NULL、空字符串或省略 RESPONSE 仍表示未作答、得 0 分，不应用映射下界。`required="true"` 或 `min-choices="1"` 要求选择一项；这类题的空响应返回 `invalid_response`，批量报告将其作为错误行，分数留空。两项约束同时出现时任一要求选择即生效，最小值只接受 0 或 1。其他题型的空响应处理不变。
+
+`describe().inline_choice` 包含 `passage`、`required`、`label`、`placeholder`。文段按顺序保留 `{text:string}` 与唯一的 `{response:"RESPONSE"}`；候选词、`qti-label` 和另行提供的考生说明不会混入文段。`label` 来自静态 `qti-label`，`placeholder` 来自 `data-prompt`，缺省均为空字符串。其他题型不增加该字段，现有方法与响应类型保持兼容。
+
+网页把可键盘操作的原生下拉框放回文段原位置，显示标签和未选提示，清空后恢复占位项；必答缺项由同一 MoonBit 内核检查。支持常见静态文字与段落、实体、CDATA、换行及命名空间；不渲染原始 HTML。随机排序、动态显示、富媒体、多响应复合题与未列出的结构均明确拒绝。依据见 [QTI 信息模型](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/index.html) 的 InlineChoice（5.73）和 InlineChoiceInteraction（5.74）。
+
+独立题包含可选与必答两个示例。批量文件有 6 行：4 行成功，分数为 1、2、0.5、未作答 0；另有必答漏答和未知选项两行错误。CLI 输出完整报告并退出 1。
 
 ## QTI ZIP 题包
 
@@ -354,11 +372,11 @@ npm ci --prefix sdk --ignore-scripts
 python tools/project.py check
 ```
 
-最后一个命令会构建浏览器桥接模块与独立 SDK，运行 SDK 接入测试和 TypeScript 类型检查，并以固定提交版本的官方单选、多选、排序、配对、文段选词题目进行 **37 个评分场景**核对，另检查 **12 个本地数值场景**、**8 个本地排序场景**、**11 个本地配对场景**和 **11 个本地选词场景**、**12 个本地文段场景**。CLI、桥接与 SDK 的结果必须一致，本地场景的评分解释也逐步对照，同时检查 CLI 错误退出码。排序官方题目的核对覆盖全部 6 种三项排列及两种 NULL 输入。预期值根据标准规则与题目声明编写，不由待测评分器生成。TypeScript 是 SDK 的开发依赖，由前一条 npm 命令安装；普通 MoonBit 核心测试不依赖它。
+最后一个命令会构建浏览器桥接模块与独立 SDK，运行 SDK 接入测试和 TypeScript 类型检查，并以固定提交版本的官方单选、多选、排序、配对、文段选词及下拉选词题目进行 **42 个评分场景**核对，另检查 **12 个本地数值场景**、**8 个本地排序场景**、**11 个本地配对场景**、**11 个本地选词场景**、**12 个本地文段场景**和 **8 个本地下拉场景**。CLI、桥接与 SDK 的结果必须一致，本地场景的评分解释也逐步对照，同时检查 CLI 错误退出码。排序官方题目的核对覆盖全部 6 种三项排列及两种 NULL 输入。预期值根据标准规则与题目声明编写，不由待测评分器生成。TypeScript 是 SDK 的开发依赖，由前一条 npm 命令安装；普通 MoonBit 核心测试不依赖它。
 
 检查还对照 CLI 与 SDK 的完整题包报告及 2 个题包评分／解释场景，并验证不支持和未知资源的非零退出码。核心测试覆盖 Store/Deflate/数据描述符、CRC、解压限额、URI 编码、xml:base、缺失文件、长依赖链与循环；SDK 测试覆盖字节隔离、独立安装和对象生命周期。
 
-跨题批量检查包含 9 组输入：混合成功／失败、全成功、重复及格式错误、空批次、带逗号／引号／公式前缀的 ID，以及独立排序题包、配对题包、选词题包和文段题包。逐项对照 CLI 与 SDK 的完整 JSON 报告和 CSV 字节，并用 Python 标准库的独立 CSV 解析器检查列数、得分空值、错误码及文本转义。核心另覆盖整数原始词法、负分、非零 NULL 分与汇总溢出。
+跨题批量检查包含 10 组输入：混合成功／失败、全成功、重复及格式错误、空批次、带逗号／引号／公式前缀的 ID，以及独立排序题包、配对题包、选词题包、文段题包和下拉题包。逐项对照 CLI 与 SDK 的完整 JSON 报告和 CSV 字节，并用 Python 标准库的独立 CSV 解析器检查列数、得分空值、错误码及文本转义。核心另覆盖整数原始词法、负分、非零 NULL 分与汇总溢出。
 
 另检查固定官方 `gap_match.xml` 的一处声明冲突：原文件省略最大关联数，默认 1，与其两个标准配对不一致，预期返回 `invalid_item`。保留原文件的 SHA-256，并仅添加 `max-associations="0"`，对这个明确标注的派生版本运行 **8 个评分场景**。报告将其记为 `derived_cases`，原文件拒绝结果记为 `official_rejections`，与上述 37 个未修改官方场景分别列出。来源见 [固定官方文件](https://github.com/1EdTech/qti-examples/blob/0a92fbbb6d2e620a1f7fad19977be4c418246bc0/qtiv3-examples/packaging/items/gap_match.xml)。
 

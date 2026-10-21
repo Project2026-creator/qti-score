@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REVISION = "0a92fbbb6d2e620a1f7fad19977be4c418246bc0"
 OFFICIAL_BASE = "https://raw.githubusercontent.com/1EdTech/qti-examples/{}/qtiv3-examples/packaging/items/".format(REVISION)
 OFFICIAL_HASHES = {
+    "inline_choice.xml": "38cc1aecf537f4ee1c463123a9a678ff7fcd8415f6d2f6747989a4e793064613",
     "hottext.xml": "7b701fa4f0b764664876eae80df74073878e28f7ef4354a3e60600ec116fb99a",
     "gap_match.xml": "440e984a6ff4af86f58c8057c47af7fe2e9af1e4fbecb058a05e39689ab4935e",
     "match.xml": "fcc3f989c6bcf37b8e164217f82afdb8d8ec59f057dffd7b22bfb34c2a5e8bb3",
@@ -81,6 +82,9 @@ def build_sample_package():
     examples.append(("hottext-package.zip", [("imsmanifest.xml", "hottext-manifest.xml"),
                                              ("items/hottext.xml", "hottext.xml"),
                                              ("items/hottext-single.xml", "hottext-single.xml")]))
+    examples.append(("inline-choice-package.zip", [("imsmanifest.xml", "inline-choice-manifest.xml"),
+                                                  ("items/inline-choice.xml", "inline-choice.xml"),
+                                                  ("items/inline-choice-required.xml", "inline-choice-required.xml")]))
     for filename, files in examples:
         with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path, source in files:
@@ -126,7 +130,7 @@ def extract_json(stdout):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.8.0",
+        "module": "Project2026-creator/qti-score", "version": "0.9.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }
@@ -182,6 +186,7 @@ def verify(moon, env, output, offline=False):
                                       (["W G1"], 1), (["Su G2"], 2), (["Sp G1"], 0),
                                       (["W G1", "A G2"], 0), (None, 0), ([], 0)]))
     sources.append(("hottext.xml", [("B", 1), ("A", 0), ("C", 0), ("D", 0), ("E", 0), (None, 0), ("", 0)]))
+    sources.append(("inline_choice.xml", [("Y", 1), ("G", 0), ("L", 0), (None, 0), ("", 0)]))
     bridge_inputs = []
     bridge_records = []
     for filename, cases in sources:
@@ -233,6 +238,8 @@ def verify(moon, env, output, offline=False):
     for name, cases in [
         ("numeric", [(100, 2), (100.5, 1), (104, 0.5), (95, 0.5), (105, 0.5), (110, 0), (None, 0), ("", 0)]),
         ("integer", [(42, 1), ("0042", 1), (41, 0), (None, 0)]),
+        ("inline-choice", [("Improve", 1), ("Rank", 0), ("Archive", 0), (None, 0), ("", 0)]),
+        ("inline-choice-required", [("Adapt", 2), ("Review", 0.5), ("Ignore", 0)]),
         ("hottext", [(["Evidence", "Support"], 2), (["Support", "Evidence"], 2),
                      (["Evidence"], 1), (["Support"], 1), (["Ranking"], 0),
                      (["Evidence", "Ranking"], 0), (None, 0), ([], 0)]),
@@ -371,6 +378,7 @@ try {
     batch_scenarios.append(("matching-package", (ROOT / "examples/match-attempts.jsonl").read_text(encoding="utf-8"), 4, 3, 1, 1))
     batch_scenarios.append(("gap-package", (ROOT / "examples/gap-attempts.jsonl").read_text(encoding="utf-8"), 5, 4, 1, 1))
     batch_scenarios.append(("hottext-package", (ROOT / "examples/hottext-attempts.jsonl").read_text(encoding="utf-8"), 5, 4, 1, 1))
+    batch_scenarios.append(("inline-choice-package", (ROOT / "examples/inline-choice-attempts.jsonl").read_text(encoding="utf-8"), 6, 4, 2, 1))
     batch_script = """
 import {readFileSync} from 'node:fs';
 const {importPackage}=await import(process.argv[1]);
@@ -387,6 +395,8 @@ finally {bundle.dispose();}
             batch_archive = ROOT / "web/gap-package.zip"
         if name == "hottext-package":
             batch_archive = ROOT / "web/hottext-package.zip"
+        if name == "inline-choice-package":
+            batch_archive = ROOT / "web/inline-choice-package.zip"
         path = cache / ("batch-" + name + ".jsonl")
         path.write_text(source, encoding="utf-8")
         arguments = [moon, "run", "cmd/main", "--", "package-batch", str(batch_archive), str(path)]
@@ -429,6 +439,8 @@ finally {bundle.dispose();}
             raise AssertionError("Gap package batch scores differ from authored expectations")
         if name == "hottext-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [2, 1, 1, None, 0]:
             raise AssertionError("Hottext package batch scores differ from authored expectations")
+        if name == "inline-choice-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [1, 2, 0.5, None, 0, None]:
+            raise AssertionError("Inline choice package batch scores differ from authored expectations")
         report["batch_cases"].append({"name": name, "expected_exit": expected_exit,
                                       "cli_report": cli_report, "sdk_report": sdk_evaluation["report"],
                                       "csv": exported, "csv_decoded": decoded})

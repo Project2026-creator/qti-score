@@ -147,6 +147,9 @@ fn Item::execute(
     }
   }
   if empty {
+    if self.inline_choice is Some(spec) && spec.required {
+      raise InvalidResponse("inline choice requires a selection")
+    }
     record_step(steps, "null_response", self.processing_source, {
       "score": 0,
       "mapping_bounds_applied": false,

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1" identifier="inline-choice-bank">
+  <resources>
+    <resource identifier="purpose" type="imsqti_item_xmlv3p0" href="items/inline-choice.xml"><file href="items/inline-choice.xml"/></resource>
+    <resource identifier="action" type="imsqti_item_xmlv3p0" href="items/inline-choice-required.xml"><file href="items/inline-choice-required.xml"/></resource>
+  </resources>
+</manifest>

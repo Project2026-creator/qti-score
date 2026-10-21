@@ -7,6 +7,18 @@ const score: Score = item.score(response);
 const explanation: Explanation = item.explain({ RESPONSE: 100.5 });
 const batch: BatchResult[] = item.scoreBatch([response, {}, { RESPONSE: null }] as const);
 const metadata: ItemDescription = describeItem('<xml/>');
+if (metadata.inline_choice) {
+  for (const part of metadata.inline_choice.passage) {
+    const text: string = 'text' in part ? part.text : part.response;
+    void text;
+  }
+  const required: boolean = metadata.inline_choice.required;
+  const label: string = metadata.inline_choice.label;
+  const placeholder: string = metadata.inline_choice.placeholder;
+  // @ts-expect-error inline metadata is read-only
+  metadata.inline_choice.required = false;
+  void [required, label, placeholder];
+}
 if (metadata.hottext) {
   for (const part of metadata.hottext.passage) {
     const text: string = 'text' in part ? part.text : part.choice;

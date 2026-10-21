@@ -3,6 +3,7 @@ import { createOrderControl } from './order.mjs';
 import { createMatchControl } from './match.mjs';
 import { createGapControl } from './gap.mjs';
 import { createHottextControl } from './hottext.mjs';
+import { createInlineChoiceControl } from './inline-choice.mjs';
 
 const $ = id => document.getElementById(id);
 const batchPanel = createBatchPanel();
@@ -13,6 +14,7 @@ let orderControl;
 let matchControl;
 let gapControl;
 let hottextControl;
+let inlineChoiceControl;
 let contentPackage;
 let item;
 let activeXml = '';
@@ -26,6 +28,7 @@ function showError(id, error) {
 
 function response() {
   if (!item) return { RESPONSE: null };
+  if (item.inline_choice) return inlineChoiceControl?.response() || { RESPONSE: null };
   if (item.gap_matching) return gapControl?.response() || { RESPONSE: null };
   if (item.base_type === 'directedPair') return matchControl?.response() || { RESPONSE: null };
   if (item.cardinality === 'ordered') return orderControl?.response() || { RESPONSE: null };
@@ -93,12 +96,15 @@ function renderQuestion() {
   matchControl = null;
   gapControl = null;
   hottextControl = null;
+  inlineChoiceControl = null;
   fieldset.replaceChildren();
   const legend = document.createElement('legend');
   legend.className = 'sr-only';
-  legend.textContent = item.hottext ? '选择原文片段' : item.gap_matching ? '在文段中选词' : item.base_type === 'directedPair' ? '添加配对' : item.cardinality === 'ordered' ? '排列答案' : item.base_type !== 'identifier' ? '填写答案' : '选择答案';
+  legend.textContent = item.inline_choice ? '文中下拉选词' : item.hottext ? '选择原文片段' : item.gap_matching ? '在文段中选词' : item.base_type === 'directedPair' ? '添加配对' : item.cardinality === 'ordered' ? '排列答案' : item.base_type !== 'identifier' ? '填写答案' : '选择答案';
   fieldset.append(legend);
-  if (item.hottext) {
+  if (item.inline_choice) {
+    inlineChoiceControl = createInlineChoiceControl(fieldset, item);
+  } else if (item.hottext) {
     hottextControl = createHottextControl(fieldset, item);
   } else if (item.gap_matching) {
     gapControl = createGapControl(fieldset, item, () => { updateResponse(); resetResult(); });
@@ -355,7 +361,7 @@ $('answer-form').addEventListener('submit', event => {
   $('match-message').textContent = matchMessage;
 });
 $('answer-controls').addEventListener('input', () => { updateResponse(); resetResult(); });
-$('clear-answer').addEventListener('click', () => { $('answer-form').reset(); orderControl?.reset(); matchControl?.reset(); gapControl?.reset(); hottextControl?.reset(); updateResponse(); resetResult(); });
+$('clear-answer').addEventListener('click', () => { $('answer-form').reset(); orderControl?.reset(); matchControl?.reset(); gapControl?.reset(); hottextControl?.reset(); inlineChoiceControl?.reset(); updateResponse(); resetResult(); });
 $('compile').addEventListener('click', () => { ++loading; compile(); });
 source.addEventListener('input', () => {
   ++loading;

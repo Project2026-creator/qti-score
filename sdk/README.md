@@ -98,6 +98,14 @@ Version 0.7.0 supports text `qti-gap-match-interaction`: `gap_matching` exposes 
 
 Responses use the existing string-pair API, e.g. `{RESPONSE:['Feedback G1','Adjust G2','Feedback G3']}` or a string for a single gap. Reversed/unknown/duplicate pairs, duplicate gap occupancy, missing required gaps in nonempty responses and excess word use are errors. Metadata is fresh, without correct pairs, and keeps prompt/word-bank text outside the passage. Existing item kinds retain their previous metadata shape. The browser demo uses inline native selects and a contextual text preview; image choices, dynamic visibility, match-group and arbitrary HTML rendering are outside this profile.
 
+## Inline choice
+
+Version 0.9.0 supports one `qti-inline-choice-interaction` per item with single/identifier responses, e.g. `{RESPONSE:'Improve'}`. Both standard templates work unchanged. `describe().inline_choice` adds an ordered `passage` of `{text:string}` and one `{response:'RESPONSE'}`, plus `required`, `label` (static qti-label), and `placeholder` (data-prompt). Label and placeholder default to empty strings. Candidate options and separate instructions are excluded from the context; metadata cannot mutate the compiled item.
+
+Optional NULL, empty string and omitted RESPONSE are unanswered zeroes. `required=true` or `min-choices=1` makes an empty response an `invalid_response` error. Either constraint requires selection; minimum must be zero or one. This validation is specific to inline choice and does not change other item kinds. In package batch reports, a required omission has no score, whereas an optional omission remains an unanswered zero. The native browser select shows the authored label and placeholder and supports keyboard selection and clear/reset.
+
+One choice is valid. Unknown/case-mismatched IDs, wrong containers and duplicate/reserved authored IDs are rejected. Only static text context is supported; shuffle=true, dynamic content, media and composite items are explicitly rejected. Other item descriptions omit `inline_choice`; existing response types, methods, disposal and package APIs are unchanged.
+
 ## Contextual hottext and candidate instructions
 
 Version 0.8.0 supports `qti-hottext-interaction` with single/multiple identifier responses. Select IDs, not literal text or offsets: `{RESPONSE:['Evidence','Support']}` or a string for single cardinality. The core checks known unique IDs and min/max choices, then reuses match_correct or map_response. Maximum defaults to one (zero means unlimited), minimum to zero; single requires maximum one. Null and empty matching containers remain unanswered. Ordinary multiple-choice duplicate semantics are unchanged.

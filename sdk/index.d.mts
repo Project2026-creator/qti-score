@@ -17,6 +17,13 @@ export type GapPassagePart = { readonly text: string } | { readonly gap: string 
 export interface GapMatchDescription extends MatchDescription { readonly passage: readonly GapPassagePart[] }
 export type HottextPassagePart = { readonly text: string } | { readonly choice: string };
 export interface HottextDescription { readonly passage: readonly HottextPassagePart[] }
+export type InlineChoicePassagePart = { readonly text: string } | { readonly response: 'RESPONSE' };
+export interface InlineChoiceDescription {
+  readonly passage: readonly InlineChoicePassagePart[];
+  readonly required: boolean;
+  readonly label: string;
+  readonly placeholder: string;
+}
 export interface ItemDescription {
   readonly identifier: string;
   readonly title: string;
@@ -31,6 +38,7 @@ export interface ItemDescription {
   readonly matching?: MatchDescription;
   readonly gap_matching?: GapMatchDescription;
   readonly hottext?: HottextDescription;
+  readonly inline_choice?: InlineChoiceDescription;
   readonly instructions?: readonly string[];
 }
 export type JsonValue = null | boolean | number | string | readonly JsonValue[] | { readonly [key: string]: JsonValue };

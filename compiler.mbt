@@ -164,6 +164,7 @@ pub fn compile_item(
   let mut matching : MatchInteraction? = None
   let mut gap_passage : Array[GapPart]? = None
   let mut hottext_passage : Array[HottextPart]? = None
+  let mut inline_choice : InlineChoiceInteraction? = None
   let gap_match = interaction.name() == "qti-gap-match-interaction"
   let hottext = interaction.name() == "qti-hottext-interaction"
   if (base_type == DirectedPair) !=
@@ -182,7 +183,18 @@ pub fn compile_item(
   let choices : Array[Choice] = []
   let mut min_choices = 0
   let mut max_choices = 1
-  let prompt = if hottext {
+  let prompt = if interaction.name() == "qti-inline-choice-interaction" {
+    if base_type != Identifier || cardinality != Single {
+      raise InvalidItem(
+        interaction.location(),
+        "inline choice requires a single identifier response",
+      )
+    }
+    let spec = parse_inline_choice_interaction(interaction, body, choices)
+    min_choices = if spec.required { 1 } else { 0 }
+    inline_choice = Some(spec)
+    title
+  } else if hottext {
     if base_type != Identifier || cardinality == Ordered {
       raise InvalidItem(
         interaction.location(),
@@ -368,6 +380,7 @@ pub fn compile_item(
     matching,
     gap_passage,
     hottext_passage,
+    inline_choice,
     instructions,
     processing_source: processing.source(),
   }
@@ -563,6 +576,10 @@ fn collect_interactions(
       "hottext choice must be inside its interaction",
     )
   }
+  if ["qti-inline-choice", "qti-label"].contains(name) &&
+    parent != "qti-inline-choice-interaction" {
+    raise InvalidItem(node.location(), "misplaced inline choice element")
+  }
   if (name == "qti-simple-match-set" && parent != "qti-match-interaction") ||
     (name == "qti-simple-associable-choice" && parent != "qti-simple-match-set") {
     raise InvalidItem(node.location(), "misplaced match interaction element")
@@ -575,13 +592,15 @@ fn collect_interactions(
     name == "qti-order-interaction" ||
     name == "qti-match-interaction" ||
     name == "qti-gap-match-interaction" ||
+    name == "qti-inline-choice-interaction" ||
     name == "qti-hottext-interaction" {
     found.push(node)
   } else if ![
       "qti-item-body", "qti-simple-choice", "qti-prompt", "qti-simple-match-set",
-      "qti-gap-text", "qti-gap", "qti-hottext", "qti-simple-associable-choice", "p",
-      "div", "span", "br", "blockquote", "strong", "em", "b", "i", "u", "sub", "sup",
-      "ul", "ol", "li", "img", "a", "table", "thead", "tbody", "tr", "th", "td",
+      "qti-gap-text", "qti-gap", "qti-hottext", "qti-inline-choice", "qti-label",
+      "qti-simple-associable-choice", "p", "div", "span", "br", "blockquote", "strong",
+      "em", "b", "i", "u", "sub", "sup", "ul", "ol", "li", "img", "a", "table", "thead",
+      "tbody", "tr", "th", "td",
     ].contains(name) {
     raise Unsupported(node.location(), "body element '\{name}'")
   }

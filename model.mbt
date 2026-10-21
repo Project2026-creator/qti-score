@@ -118,6 +118,7 @@ pub struct Item {
   priv matching : MatchInteraction?
   priv gap_passage : Array[GapPart]?
   priv hottext_passage : Array[HottextPart]?
+  priv inline_choice : InlineChoiceInteraction?
   priv instructions : Array[String]
   priv processing_source : SourceLocation
 } derive(Debug)
