@@ -145,6 +145,14 @@ pub fn Item::describe(self : Item) -> Json {
       fields["matching"] = spec.describe()
     }
   }
+  if description is Object(fields) {
+    if self.hottext_passage is Some(passage) {
+      fields["hottext"] = { "passage": passage.map(part => part.describe()) }
+    }
+    if !self.instructions.is_empty() {
+      fields["instructions"] = Json(self.instructions.copy())
+    }
+  }
   description
 }
 

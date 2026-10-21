@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REVISION = "0a92fbbb6d2e620a1f7fad19977be4c418246bc0"
 OFFICIAL_BASE = "https://raw.githubusercontent.com/1EdTech/qti-examples/{}/qtiv3-examples/packaging/items/".format(REVISION)
 OFFICIAL_HASHES = {
+    "hottext.xml": "7b701fa4f0b764664876eae80df74073878e28f7ef4354a3e60600ec116fb99a",
     "gap_match.xml": "440e984a6ff4af86f58c8057c47af7fe2e9af1e4fbecb058a05e39689ab4935e",
     "match.xml": "fcc3f989c6bcf37b8e164217f82afdb8d8ec59f057dffd7b22bfb34c2a5e8bb3",
     "choice.xml": "9d762846f7ab3232de9549a956991afa761f2fd1f1dc276e98efe85c16ffea1e",
@@ -77,6 +78,9 @@ def build_sample_package():
                                            ("items/match-single.xml", "match-single.xml")]))
     examples.append(("gap-package.zip", [("imsmanifest.xml", "gap-manifest.xml"),
                                          ("items/gap.xml", "gap.xml"), ("items/gap-single.xml", "gap-single.xml")]))
+    examples.append(("hottext-package.zip", [("imsmanifest.xml", "hottext-manifest.xml"),
+                                             ("items/hottext.xml", "hottext.xml"),
+                                             ("items/hottext-single.xml", "hottext-single.xml")]))
     for filename, files in examples:
         with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path, source in files:
@@ -122,7 +126,7 @@ def extract_json(stdout):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.7.0",
+        "module": "Project2026-creator/qti-score", "version": "0.8.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }
@@ -177,7 +181,9 @@ def verify(moon, env, output, offline=False):
     sources.append(("gap_match.xml", [(["W G1", "Su G2"], 3), (["Su G2", "W G1"], 3),
                                       (["W G1"], 1), (["Su G2"], 2), (["Sp G1"], 0),
                                       (["W G1", "A G2"], 0), (None, 0), ([], 0)]))
+    sources.append(("hottext.xml", [("B", 1), ("A", 0), ("C", 0), ("D", 0), ("E", 0), (None, 0), ("", 0)]))
     bridge_inputs = []
+    bridge_records = []
     for filename, cases in sources:
         path = cache / filename
         uri = OFFICIAL_BASE + filename
@@ -223,9 +229,14 @@ def verify(moon, env, output, offline=False):
             else:
                 report["official_cases"].append(record)
             bridge_inputs.append({"xml": xml, "response": response_object})
+            bridge_records.append(record)
     for name, cases in [
         ("numeric", [(100, 2), (100.5, 1), (104, 0.5), (95, 0.5), (105, 0.5), (110, 0), (None, 0), ("", 0)]),
         ("integer", [(42, 1), ("0042", 1), (41, 0), (None, 0)]),
+        ("hottext", [(["Evidence", "Support"], 2), (["Support", "Evidence"], 2),
+                     (["Evidence"], 1), (["Support"], 1), (["Ranking"], 0),
+                     (["Evidence", "Ranking"], 0), (None, 0), ([], 0)]),
+        ("hottext-single", [("Feedback", 1), ("Final", 0), (None, 0), ("", 0)]),
         ("gap", [(["Feedback G1", "Adjust G2", "Feedback G3"], 3),
                  (["Feedback G3", "Feedback G1", "Adjust G2"], 3), (["Feedback G1"], 1),
                  (["Feedback G1", "Rank G2"], 0.5), (["Rank G1"], 0), (None, 0), ([], 0)]),
@@ -254,9 +265,11 @@ def verify(moon, env, output, offline=False):
                 raise AssertionError("Unexpected feature CLI result: {}".format(actual))
             if explanation.get("ok") is not True or explanation["result"] != actual["result"] or not explanation.get("steps"):
                 raise AssertionError("CLI explanation disagrees with score: {}".format(explanation))
-            report["feature_cases"].append({"fixture": name, "response": response_object,
-                                            "expected_score": expected, "cli_result": actual["result"],
-                                            "explanation": explanation["steps"]})
+            feature_record = {"fixture": name, "response": response_object,
+                              "expected_score": expected, "cli_result": actual["result"],
+                              "explanation": explanation["steps"]}
+            report["feature_cases"].append(feature_record)
+            bridge_records.append(feature_record)
             bridge_inputs.append({"xml": xml, "response": response_object})
     # Node is only a host. It imports the compiled MoonBit bridge; no JavaScript
     # scorer or XML parser is used in this comparison.
@@ -278,7 +291,7 @@ try {
     bridge_run = command([node, "--input-type=module", "-e", script, bridge.as_uri(), (sdk / "index.mjs").as_uri()], env,
                          json.dumps(bridge_inputs, ensure_ascii=False))
     bridge_results = json.loads(bridge_run.stdout)
-    records = report["official_cases"] + report["derived_cases"] + report["feature_cases"]
+    records = bridge_records
     for record, comparison in zip(records, bridge_results):
         result = comparison["bridge"]
         if result.get("ok") is not True or result["result"] != record["cli_result"] or \
@@ -357,6 +370,7 @@ try {
     ]
     batch_scenarios.append(("matching-package", (ROOT / "examples/match-attempts.jsonl").read_text(encoding="utf-8"), 4, 3, 1, 1))
     batch_scenarios.append(("gap-package", (ROOT / "examples/gap-attempts.jsonl").read_text(encoding="utf-8"), 5, 4, 1, 1))
+    batch_scenarios.append(("hottext-package", (ROOT / "examples/hottext-attempts.jsonl").read_text(encoding="utf-8"), 5, 4, 1, 1))
     batch_script = """
 import {readFileSync} from 'node:fs';
 const {importPackage}=await import(process.argv[1]);
@@ -371,6 +385,8 @@ finally {bundle.dispose();}
             batch_archive = ROOT / "web/match-package.zip"
         if name == "gap-package":
             batch_archive = ROOT / "web/gap-package.zip"
+        if name == "hottext-package":
+            batch_archive = ROOT / "web/hottext-package.zip"
         path = cache / ("batch-" + name + ".jsonl")
         path.write_text(source, encoding="utf-8")
         arguments = [moon, "run", "cmd/main", "--", "package-batch", str(batch_archive), str(path)]
@@ -411,6 +427,8 @@ finally {bundle.dispose();}
             raise AssertionError("Matching package batch scores differ from authored expectations")
         if name == "gap-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [3, 1, 0.5, None, 0]:
             raise AssertionError("Gap package batch scores differ from authored expectations")
+        if name == "hottext-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [2, 1, 1, None, 0]:
+            raise AssertionError("Hottext package batch scores differ from authored expectations")
         report["batch_cases"].append({"name": name, "expected_exit": expected_exit,
                                       "cli_report": cli_report, "sdk_report": sdk_evaluation["report"],
                                       "csv": exported, "csv_decoded": decoded})

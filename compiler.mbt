@@ -148,6 +148,9 @@ pub fn compile_item(
   }
   let body = root.one("qti-item-body").unwrap()
   body.only_attributes(["class", "id", "dir"])
+  let instructions = body.children
+    .filter(n => n.name() == "qti-rubric-block")
+    .map(n => candidate_instructions(n))
   let interactions : Array[Node] = []
   collect_interactions(body, interactions, "")
   if interactions.length() != 1 {
@@ -160,7 +163,9 @@ pub fn compile_item(
   let ordered = interaction.name() == "qti-order-interaction"
   let mut matching : MatchInteraction? = None
   let mut gap_passage : Array[GapPart]? = None
+  let mut hottext_passage : Array[HottextPart]? = None
   let gap_match = interaction.name() == "qti-gap-match-interaction"
+  let hottext = interaction.name() == "qti-hottext-interaction"
   if (base_type == DirectedPair) !=
     (interaction.name() == "qti-match-interaction" || gap_match) {
     raise InvalidItem(
@@ -177,7 +182,24 @@ pub fn compile_item(
   let choices : Array[Choice] = []
   let mut min_choices = 0
   let mut max_choices = 1
-  let prompt = if interaction.name() == "qti-match-interaction" || gap_match {
+  let prompt = if hottext {
+    if base_type != Identifier || cardinality == Ordered {
+      raise InvalidItem(
+        interaction.location(),
+        "hottext requires single or multiple identifier responses",
+      )
+    }
+    let (passage, minimum, maximum) = parse_hottext_interaction(
+      interaction, cardinality, choices,
+    )
+    hottext_passage = Some(passage)
+    min_choices = minimum
+    max_choices = maximum
+    match interaction.one("qti-prompt", required=false) {
+      Some(n) => n.all_text.to_string().trim().to_owned()
+      None => title
+    }
+  } else if interaction.name() == "qti-match-interaction" || gap_match {
     let spec = if gap_match {
       let (spec, passage) = parse_gap_interaction(interaction, cardinality)
       gap_passage = Some(passage)
@@ -290,13 +312,13 @@ pub fn compile_item(
   }
   if !choices.is_empty() {
     if correct is Some(values) {
-      if ordered {
+      if ordered || hottext {
         let seen : Map[String, Bool] = Map([])
         for value in values {
           if seen.contains(value) {
             raise InvalidItem(
               declaration.location(),
-              "duplicate ordered correct choice '\{value}'",
+              "duplicate ordered/hottext correct choice '\{value}'",
             )
           }
           seen[value] = true
@@ -345,6 +367,8 @@ pub fn compile_item(
     numeric_rule,
     matching,
     gap_passage,
+    hottext_passage,
+    instructions,
     processing_source: processing.source(),
   }
 }
@@ -489,6 +513,7 @@ fn collect_interactions(
   found : Array[Node],
   parent : String,
   inside_gap~ : Bool = false,
+  inside_hottext~ : Bool = false,
 ) -> Unit raise QtiError {
   let name = node.name()
   let uri = node.element.name.namespace_uri
@@ -498,11 +523,23 @@ fn collect_interactions(
   if name.has_prefix("qti-") && uri != Some(qti_namespace) {
     raise Unsupported(node.location(), "QTI element in a different namespace")
   }
+  if name == "qti-rubric-block" {
+    if parent != "qti-item-body" {
+      raise InvalidItem(
+        node.location(),
+        "rubric instructions must be a direct item-body child",
+      )
+    }
+    ignore(candidate_instructions(node))
+    return
+  }
   if (name == "qti-simple-choice" || name == "qti-prompt") &&
     parent != "qti-choice-interaction" &&
     parent != "qti-order-interaction" &&
     !(name == "qti-prompt" &&
-    ["qti-match-interaction", "qti-gap-match-interaction"].contains(parent)) {
+    [
+      "qti-match-interaction", "qti-gap-match-interaction", "qti-hottext-interaction",
+    ].contains(parent)) {
     raise InvalidItem(
       node.location(),
       "element must be a child of a choice or order interaction",
@@ -520,6 +557,12 @@ fn collect_interactions(
       "gap must be inside a gap-match interaction",
     )
   }
+  if name == "qti-hottext" && !inside_hottext {
+    raise InvalidItem(
+      node.location(),
+      "hottext choice must be inside its interaction",
+    )
+  }
   if (name == "qti-simple-match-set" && parent != "qti-match-interaction") ||
     (name == "qti-simple-associable-choice" && parent != "qti-simple-match-set") {
     raise InvalidItem(node.location(), "misplaced match interaction element")
@@ -531,13 +574,14 @@ fn collect_interactions(
     name == "qti-text-entry-interaction" ||
     name == "qti-order-interaction" ||
     name == "qti-match-interaction" ||
-    name == "qti-gap-match-interaction" {
+    name == "qti-gap-match-interaction" ||
+    name == "qti-hottext-interaction" {
     found.push(node)
   } else if ![
       "qti-item-body", "qti-simple-choice", "qti-prompt", "qti-simple-match-set",
-      "qti-gap-text", "qti-gap", "qti-simple-associable-choice", "p", "div", "span",
-      "br", "blockquote", "strong", "em", "b", "i", "u", "sub", "sup", "ul", "ol",
-      "li", "img", "a", "table", "thead", "tbody", "tr", "th", "td",
+      "qti-gap-text", "qti-gap", "qti-hottext", "qti-simple-associable-choice", "p",
+      "div", "span", "br", "blockquote", "strong", "em", "b", "i", "u", "sub", "sup",
+      "ul", "ol", "li", "img", "a", "table", "thead", "tbody", "tr", "th", "td",
     ].contains(name) {
     raise Unsupported(node.location(), "body element '\{name}'")
   }
@@ -547,6 +591,7 @@ fn collect_interactions(
       found,
       name,
       inside_gap=inside_gap || name == "qti-gap-match-interaction",
+      inside_hottext=inside_hottext || name == "qti-hottext-interaction",
     )
   }
 }

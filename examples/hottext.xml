@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="evidence-in-context" title="找出支持学习改进的做法">
+  <qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="identifier">
+    <qti-correct-response><qti-value>Evidence</qti-value><qti-value>Support</qti-value></qti-correct-response>
+    <qti-mapping default-value="-1" lower-bound="0" upper-bound="2">
+      <qti-map-entry map-key="Evidence" mapped-value="1"/>
+      <qti-map-entry map-key="Support" mapped-value="1"/>
+    </qti-mapping>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>请选择文段中两处支持形成性评价的做法。可再次点击已选片段取消。</p></qti-content-body></qti-rubric-block>
+    <qti-hottext-interaction response-identifier="RESPONSE" min-choices="1" max-choices="2">
+      <qti-prompt>在原文中选择合适的片段。</qti-prompt>
+      <p>课堂上，教师<qti-hottext identifier="Evidence">收集学习证据</qti-hottext>，并依据证据<qti-hottext identifier="Support">调整教学支持</qti-hottext>。<br/>把<qti-hottext identifier="Ranking">公布班级排名</qti-hottext>作为唯一目标，不能替代过程反馈。</p>
+    </qti-hottext-interaction>
+  </qti-item-body>
+  <qti-response-processing template="https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/map_response.xml"/>
+</qti-assessment-item>

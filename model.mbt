@@ -117,6 +117,8 @@ pub struct Item {
   priv numeric_rule : NumericRule?
   priv matching : MatchInteraction?
   priv gap_passage : Array[GapPart]?
+  priv hottext_passage : Array[HottextPart]?
+  priv instructions : Array[String]
   priv processing_source : SourceLocation
 } derive(Debug)
 

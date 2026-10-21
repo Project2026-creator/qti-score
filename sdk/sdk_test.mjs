@@ -14,6 +14,54 @@ const hasCode = code => cause => cause instanceof QtiScoreError && cause.code ==
 const packageBytes = () => readFileSync(new URL('../web/sample-package.zip', import.meta.url));
 const packageAttempts = () => readFileSync(new URL('../examples/package-attempts.jsonl', import.meta.url), 'utf8');
 
+test('hottext metadata retains passage positions and safe candidate instructions', () => {
+  const item = compileItem(fixture('hottext'));
+  try {
+    const metadata = item.describe();
+    assert.equal(metadata.hottext.passage.map(p => p.text ?? `[${p.choice}]`).join(''),
+      '课堂上，教师[Evidence]，并依据证据[Support]。\n把[Ranking]作为唯一目标，不能替代过程反馈。\n');
+    assert.equal(metadata.instructions.length, 1);
+    metadata.instructions[0] = 'changed'; metadata.hottext.passage.length = 0; metadata.choices[0].identifier = 'changed';
+    assert.equal(item.describe().hottext.passage.length, 10);
+    assert.equal(item.describe().choices[0].identifier, 'Evidence');
+    assert.notEqual(item.describe().instructions[0], 'changed');
+    const input = ['Support', 'Evidence'];
+    assert.equal(item.score({RESPONSE:input}).score, 2);
+    assert.equal(item.explain({RESPONSE:input}).result.matches_correct, true);
+    assert.deepEqual(input,['Support','Evidence']);
+    const rows = item.scoreBatch([{RESPONSE:['Evidence']},{RESPONSE:['Evidence','Evidence']},{RESPONSE:['Unknown']},{}]);
+    assert.deepEqual(rows.map(r => r.ok ? r.result.score : r.error.code), [1,'invalid_response','invalid_response',0]);
+  } finally { item.dispose(); }
+});
+
+test('single hottext and instruction actor boundaries are enforced by the core', () => {
+  const item = compileItem(fixture('hottext-single'));
+  try {
+    assert.equal(item.score({RESPONSE:'Feedback'}).score,1);
+    assert.equal(item.score({RESPONSE:'Final'}).score,0);
+    assert.equal(item.score({}).status,'unanswered');
+    assert.throws(() => item.score({RESPONSE:['Feedback']}),hasCode('invalid_response'));
+  } finally { item.dispose(); }
+  assert.throws(() => compileItem(fixture('hottext-single').replace('view="candidate"','view="scorer"')),hasCode('unsupported'));
+  const escaped = compileItem(fixture('hottext-single').replace('选择一个片段，','&lt;script&gt;&amp;<em>说明</em>'));
+  try { assert.ok(escaped.describe().instructions[0].startsWith('<script>&说明')); }
+  finally { escaped.dispose(); }
+});
+
+test('hottext package batch exports share the scorer and independent item lifetime', () => {
+  const bundle = importPackage(readFileSync(new URL('../web/hottext-package.zip', import.meta.url)));
+  const item = bundle.getItem('evidence');
+  try {
+    assert.equal(bundle.describe().ready_count,2);
+    const {report,csv} = bundle.scoreAttempts(readFileSync(new URL('../examples/hottext-attempts.jsonl',import.meta.url),'utf8'));
+    assert.deepEqual(report.rows.map(r => r.ok ? r.result.score : r.error.code),[2,1,1,'invalid_response',0]);
+    assert.deepEqual(report.attempts.map(a => a.score_sum),[3,1,null,0]);
+    assert.ok(csv.includes('false,,,,"invalid_response"'));
+    bundle.dispose();
+    assert.equal(item.score({RESPONSE:['Evidence']}).score,1);
+  } finally { item.dispose(); bundle.dispose(); }
+});
+
 test('gap matching preserves contextual passage and validates words and required gaps', () => {
   const item = compileItem(fixture('gap'));
   try {

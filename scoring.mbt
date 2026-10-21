@@ -173,11 +173,11 @@ fn Item::execute(
       }
     }
   }
-  if self.cardinality == Ordered {
+  if self.cardinality == Ordered || self.hottext_passage is Some(_) {
     let seen : Map[String, Bool] = Map([])
     for value in values {
       if seen.contains(value) {
-        raise InvalidResponse("duplicate ordered choice '\{value}'")
+        raise InvalidResponse("duplicate ordered/hottext choice '\{value}'")
       }
       seen[value] = true
     }

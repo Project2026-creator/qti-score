@@ -1,0 +1,5 @@
+{"attempt_id":"reader-01","resource_id":"evidence","response":{"RESPONSE":["Evidence","Support"]}}
+{"attempt_id":"reader-01","resource_id":"feedback","response":{"RESPONSE":"Feedback"}}
+{"attempt_id":"reader-02","resource_id":"evidence","response":{"RESPONSE":["Evidence"]}}
+{"attempt_id":"reader-03","resource_id":"evidence","response":{"RESPONSE":["Evidence","Support","Ranking"]}}
+{"attempt_id":"reader-04","resource_id":"feedback","response":{}}

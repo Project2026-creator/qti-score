@@ -2,6 +2,7 @@ import { createBatchPanel } from './batch.mjs';
 import { createOrderControl } from './order.mjs';
 import { createMatchControl } from './match.mjs';
 import { createGapControl } from './gap.mjs';
+import { createHottextControl } from './hottext.mjs';
 
 const $ = id => document.getElementById(id);
 const batchPanel = createBatchPanel();
@@ -11,6 +12,7 @@ let compiledItem;
 let orderControl;
 let matchControl;
 let gapControl;
+let hottextControl;
 let contentPackage;
 let item;
 let activeXml = '';
@@ -80,17 +82,25 @@ function renderQuestion() {
   $('item-id').textContent = `ITEM / ${item.identifier}`;
   $('question-title').textContent = item.title;
   $('question-prompt').textContent = item.prompt;
+  const instructions = $('item-instructions');
+  instructions.replaceChildren(...(item.instructions || []).map(text => {
+    const paragraph = document.createElement('p'); paragraph.textContent = text; return paragraph;
+  }));
+  instructions.hidden = !item.instructions?.length;
   $('template-name').textContent = item.template;
   const fieldset = $('answer-controls');
   orderControl = null;
   matchControl = null;
   gapControl = null;
+  hottextControl = null;
   fieldset.replaceChildren();
   const legend = document.createElement('legend');
   legend.className = 'sr-only';
-  legend.textContent = item.gap_matching ? '在文段中选词' : item.base_type === 'directedPair' ? '添加配对' : item.cardinality === 'ordered' ? '排列答案' : item.base_type !== 'identifier' ? '填写答案' : '选择答案';
+  legend.textContent = item.hottext ? '选择原文片段' : item.gap_matching ? '在文段中选词' : item.base_type === 'directedPair' ? '添加配对' : item.cardinality === 'ordered' ? '排列答案' : item.base_type !== 'identifier' ? '填写答案' : '选择答案';
   fieldset.append(legend);
-  if (item.gap_matching) {
+  if (item.hottext) {
+    hottextControl = createHottextControl(fieldset, item);
+  } else if (item.gap_matching) {
     gapControl = createGapControl(fieldset, item, () => { updateResponse(); resetResult(); });
   } else if (item.base_type === 'directedPair') {
     matchControl = createMatchControl(fieldset, item, () => { updateResponse(); resetResult(); });
@@ -345,7 +355,7 @@ $('answer-form').addEventListener('submit', event => {
   $('match-message').textContent = matchMessage;
 });
 $('answer-controls').addEventListener('input', () => { updateResponse(); resetResult(); });
-$('clear-answer').addEventListener('click', () => { $('answer-form').reset(); orderControl?.reset(); matchControl?.reset(); gapControl?.reset(); updateResponse(); resetResult(); });
+$('clear-answer').addEventListener('click', () => { $('answer-form').reset(); orderControl?.reset(); matchControl?.reset(); gapControl?.reset(); hottextControl?.reset(); updateResponse(); resetResult(); });
 $('compile').addEventListener('click', () => { ++loading; compile(); });
 source.addEventListener('input', () => {
   ++loading;

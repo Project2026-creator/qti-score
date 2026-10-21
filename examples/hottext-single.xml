@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="feedback-source" title="选择能改进教学的依据">
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier">
+    <qti-correct-response><qti-value>Feedback</qti-value></qti-correct-response>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>选择一个片段，表示教师调整教学的直接依据。</p></qti-content-body></qti-rubric-block>
+    <qti-hottext-interaction response-identifier="RESPONSE">
+      <p>学习者完成任务后，教师根据<qti-hottext identifier="Feedback">过程反馈</qti-hottext>改进教学，而不是只看<qti-hottext identifier="Final">期末总分</qti-hottext>。</p>
+    </qti-hottext-interaction>
+  </qti-item-body>
+  <qti-response-processing template="https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/match_correct.xml"/>
+</qti-assessment-item>

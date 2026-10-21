@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1" identifier="hottext-bank">
+  <resources>
+    <resource identifier="evidence" type="imsqti_item_xmlv3p0" href="items/hottext.xml"><file href="items/hottext.xml"/></resource>
+    <resource identifier="feedback" type="imsqti_item_xmlv3p0" href="items/hottext-single.xml"><file href="items/hottext-single.xml"/></resource>
+  </resources>
+</manifest>

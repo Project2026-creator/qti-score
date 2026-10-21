@@ -7,6 +7,14 @@ const score: Score = item.score(response);
 const explanation: Explanation = item.explain({ RESPONSE: 100.5 });
 const batch: BatchResult[] = item.scoreBatch([response, {}, { RESPONSE: null }] as const);
 const metadata: ItemDescription = describeItem('<xml/>');
+if (metadata.hottext) {
+  for (const part of metadata.hottext.passage) {
+    const text: string = 'text' in part ? part.text : part.choice;
+    void text;
+  }
+  const instructions: readonly string[] = metadata.instructions ?? [];
+  void instructions;
+}
 if (metadata.gap_matching) {
   for (const part of metadata.gap_matching.passage) {
     const text: string = 'text' in part ? part.text : part.gap;
