@@ -77,7 +77,14 @@ function renderExplanation(steps) {
         text = `第 ${detail.branch + 1} 条规则：${name}${range}，${detail.selected ? '命中' : '未命中'}。`;
         break;
       }
-      case 'composite_condition': text = `${detail.identifier}：${detail.selected ? '执行本空评分' : '跳过本空评分'}。`; break;
+      case 'composite_condition': {
+        const condition = detail.condition;
+        const branch = detail.branch === undefined ? '' : `第 ${detail.branch + 1} 档，`;
+        const comparison = condition?.reason === 'null_operand' ? '空响应，' : condition ? `${labels[condition.mode] || '数值比较'}，` : '';
+        const range = condition?.lower === undefined ? '' : `区间 ${condition.include_lower ? '[' : '('}${condition.lower}, ${condition.upper}${condition.include_upper ? ']' : ')'}，`;
+        text = `${detail.identifier}：${branch}${comparison}${range}${detail.selected ? '命中并计分' : '未命中'}。`;
+        break;
+      }
       case 'composite_add': text = `${detail.identifier} 贡献 ${detail.contribution}，累计 ${detail.score}。`; break;
       case 'set_score': text = `设置得分为 ${detail.score}。`; break;
       default: text = step.operation;
@@ -429,7 +436,7 @@ $('sample-package').addEventListener('click', () => loadPackage(async () => {
 }, 'sample-package.zip'));
 
 try {
-  engine = await import('../sdk/index.mjs?v=0.11.0');
+  engine = await import('../sdk/index.mjs?v=0.12.0');
   await loadExample('single');
 } catch (error) {
   $('source-status').textContent = '内核未载入';

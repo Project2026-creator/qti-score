@@ -103,6 +103,9 @@ def build_sample_package():
                                            ("items/slider.xml", "slider.xml"), ("items/slider-float.xml", "slider-float.xml")]))
     examples.append(("composite-package.zip", [("imsmanifest.xml", "composite-manifest.xml"),
                                               ("items/composite.xml", "composite.xml"), ("items/composite-numeric.xml", "composite-numeric.xml")]))
+    examples.append(("composite-tolerance-package.zip", [("imsmanifest.xml", "composite-tolerance-manifest.xml"),
+                                                        ("items/composite-tolerance.xml", "composite-tolerance.xml"),
+                                                        ("items/composite.xml", "composite.xml")]))
     for filename, files in examples:
         with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path, source in files:
@@ -148,7 +151,7 @@ def extract_json(stdout):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.11.0",
+        "module": "Project2026-creator/qti-score", "version": "0.12.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }
@@ -263,6 +266,13 @@ def verify(moon, env, output, offline=False):
                        ({},0), ({"PLATFORM":None,"COUNT":None},0), ({"COUNT":"04"},2)]),
         ("composite-numeric", [({"RATIO":0.75,"TOTAL":20},3), ({"RATIO":0.7,"TOTAL":20},2),
                                ({"RATIO":0.7},1), ({"TOTAL":20},1), ({},0), ({"RATIO":0,"TOTAL":0},0)]),
+        ("composite-tolerance", [({"UNIT":"cm","LENGTH":100,"GROUPS":4},5),
+                                 ({"UNIT":"cm","LENGTH":100.5,"GROUPS":4},4),
+                                 ({"LENGTH":99},2), ({"LENGTH":101},2), ({"LENGTH":98.999},1),
+                                 ({"LENGTH":104},1), ({"LENGTH":95},1), ({"LENGTH":105},1),
+                                 ({"LENGTH":94.999},0), ({"LENGTH":105.001},0),
+                                 ({"LENGTH":"1e2"},3), ({"UNIT":"cm"},1), ({"GROUPS":4},1),
+                                 ({},0), ({"LENGTH":None},0), ({"LENGTH":0},0)]),
         ("slider", [(40, 2), (30, 1), (50, 1), (0, 0), (100, 0), (None, 0), ("", 0)]),
         ("slider-float", [(0.75, 2), (0.7, 1), (0.8, 1), (0.5, 0), (1, 0), (None, 0), ("", 0)]),
         ("inline-choice", [("Improve", 1), ("Rank", 0), ("Archive", 0), (None, 0), ("", 0)]),
@@ -408,6 +418,7 @@ try {
     batch_scenarios.append(("inline-choice-package", (ROOT / "examples/inline-choice-attempts.jsonl").read_text(encoding="utf-8"), 6, 4, 2, 1))
     batch_scenarios.append(("slider-package", (ROOT / "examples/slider-attempts.jsonl").read_text(encoding="utf-8"), 7, 5, 2, 1))
     batch_scenarios.append(("composite-package", (ROOT / "examples/composite-attempts.jsonl").read_text(encoding="utf-8"), 6, 5, 1, 1))
+    batch_scenarios.append(("composite-tolerance-package", (ROOT / "examples/composite-tolerance-attempts.jsonl").read_text(encoding="utf-8"), 7, 6, 1, 1))
     batch_script = """
 import {readFileSync} from 'node:fs';
 const {importPackage}=await import(process.argv[1]);
@@ -430,6 +441,8 @@ finally {bundle.dispose();}
             batch_archive = ROOT / "web/slider-package.zip"
         if name == "composite-package":
             batch_archive = ROOT / "web/composite-package.zip"
+        if name == "composite-tolerance-package":
+            batch_archive = ROOT / "web/composite-tolerance-package.zip"
         path = cache / ("batch-" + name + ".jsonl")
         path.write_text(source, encoding="utf-8")
         arguments = [moon, "run", "cmd/main", "--", "package-batch", str(batch_archive), str(path)]
@@ -478,6 +491,8 @@ finally {bundle.dispose();}
             raise AssertionError("Slider package batch scores differ from authored expectations")
         if name == "composite-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [4, 3, 3, 1, None, 0]:
             raise AssertionError("Composite package batch scores differ from authored expectations")
+        if name == "composite-tolerance-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [5, 2, 4, 1, None, 0, 3]:
+            raise AssertionError("Composite tolerance batch scores differ from authored expectations")
         report["batch_cases"].append({"name": name, "expected_exit": expected_exit,
                                       "cli_report": cli_report, "sdk_report": sdk_evaluation["report"],
                                       "csv": exported, "csv_decoded": decoded})

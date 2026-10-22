@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/imscp_v1p1" identifier="measurement-bank"><resources>
+  <resource identifier="measurement" type="imsqti_item_xmlv3p0" href="items/composite-tolerance.xml"><file href="items/composite-tolerance.xml"/></resource>
+  <resource identifier="platform" type="imsqti_item_xmlv3p0" href="items/composite.xml"><file href="items/composite.xml"/></resource>
+</resources></manifest>

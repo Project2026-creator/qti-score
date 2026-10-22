@@ -125,40 +125,69 @@ fn CompositeItem::execute_responses(
   for rule in self.rules {
     let binding = self.bindings[rule.binding]
     let value = values[rule.binding]
-    let selected = match rule.credit {
-      Mapped => value != Null
-      Matched(_) => binding.matches(value) == Some(true)
-    }
-    record_step(steps, "composite_condition", rule.source, {
-      "identifier": binding.identifier,
-      "selected": selected,
-    })
-    if !selected {
-      continue
-    }
-    let contribution = match rule.credit {
-      Matched(weight) => weight
-      Mapped =>
-        match value {
-          Text(text) =>
-            binding.mapping
-            .unwrap()
-            .score_values([text], Text, steps, rule.source)
-          Number(n) =>
-            binding.mapping.unwrap().score_numeric(Some(n), steps, rule.source)
-          Null => abort("NULL response passed non-NULL guard")
+    for branch_index, branch in rule.branches {
+      let (selected, condition) : (Bool, Json?) = match branch.credit {
+        Mapped => (value != Null, None)
+        Matched(_) => (binding.matches(value) == Some(true), None)
+        Compared(comparison, _) => {
+          let response = match value {
+            Number(n) => Some(n)
+            _ => None
+          }
+          let correct = binding.correct.map(v => {
+            numeric_value(v[0], binding.base_type) catch {
+              _ => abort("invalid compiled correct number")
+            }
+          })
+          let (matched, details) = comparison.evaluate(response, correct)
+          (matched == Some(true), Some(details))
         }
+      }
+      let detail : Json = {
+        "identifier": binding.identifier,
+        "selected": selected,
+      }
+      if detail is Object(fields) {
+        if rule.branches.length() > 1 || condition is Some(_) {
+          fields["branch"] = Json(branch_index)
+        }
+        if condition is Some(comparison) {
+          fields["condition"] = comparison
+        }
+      }
+      record_step(steps, "composite_condition", branch.source, detail)
+      if !selected {
+        continue
+      }
+      let contribution = match branch.credit {
+        Matched(weight) | Compared(_, weight) => weight
+        Mapped =>
+          match value {
+            Text(text) =>
+              binding.mapping
+              .unwrap()
+              .score_values([text], Text, steps, branch.source)
+            Number(n) =>
+              binding.mapping
+              .unwrap()
+              .score_numeric(Some(n), steps, branch.source)
+            Null => abort("NULL response passed non-NULL guard")
+          }
+      }
+      total += contribution
+      if total.is_nan() || total.is_inf() {
+        raise InvalidResponse("composite score exceeds finite range")
+      }
+      record_step(steps, "composite_add", branch.source, {
+        "identifier": binding.identifier,
+        "contribution": contribution,
+        "score": total,
+      })
+      // QTI response-else-if stops at the first true branch of this condition.
+      break
     }
-    total += contribution
-    if total.is_nan() || total.is_inf() {
-      raise InvalidResponse("composite score exceeds finite range")
-    }
-    record_step(steps, "composite_add", rule.source, {
-      "identifier": binding.identifier,
-      "contribution": contribution,
-      "score": total,
-    })
   }
+
   {
     score: total,
     status: if values.all(v => v == Null) {

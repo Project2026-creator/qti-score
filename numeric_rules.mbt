@@ -125,15 +125,16 @@ fn parse_numeric_rule(
 fn parse_numeric_operand(
   node : Node,
   correct : Array[String]?,
+  response_id~ : String = "RESPONSE",
 ) -> NumericOperand raise QtiError {
   match node.name() {
     "qti-variable" | "qti-correct" => {
       node.only_attributes(["identifier"])
       node.only_children([])
-      if node.required("identifier") != "RESPONSE" {
+      if node.required("identifier") != response_id {
         raise Unsupported(
           node.location(),
-          "only the RESPONSE variable is supported",
+          "expected response variable '\{response_id}'",
         )
       }
       if node.name() == "qti-correct" {
@@ -172,6 +173,7 @@ fn parse_numeric_test(
   node : Node,
   correct : Array[String]?,
   base_type : BaseType,
+  response_id~ : String = "RESPONSE",
 ) -> NumericTest raise QtiError {
   node.only_children(["qti-variable", "qti-correct", "qti-base-value"])
   if node.name() == "qti-is-null" {
@@ -179,7 +181,9 @@ fn parse_numeric_test(
     if node.children.length() != 1 {
       raise InvalidItem(node.location(), "is-null requires one operand")
     }
-    return IsNull(parse_numeric_operand(node.children[0], correct))
+    return IsNull(
+      parse_numeric_operand(node.children[0], correct, response_id~),
+    )
   }
   if node.name() != "qti-equal" {
     raise Unsupported(node.location(), "numeric predicate '\{node.name()}'")
@@ -190,8 +194,8 @@ fn parse_numeric_test(
   if node.children.length() != 2 {
     raise InvalidItem(node.location(), "equal requires two operands")
   }
-  let left = parse_numeric_operand(node.children[0], correct)
-  let right = parse_numeric_operand(node.children[1], correct)
+  let left = parse_numeric_operand(node.children[0], correct, response_id~)
+  let right = parse_numeric_operand(node.children[1], correct, response_id~)
   let mode = node.attr("tolerance-mode").unwrap_or("exact")
   if !["exact", "absolute", "relative"].contains(mode) {
     raise InvalidItem(node.location(), "invalid tolerance-mode")

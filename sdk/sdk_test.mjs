@@ -14,6 +14,56 @@ const hasCode = code => cause => cause instanceof QtiScoreError && cause.code ==
 const packageBytes = () => readFileSync(new URL('../web/sample-package.zip', import.meta.url));
 const packageAttempts = () => readFileSync(new URL('../examples/package-attempts.jsonl', import.meta.url), 'utf8');
 
+test('composite numeric tiers stop at the first match and expose interval diagnostics only on request', () => {
+  const item = compileItem(fixture('composite-tolerance'));
+  try {
+    const input = { UNIT: 'cm', LENGTH: 100.5, GROUPS: 4 };
+    assert.deepEqual(item.score(input), { score: 4, status: 'answered', matches_correct: false });
+    assert.deepEqual(input, { UNIT: 'cm', LENGTH: 100.5, GROUPS: 4 });
+    const rows = item.scoreBatch([{ LENGTH: 100 }, { LENGTH: 99 }, { LENGTH: 105 }, { LENGTH: 105.001 }, {}, { LENGTH: 'bad' }, { LENGTH: 100.5 }]);
+    assert.deepEqual(rows.map(r => r.ok ? r.result.score : r.error.code), [3, 2, 1, 0, 0, 'invalid_response', 2]);
+    const trace = item.explain(input);
+    const conditions = trace.steps.filter(s => s.operation === 'composite_condition' && s.details.identifier === 'LENGTH');
+    assert.deepEqual(conditions.map(s => [s.details.branch, s.details.selected]), [[0, false], [1, true]]);
+    assert.equal(conditions[1].details.condition.lower, 99);
+    assert.equal(conditions[1].details.condition.upper, 101);
+    assert.ok(conditions.every(s => s.location.line > 0));
+    assert.equal(trace.result.score, item.score(input).score);
+    assert.equal(item.score({ UNIT: 'cm', LENGTH: 100, GROUPS: 4 }).score, 5);
+    const metadata = JSON.stringify(item.describe());
+    assert.ok(!metadata.includes('tolerance') && !metadata.includes('correct') && !metadata.includes('branches'));
+  } finally { item.dispose(); }
+});
+
+test('composite tolerance authoring errors fail compilation without changing existing compiled instances', () => {
+  const source = fixture('composite-tolerance');
+  const item = compileItem(source);
+  try {
+    for (const tolerance of ['0', '-1', 'NaN', '1 2 3']) {
+      assert.throws(() => compileItem(source.replace('tolerance="1"', `tolerance="${tolerance}"`)), hasCode('invalid_item'));
+    }
+    assert.throws(() => compileItem(source.replaceAll('<qti-correct identifier="LENGTH"/>', '<qti-correct identifier="GROUPS"/>')), hasCode('invalid_item'));
+    assert.throws(() => compileItem(source.replaceAll('<qti-match>', '<qti-equal>').replaceAll('</qti-match>', '</qti-equal>')), hasCode('unsupported'));
+    assert.equal(item.score({ LENGTH: 100 }).score, 3);
+    assert.deepEqual(evaluateItem(source, { LENGTH: null }), item.score({}));
+  } finally { item.dispose(); }
+});
+
+test('composite tolerance packages retain row errors, exports and independent item lifetimes', () => {
+  const bundle = importPackage(readFileSync(new URL('../web/composite-tolerance-package.zip', import.meta.url)));
+  const item = bundle.getItem('measurement');
+  try {
+    assert.equal(bundle.describe().ready_count, 2);
+    const { report, csv } = bundle.scoreAttempts(readFileSync(new URL('../examples/composite-tolerance-attempts.jsonl', import.meta.url), 'utf8'));
+    assert.deepEqual(report.rows.map(r => r.ok ? r.result.score : null), [5, 2, 4, 1, null, 0, 3]);
+    assert.deepEqual(report.attempts.map(a => a.score_sum), [7, 4, 1, null, 0, 3]);
+    assert.equal(report.error_count, 1);
+    assert.ok(csv.includes('invalid_response'));
+    bundle.dispose();
+    assert.equal(item.score({ LENGTH: 100.5 }).score, 2);
+  } finally { item.dispose(); bundle.dispose(); }
+});
+
 test('composite descriptions and multi-field responses preserve existing compiled-item methods', () => {
   const item = compileItem(fixture('composite'));
   try {

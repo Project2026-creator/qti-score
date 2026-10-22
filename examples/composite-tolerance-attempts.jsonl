@@ -1,0 +1,7 @@
+{"attempt_id":"learner-01","resource_id":"measurement","response":{"UNIT":"cm","LENGTH":100,"GROUPS":4}}
+{"attempt_id":"learner-01","resource_id":"platform","response":{"PLATFORM":"LMS"}}
+{"attempt_id":"learner-02","resource_id":"measurement","response":{"UNIT":"cm","LENGTH":100.5,"GROUPS":4}}
+{"attempt_id":"learner-03","resource_id":"measurement","response":{"LENGTH":104}}
+{"attempt_id":"learner-04","resource_id":"measurement","response":{"UNIT":"cm","LENGTH":"bad"}}
+{"attempt_id":"learner-05","resource_id":"measurement","response":{}}
+{"attempt_id":"learner-06","resource_id":"measurement","response":{"LENGTH":99,"GROUPS":4}}

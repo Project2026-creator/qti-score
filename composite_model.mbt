@@ -18,13 +18,19 @@ priv enum CompositePart {
 priv enum CompositeCredit {
   Mapped
   Matched(Double)
+  Compared(NumericTest, Double)
+} derive(Debug)
+
+///|
+priv struct CompositeBranch {
+  credit : CompositeCredit
+  source : SourceLocation
 } derive(Debug)
 
 ///|
 priv struct CompositeRule {
   binding : Int32
-  credit : CompositeCredit
-  source : SourceLocation
+  branches : Array[CompositeBranch]
 } derive(Debug)
 
 ///|

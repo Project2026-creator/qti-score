@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="measurement-report" title="测量记录与误差评分">
+  <qti-response-declaration identifier="UNIT" cardinality="single" base-type="string"><qti-correct-response><qti-value>cm</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-response-declaration identifier="LENGTH" cardinality="single" base-type="float"><qti-correct-response><qti-value>100</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-response-declaration identifier="GROUPS" cardinality="single" base-type="integer"><qti-correct-response><qti-value>4</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="5"/>
+  <qti-item-body>
+    <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>单位与组数各 1 分。长度为 100 得 3 分；绝对误差不超过 1 得 2 分；相对误差不超过 5% 得 1 分。长度只计首个命中的档位。</p></qti-content-body></qti-rubric-block>
+    <p>长度单位的英文缩写：<qti-text-entry-interaction response-identifier="UNIT" placeholder-text="厘米的缩写"/>。</p>
+    <p>请记录测量长度：<qti-text-entry-interaction response-identifier="LENGTH" placeholder-text="允许小数"/>。</p>
+    <p>20 份任务平均分给 5 个小组，每组得到 <qti-text-entry-interaction response-identifier="GROUPS" placeholder-text="填写整数"/> 份。</p>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">0</qti-base-value></qti-set-outcome-value>
+    <qti-response-condition><qti-response-if><qti-match><qti-variable identifier="UNIT"/><qti-correct identifier="UNIT"/></qti-match><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">1</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+    <qti-response-condition>
+      <qti-response-if><qti-equal><qti-correct identifier="LENGTH"/><qti-variable identifier="LENGTH"/></qti-equal><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">3</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if>
+      <qti-response-else-if><qti-equal tolerance-mode="absolute" tolerance="1"><qti-correct identifier="LENGTH"/><qti-variable identifier="LENGTH"/></qti-equal><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">2</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-else-if>
+      <qti-response-else-if><qti-equal tolerance-mode="relative" tolerance="5"><qti-correct identifier="LENGTH"/><qti-variable identifier="LENGTH"/></qti-equal><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">1</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-else-if>
+    </qti-response-condition>
+    <qti-response-condition><qti-response-if><qti-equal><qti-variable identifier="GROUPS"/><qti-correct identifier="GROUPS"/></qti-equal><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">1</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+  </qti-response-processing>
+</qti-assessment-item>

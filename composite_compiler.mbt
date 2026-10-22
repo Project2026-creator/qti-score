@@ -251,98 +251,155 @@ fn parse_composite_rules(
   for index = 1; index < node.children.length(); index = index + 1 {
     let condition = node.children[index]
     condition.only_attributes([])
-    condition.only_children(["qti-response-if"])
-    if condition.name() != "qti-response-condition" {
+    condition.only_children(["qti-response-if", "qti-response-else-if"])
+    if condition.name() != "qti-response-condition" ||
+      condition.children.is_empty() {
       raise Unsupported(
         condition.location(),
         "expected guarded response condition",
       )
     }
-    let branch = condition.one("qti-response-if").unwrap()
-    branch.only_attributes([])
-    branch.only_children(["qti-not", "qti-match", "qti-set-outcome-value"])
-    if branch.children.length() != 2 ||
-      branch.children[1].name() != "qti-set-outcome-value" {
-      raise Unsupported(
-        branch.location(),
-        "expected one predicate and one SCORE assignment",
-      )
+    if condition.children.length() > 128 {
+      raise LimitExceeded("composite response exceeds 128 branches")
     }
-    let predicate = branch.children[0]
-    let variable = if predicate.name() == "qti-not" {
-      predicate.only_attributes([])
-      predicate.only_children(["qti-is-null"])
-      let null_test = predicate.one("qti-is-null").unwrap()
-      null_test.only_attributes([])
-      null_test.only_children(["qti-variable"])
-      null_test.one("qti-variable").unwrap()
-    } else if predicate.name() == "qti-match" {
-      predicate.only_attributes([])
-      predicate.only_children(["qti-variable", "qti-correct"])
-      ignore(predicate.one("qti-correct"))
-      predicate.one("qti-variable").unwrap()
-    } else {
-      raise Unsupported(predicate.location(), "unsupported composite predicate")
+    let branches : Array[CompositeBranch] = []
+    let mut binding_index = -1
+    for i, branch in condition.children {
+      let expected = if i == 0 {
+        "qti-response-if"
+      } else {
+        "qti-response-else-if"
+      }
+      if branch.name() != expected {
+        raise InvalidItem(branch.location(), "invalid composite branch order")
+      }
+      let (current, compiled) = parse_composite_branch(branch, bindings)
+      if i == 0 {
+        binding_index = current
+      } else if current != binding_index {
+        raise InvalidItem(
+          branch.location(),
+          "branches must use the same response",
+        )
+      }
+      branches.push(compiled)
     }
-    let id = variable.required("identifier")
-    composite_ref(variable, "qti-variable", id)
+    let id = bindings[binding_index].identifier
     if used.contains(id) {
       raise InvalidItem(
-        variable.location(),
+        condition.location(),
         "duplicate scoring rule for response '\{id}'",
       )
     }
-    let mut binding_index = -1
-    for i, b in bindings {
-      if b.identifier == id {
-        binding_index = i
-      }
-    }
-    if binding_index < 0 {
-      raise InvalidItem(variable.location(), "unknown scoring response '\{id}'")
-    }
-    let binding = bindings[binding_index]
-    let assignment = branch.children[1]
-    assignment.only_attributes(["identifier"])
-    assignment.only_children(["qti-sum"])
-    if assignment.required("identifier") != "SCORE" {
-      raise Unsupported(
-        assignment.location(),
-        "only SCORE assignment is supported",
-      )
-    }
-    let sum = assignment.one("qti-sum").unwrap()
-    sum.only_attributes([])
-    sum.only_children(["qti-variable", "qti-map-response", "qti-base-value"])
-    if sum.children.length() != 2 {
-      raise Unsupported(sum.location(), "expected SCORE plus one contribution")
-    }
-    composite_ref(sum.children[0], "qti-variable", "SCORE")
-    let term = sum.children[1]
-    let credit = if predicate.name() == "qti-not" {
-      if binding.mapping is None {
-        raise InvalidItem(term.location(), "map-response requires a mapping")
-      }
-      composite_ref(term, "qti-map-response", id)
-      CompositeCredit::Mapped
-    } else {
-      composite_ref(predicate.one("qti-correct").unwrap(), "qti-correct", id)
-      if binding.correct is None {
-        raise InvalidItem(
-          predicate.location(),
-          "match requires a correct response",
-        )
-      }
-      if binding.base_type == Float {
-        raise Unsupported(
-          predicate.location(),
-          "qti-match is not supported for float",
-        )
-      }
-      CompositeCredit::Matched(composite_literal(term))
-    }
     used[id] = true
-    rules.push({ binding: binding_index, credit, source: branch.source(), })
+    rules.push({ binding: binding_index, branches, })
   }
   rules
+}
+
+///|
+fn parse_composite_branch(
+  branch : Node,
+  bindings : Array[CompositeBinding],
+) -> (Int32, CompositeBranch) raise QtiError {
+  branch.only_attributes([])
+  branch.only_children([
+    "qti-not", "qti-match", "qti-equal", "qti-set-outcome-value",
+  ])
+  if branch.children.length() != 2 ||
+    branch.children[1].name() != "qti-set-outcome-value" {
+    raise Unsupported(
+      branch.location(),
+      "expected one predicate and one SCORE assignment",
+    )
+  }
+  let predicate = branch.children[0]
+  let variable = if predicate.name() == "qti-not" {
+    predicate.only_attributes([])
+    predicate.only_children(["qti-is-null"])
+    let null_test = predicate.one("qti-is-null").unwrap()
+    null_test.only_attributes([])
+    null_test.only_children(["qti-variable"])
+    null_test.one("qti-variable").unwrap()
+  } else if predicate.name() == "qti-match" {
+    predicate.only_attributes([])
+    predicate.only_children(["qti-variable", "qti-correct"])
+    ignore(predicate.one("qti-correct"))
+    predicate.one("qti-variable").unwrap()
+  } else if predicate.name() == "qti-equal" {
+    // Exactly one variable identifies the response owned by this condition.
+    // The shared numeric parser validates its other operand and tolerances.
+    predicate.one("qti-variable").unwrap()
+  } else {
+    raise Unsupported(predicate.location(), "unsupported composite predicate")
+  }
+  let id = variable.required("identifier")
+  composite_ref(variable, "qti-variable", id)
+  let mut binding_index = -1
+  for i, binding in bindings {
+    if binding.identifier == id {
+      binding_index = i
+    }
+  }
+  if binding_index < 0 {
+    raise InvalidItem(variable.location(), "unknown scoring response '\{id}'")
+  }
+  let binding = bindings[binding_index]
+  let assignment = branch.children[1]
+  assignment.only_attributes(["identifier"])
+  assignment.only_children(["qti-sum"])
+  if assignment.required("identifier") != "SCORE" {
+    raise Unsupported(
+      assignment.location(),
+      "only SCORE assignment is supported",
+    )
+  }
+  let sum = assignment.one("qti-sum").unwrap()
+  sum.only_attributes([])
+  sum.only_children(["qti-variable", "qti-map-response", "qti-base-value"])
+  if sum.children.length() != 2 {
+    raise Unsupported(sum.location(), "expected SCORE plus one contribution")
+  }
+  composite_ref(sum.children[0], "qti-variable", "SCORE")
+  let term = sum.children[1]
+  let credit = if predicate.name() == "qti-not" {
+    if binding.mapping is None {
+      raise InvalidItem(term.location(), "map-response requires a mapping")
+    }
+    composite_ref(term, "qti-map-response", id)
+    CompositeCredit::Mapped
+  } else if predicate.name() == "qti-equal" {
+    if !binding.base_type.is_numeric() {
+      raise Unsupported(
+        predicate.location(),
+        "qti-equal requires a numeric response",
+      )
+    }
+    if predicate.one("qti-correct", required=false) is Some(correct) {
+      composite_ref(correct, "qti-correct", id)
+    }
+    let comparison = parse_numeric_test(
+      predicate,
+      binding.correct,
+      binding.base_type,
+      response_id=id,
+    )
+    CompositeCredit::Compared(comparison, composite_literal(term))
+  } else {
+    composite_ref(predicate.one("qti-correct").unwrap(), "qti-correct", id)
+    if binding.correct is None {
+      raise InvalidItem(
+        predicate.location(),
+        "match requires a correct response",
+      )
+    }
+    if binding.base_type == Float {
+      raise Unsupported(
+        predicate.location(),
+        "qti-match is not supported for float",
+      )
+    }
+    CompositeCredit::Matched(composite_literal(term))
+  }
+  (binding_index, { credit, source: branch.source(), })
 }

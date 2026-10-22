@@ -38,7 +38,7 @@ moon run cmd/main -- batch examples/multiple.xml examples/attempts.jsonl
 python tools/project.py serve
 ```
 
-浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换十八个示例、编辑或导入 XML，并查看作答和评分结果。勾选“记录评分过程”后，提交作答会显示分支判断、映射贡献、顺序比较与分值限制。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；普通选择／排序的 `shuffle` 不改变评分计算，演示按原文顺序显示选项。文中下拉题的随机呈现暂未实现，明确拒绝 `shuffle="true"`。
+浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换十九个示例、编辑或导入 XML，并查看作答和评分结果。勾选“记录评分过程”后，提交作答会显示分支判断、映射贡献、顺序比较与分值限制。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；普通选择／排序的 `shuffle` 不改变评分计算，演示按原文顺序显示选项。文中下拉题的随机呈现暂未实现，明确拒绝 `shuffle="true"`。
 
 ## 排序题
 
@@ -188,20 +188,37 @@ moon run cmd/main -- package-batch web/composite-package.zip examples/composite-
 
 示例响应为 `{"PLATFORM":"LMS","COUNT":4}`，得 4 分；`lms` 加正确整数得 3 分，只填写正确整数得 2 分。省略字段或给出 NULL 表示该空未作答，全部为空时状态为 `unanswered`；其他情况为 `answered`。错误字段类型、未知字段、重复 JSON 键或非法整数字面量导致整次评分失败，不返回部分总分。`matches_correct` 仅在所有响应都声明正确值时返回全部精确匹配结果，否则为 `null`，与总分独立。
 
-首批使用明确的 QTI 规则子集：第一个 `qti-set-outcome-value` 把 SCORE 设为 float 常量 0，之后每个响应恰好一条 `qti-response-condition`，其中只有一个 `qti-response-if`，支持：
+使用明确的 QTI 规则子集：第一个 `qti-set-outcome-value` 把 SCORE 设为 float 常量 0，之后每个响应恰好一条 `qti-response-condition`，以一个 `qti-response-if` 开始，可跟随 `qti-response-else-if`，每个响应最多 128 个分支。所有分支必须属于同一个响应，支持：
 
 | 条件 | SCORE 赋值 |
 |---|---|
 | `not(is-null(variable R))` | `sum(variable SCORE, map-response R)` |
 | `match(variable R, correct R)` | `sum(variable SCORE, float 常量权重)` |
+| `equal(数值操作数, 数值操作数)` | `sum(variable SCORE, float 常量权重)` |
 
-条件不成立则跳过该条规则；按作者顺序累加，每次评分重新初始化。映射复用原有大小写、数值、默认值和分值上下界处理。权重可为有限负数；总和溢出报错。浮点响应不能使用 `qti-match`；NULL 不会传入这里的 sum，因此没有把 QTI 的 NULL 传播偷换成自动零分。未列出的表达式、else 分支、附加结果变量、响应默认值及其他复合交互明确拒绝。依据见 [QTI 信息模型](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/index.html) 的 MapResponse、Sum、Match 及 [实施指南](https://www.imsglobal.org/spec/qti/v3p0/impl) 的 Composite Items。
+每个响应只执行首个条件为 TRUE 的分支，全部未命中则跳过该响应；不同响应按作者顺序累加，每次评分重新初始化。映射复用原有大小写、数值、默认值和分值上下界处理。权重可为有限负数；总和溢出报错。浮点响应不能使用 `qti-match`；NULL 不会传入这里的 sum。未列出的表达式、else 分支、附加结果变量、响应默认值及其他复合交互明确拒绝。依据见 [QTI 信息模型](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/index.html) 的 MapResponse、Sum、Match、Equal 及 [实施指南](https://www.imsglobal.org/spec/qti/v3p0/impl) 的 Composite Items。
 
 MoonBit 新增 `compile_composite_item` 和 `CompositeItem::score_responses(Map[String, Response])`，另有 JSON 与解释方法。宿主可用 `compile_assessment_item` 返回的 `AssessmentItem::Single(Item)`／`Composite(CompositeItem)` 统一调用 `describe`、`score_json`、`explain_json`。原 `compile_item` 与 `Item` 继续只接收单响应题。题包新增 `assessment_item(resource_id)`；原 `item(resource_id)` 仍返回单响应 Item，对复合资源提示改用新访问器。
 
 CLI、JS SDK 的现有 `compileItem`、`getItem`、`score`、`explain`、批量方法均接入统一入口。复合元信息使用 `kind:"composite"`、`responses`、`passage` 和 `template:"composite_rules"`，不伪造单响应的 `response_identifier`、`choices` 等字段。TypeScript 的 `ItemDescription` 现为单题／复合题联合；调用者应先检查 `kind`，再访问对应字段。网页使用原生文本框、独立键盘焦点和清空操作；普通评分不返回评分规则，开发者解释新增 `composite_condition`、`composite_add`。
 
 独立题包含混合填空与数值填空两个示例。批量文件共 6 行，5 成功、1 错误，得分为 4、3、3、1、错误、未作答 0；错误行不会计为零分，CLI 输出完整报告并退出 1。
+
+### 数值容差与分档计分
+
+0.12.0 为复合题加入 `qti-equal` 的 exact、absolute、relative 比较及有序分档。每个 equal 必须恰有一个 `qti-variable`，另一操作数只能是同一响应的 `qti-correct` 或数值常量；不支持跨空比较或常量之间的比较。数值解析、容差、开闭边界与下文单响应数值规则使用同一实现。relative 的第一操作数须为非负固定值，absolute 保留作者的操作数顺序；不给比较额外添加 epsilon。
+
+```sh
+moon run cmd/main -- score examples/composite-tolerance.xml examples/composite-tolerance-response.json
+python tools/project.py build-web
+moon run cmd/main -- package-batch web/composite-tolerance-package.zip examples/composite-tolerance-attempts.jsonl
+```
+
+测量示例包含单位、长度和任务数三个空。单位 `cm` 与任务数 `4` 各得 1 分；长度精确为 100 得 3 分、绝对误差不超过 1 得 2 分、相对误差不超过 5% 得 1 分，只计首个命中的档位。因此 `{"UNIT":"cm","LENGTH":100.5,"GROUPS":4}` 得 4 分；长度为 100 时总分为 5，不会把所有命中的档位重复相加。
+
+比较遇到空操作数返回 NULL，该分支不执行；无命中时没有贡献。`matches_correct` 仍表示所有标准响应的精确匹配，允许误差后得分不代表它为 true。错误数值使整次评分失败。元信息保持原样，不返回正确值、容差与分档规则；显式解释的 `composite_condition` 增加从 0 开始的 `branch`、比较区间、开闭标志、匹配结果与 XML 位置，浏览器将其显示为从 1 开始的档位。
+
+独立题包同时包含测量题与旧复合题。7 行示例作答得到 5、2、4、1、错误、未作答 0、3；6 行成功、1 行失败，CLI 返回报告并退出 1。支持既有 SDK、题包、批量导出入口，公开 MoonBit API 与 SDK 元信息类型没有改变。
 
 ## QTI ZIP 题包
 
@@ -419,11 +436,11 @@ npm ci --prefix sdk --ignore-scripts
 python tools/project.py check
 ```
 
-最后一个命令会构建浏览器桥接模块与独立 SDK，运行 SDK 接入测试和 TypeScript 类型检查，并以固定提交版本的官方单选、多选、排序、配对、文段选词、下拉选词及滑杆题目进行 **55 个评分场景**核对，另检查 **12 个本地数值场景**、**8 个本地排序场景**、**11 个本地配对场景**、**11 个本地选词场景**、**12 个本地文段场景**和 **8 个本地下拉场景**、**14 个本地滑杆场景**和 **14 个本地复合场景**。CLI、桥接与 SDK 的结果必须一致，本地场景的评分解释也逐步对照，同时检查 CLI 错误退出码。排序官方题目的核对覆盖全部 6 种三项排列及两种 NULL 输入。预期值根据标准规则与题目声明编写，不由待测评分器生成。TypeScript 是 SDK 的开发依赖，由前一条 npm 命令安装；普通 MoonBit 核心测试不依赖它。
+最后一个命令会构建浏览器桥接模块与独立 SDK，运行 SDK 接入测试和 TypeScript 类型检查，并以固定提交版本的官方单选、多选、排序、配对、文段选词、下拉选词及滑杆题目进行 **55 个评分场景**核对，另检查 **12 个本地数值场景**、**8 个本地排序场景**、**11 个本地配对场景**、**11 个本地选词场景**、**12 个本地文段场景**和 **8 个本地下拉场景**、**14 个本地滑杆场景**和 **30 个本地复合场景**。CLI、桥接与 SDK 的结果必须一致，本地场景的评分解释也逐步对照，同时检查 CLI 错误退出码。排序官方题目的核对覆盖全部 6 种三项排列及两种 NULL 输入。预期值根据标准规则与题目声明编写，不由待测评分器生成。TypeScript 是 SDK 的开发依赖，由前一条 npm 命令安装；普通 MoonBit 核心测试不依赖它。
 
 检查还对照 CLI 与 SDK 的完整题包报告及 2 个题包评分／解释场景，并验证不支持和未知资源的非零退出码。核心测试覆盖 Store/Deflate/数据描述符、CRC、解压限额、URI 编码、xml:base、缺失文件、长依赖链与循环；SDK 测试覆盖字节隔离、独立安装和对象生命周期。
 
-跨题批量检查包含 12 组输入：混合成功／失败、全成功、重复及格式错误、空批次、带逗号／引号／公式前缀的 ID，以及独立排序题包、配对题包、选词题包、文段题包、下拉题包、滑杆题包和复合题包。逐项对照 CLI 与 SDK 的完整 JSON 报告和 CSV 字节，并用 Python 标准库的独立 CSV 解析器检查列数、得分空值、错误码及文本转义。核心另覆盖整数原始词法、负分、非零 NULL 分与汇总溢出。
+跨题批量检查包含 13 组输入：混合成功／失败、全成功、重复及格式错误、空批次、带逗号／引号／公式前缀的 ID，以及独立排序题包、配对题包、选词题包、文段题包、下拉题包、滑杆题包、复合题包和复合容差题包。逐项对照 CLI 与 SDK 的完整 JSON 报告和 CSV 字节，并用 Python 标准库的独立 CSV 解析器检查列数、得分空值、错误码及文本转义。核心另覆盖整数原始词法、负分、非零 NULL 分与汇总溢出。
 
 另检查固定官方 `gap_match.xml` 的一处声明冲突：原文件省略最大关联数，默认 1，与其两个标准配对不一致，预期返回 `invalid_item`。保留原文件的 SHA-256，并仅添加 `max-associations="0"`，对这个明确标注的派生版本运行 **8 个评分场景**。报告将其记为 `derived_cases`，原文件拒绝结果记为 `official_rejections`，与上述 55 个未修改官方场景分别列出。来源见 [固定官方文件](https://github.com/1EdTech/qti-examples/blob/0a92fbbb6d2e620a1f7fad19977be4c418246bc0/qtiv3-examples/packaging/items/gap_match.xml)。
 
