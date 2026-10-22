@@ -8,7 +8,7 @@ import urllib.parse
 WEB_FILES = frozenset([
     "index.html", "style.css", "app.mjs", "batch.mjs", "composite.mjs",
     "gap.mjs", "hottext.mjs", "inline-choice.mjs", "match.mjs", "order.mjs",
-    "slider.mjs", "qti-score.mjs",
+    "slider.mjs", "qti-score.mjs", "workspace.mjs", "results.mjs",
 ])
 PACKAGE_FILES = frozenset([
     "sample-package.zip", "order-package.zip", "match-package.zip", "gap-package.zip",

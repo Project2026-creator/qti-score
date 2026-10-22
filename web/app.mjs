@@ -1,4 +1,5 @@
 import { createBatchPanel } from './batch.mjs';
+import { createWorkspace } from './workspace.mjs';
 import { createOrderControl } from './order.mjs';
 import { createMatchControl } from './match.mjs';
 import { createGapControl } from './gap.mjs';
@@ -8,6 +9,7 @@ import { createSliderControl } from './slider.mjs';
 import { createCompositeControl } from './composite.mjs';
 
 const $ = id => document.getElementById(id);
+const workspace = createWorkspace();
 const batchPanel = createBatchPanel();
 const source = $('xml-source');
 let engine;
@@ -97,6 +99,7 @@ function renderExplanation(steps) {
 }
 
 function renderQuestion() {
+  workspace.setItem(item);
   $('item-id').textContent = `ITEM / ${item.identifier}`;
   $('question-title').textContent = item.title;
   $('question-prompt').textContent = item.prompt;
@@ -288,7 +291,7 @@ function renderPackage(report, name) {
   if (first) selectPackageItem(first);
 }
 
-async function loadPackage(readBytes, name) {
+async function loadPackage(readBytes, name, sampleSource = null) {
   if (!engine) return;
   const request = ++loading;
   $('submit-score').disabled = true;
@@ -303,7 +306,7 @@ async function loadPackage(readBytes, name) {
     catch (error) { next.dispose(); throw error; }
     contentPackage?.dispose();
     contentPackage = next;
-    batchPanel.setPackage(next, report.identifier);
+    batchPanel.setPackage(next, report.identifier, sampleSource);
     compiledItem?.dispose();
     compiledItem = null;
     item = null;
@@ -382,6 +385,7 @@ $('answer-form').addEventListener('submit', event => {
     else matchMessage = '未与标准响应完全匹配；评分规则仍可给予部分分数。';
   }
   $('match-message').textContent = matchMessage;
+  workspace.record(item, response(), value);
 });
 $('answer-controls').addEventListener('input', () => { updateResponse(); resetResult(); });
 $('clear-answer').addEventListener('click', () => { $('answer-form').reset(); orderControl?.reset(); matchControl?.reset(); gapControl?.reset(); hottextControl?.reset(); inlineChoiceControl?.reset(); sliderControl?.reset(); compositeControl?.reset(); updateResponse(); resetResult(); });
@@ -401,6 +405,7 @@ for (const button of document.querySelectorAll('[data-example]')) {
   button.addEventListener('click', () => loadExample(button.dataset.example));
 }
 $('open-file').addEventListener('click', () => $('file-input').click());
+$('import-xml').addEventListener('click', () => $('file-input').click());
 $('file-input').addEventListener('change', async event => {
   const file = event.target.files?.[0];
   if (!file) return;
@@ -430,14 +435,18 @@ $('package-input').addEventListener('change', event => {
     return new Uint8Array(await file.arrayBuffer());
   }, file.name);
 });
-$('sample-package').addEventListener('click', () => loadPackage(async () => {
-  const result = await fetch('./sample-package.zip');
-  if (!result.ok) throw new Error('示例题包载入失败，请重新运行构建命令。');
-  return new Uint8Array(await result.arrayBuffer());
-}, 'sample-package.zip'));
+$('sample-package').addEventListener('click', () => {
+  const key = $('sample-package-kind').value;
+  const name = `${key}-package.zip`;
+  loadPackage(async () => {
+    const result = await fetch(`./${name}`);
+    if (!result.ok) throw new Error('示例题包载入失败，请重新运行构建命令。');
+    return new Uint8Array(await result.arrayBuffer());
+  }, name, key === 'sample' ? 'package-attempts.jsonl' : `${key}-attempts.jsonl`);
+});
 
 try {
-  engine = await import('../sdk/index.mjs?v=0.15.0');
+  engine = await import('../sdk/index.mjs?v=0.16.0');
   await loadExample('single');
 } catch (error) {
   $('source-status').textContent = '内核未载入';

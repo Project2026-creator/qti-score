@@ -154,8 +154,8 @@ class ContentPackage {
   scoreAttempts(jsonl) {
     this.#assertLive();
     if (typeof jsonl !== 'string') throw error('invalid_response', 'Batch JSONL must be a string');
-    const { report, csv } = unwrap(core.score_package_attempts(this.#handle, jsonl));
-    return { report, csv };
+    const { report, csv, items_csv: itemsCsv } = unwrap(core.score_package_attempts(this.#handle, jsonl));
+    return { report, csv, itemsCsv };
   }
   dispose() {
     if (this.#disposed) return;

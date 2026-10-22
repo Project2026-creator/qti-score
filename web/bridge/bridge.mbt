@@ -200,7 +200,12 @@ pub fn score_package_attempts(handle : Int32, jsonl : String) -> String {
   }
   let result : Json = try {
     let report = bundle.score_attempts_jsonl(jsonl)
-    { "ok": true, "report": report, "csv": report.to_csv() }
+    {
+      "ok": true,
+      "report": report,
+      "csv": report.to_csv(),
+      "items_csv": report.items_csv(),
+    }
   } catch {
     error => { "ok": false, "error": error }
   }

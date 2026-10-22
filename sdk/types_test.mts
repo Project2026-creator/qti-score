@@ -95,6 +95,14 @@ const files: string[] = bundle.resourceFiles('resource-id');
 const bytes: Uint8Array = bundle.readFile(files[0]);
 const evaluation = bundle.scoreAttempts('');
 const csv: string = evaluation.csv;
+const itemsCsv: string = evaluation.itemsCsv;
+for (const summary of evaluation.report.items) {
+  const mean: number | null = summary.score_mean;
+  const id: string = summary.resource_id;
+  // @ts-expect-error item summaries are read-only result values
+  summary.score_mean = 12;
+  void [mean, id, itemsCsv];
+}
 for (const row of evaluation.report.rows) {
   if (row.ok) { const value: number = row.result.score; void value; }
   else { const code: string = row.error.code; void code; }

@@ -1,7 +1,7 @@
 ///|
 fn main {
   let args = @env.args()
-  let version = "0.15.0"
+  let version = "0.16.0"
   // Node keeps both the runtime and script prefix; other targets keep argv[0].
   let offset = if args.length() > 1 && args[1].has_suffix(".js") {
     2
@@ -16,7 +16,7 @@ fn main {
     args[offset] == "--help" ||
     args[offset] == "help" {
     println(
-      "QTI Score \{version}\n  --version\n  describe ITEM.xml\n  score ITEM.xml RESPONSE.json\n  explain ITEM.xml RESPONSE.json\n  batch ITEM.xml RESPONSES.jsonl\n  inspect-package ARCHIVE.zip\n  package-score ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-explain ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-batch ARCHIVE.zip ATTEMPTS.jsonl [--csv]\n\nResponses: {\"RESPONSE\":\"A\"}, {\"RESPONSE\":[\"A\",\"B\"]}, {\"RESPONSE\":100.5}, {\"RESPONSE\":null}, or composite {\"ACTION\":\"Adapt\",\"RATIO\":75}\nBatch rows: {\"attempt_id\":\"a\",\"resource_id\":\"choice\",\"response\":{\"RESPONSE\":\"A\"}}\nExplain is an explicit developer diagnostic and may reveal scoring rules.",
+      "QTI Score \{version}\n  --version\n  describe ITEM.xml\n  score ITEM.xml RESPONSE.json\n  explain ITEM.xml RESPONSE.json\n  batch ITEM.xml RESPONSES.jsonl\n  inspect-package ARCHIVE.zip\n  package-score ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-explain ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-batch ARCHIVE.zip ATTEMPTS.jsonl [--csv | --items-csv]\n\nResponses: {\"RESPONSE\":\"A\"}, {\"RESPONSE\":[\"A\",\"B\"]}, {\"RESPONSE\":100.5}, {\"RESPONSE\":null}, or composite {\"ACTION\":\"Adapt\",\"RATIO\":75}\nBatch rows: {\"attempt_id\":\"a\",\"resource_id\":\"choice\",\"response\":{\"RESPONSE\":\"A\"}}\nExplain is an explicit developer diagnostic and may reveal scoring rules.",
     )
     return
   }
@@ -24,7 +24,7 @@ fn main {
   let from_package = command == "package-score" || command == "package-explain"
   let batch_csv = command == "package-batch" &&
     args.length() == offset + 4 &&
-    args[offset + 3] == "--csv"
+    ["--csv", "--items-csv"].contains(args[offset + 3])
   let expected = if command == "describe" || command == "inspect-package" {
     2
   } else if from_package {
@@ -50,7 +50,12 @@ fn main {
       ).score_attempts_jsonl(@fs.read_file_to_string(args[offset + 2]))
       if batch_csv {
         // println supplies the final LF; keep the preceding CR and all rows.
-        println(report.to_csv().strip_suffix("\n").unwrap())
+        let csv = if args[offset + 3] == "--items-csv" {
+          report.items_csv()
+        } else {
+          report.to_csv()
+        }
+        println(csv.strip_suffix("\n").unwrap())
       } else {
         let result : Json = { "ok": true, "report": report }
         println(result.stringify())

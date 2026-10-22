@@ -41,6 +41,22 @@ python tools/project.py serve
 
 浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换二十二个示例、编辑或导入 XML，并查看作答和评分结果。勾选“记录评分过程”后，提交作答会显示分支判断、映射贡献、顺序比较与分值限制。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；普通选择／排序的 `shuffle` 不改变评分计算，演示按原文顺序显示选项。文中下拉题的随机呈现暂未实现，明确拒绝 `shuffle="true"`。
 
+工作空间按“题目工作台 / 题包资源 / 结果分析”导航。示例题库可按中文题型或英文规则搜索；“查看 XML”展开源码并排预览，窄屏时自动纵向排列。工作台保留最近 20 次成功评分的响应与结果，可清空或导出 JSON；记录仅存在当前页面内存中，刷新后清除，不包含标准答案或解释步骤。XML 可单独导出。
+
+题包资源页提供十一组示例题包和各自配套的批量作答。载入后前往“结果分析”，依次载入示例作答并评分。自行导入的题包需要提供对应 JSONL，不会自动套用其他题包的示例数据。结果页提供逐题统计、作答汇总、状态/资源/文本筛选、每页 50 行明细和三种完整批次导出；筛选不改变统计或导出内容。切换题包或编辑作答会清除旧结果。
+
+### 逐题统计
+
+`BatchReport.items()` 返回 `ItemSummary`，JSON 报告新增 `items` 与 `unassigned_resource_count`；SDK 的 `scoreAttempts()` 同步返回 `itemsCsv`。按已验证的 `resource_id` 首次出现顺序分组，保留未知资源和无效作答对应的错误行；没有可验证资源 ID 的行计入 `unassigned_resource_count`。未提交的题目不补入统计。
+
+每题包括提交/成功/错误/已答/未答数量、标准响应完全匹配/未匹配/未声明数量，以及 `score_mean`、`score_min`、`score_max`。三个分数指标只使用评分成功的提交，包含成功的空响应和规则指定的负分；没有成功提交时为 `null`，CSV 留空。均值先缩放再相加，避免普通分数和溢出；这是 Double 描述性统计，仍存在浮点舍入。标准响应匹配不等于满分、及格或正确率；这些统计不推断题目难度、信度或测验完成状态。
+
+```sh
+moon run cmd/main -- package-batch web/sample-package.zip examples/package-attempts.jsonl --items-csv
+```
+
+`BatchReport.items_csv()` 与 CLI `--items-csv` 导出相同的逐题 CSV，采用 CRLF 和与明细相同的文本公式前缀保护。已有 JSON、逐行 `--csv`、退出码和评分语义保持一致；包含失败行时，即使已输出可用统计，CLI 仍返回 1。图示只展示前十二项，完整结果在表格与导出文件中。
+
 演示服务只绑定 `127.0.0.1`，根地址跳转到工作台。HTTP 仅提供页面模块、SDK、示例文件、示例题包和使用文档；Git 元数据、构建缓存、依赖目录、工具源码和目录列表不在服务范围内。GET 与 HEAD 使用相同的资源边界，重建后的模块不使用条件缓存。页面与资源仍可离线使用，下载题包和 JSON/CSV 导出方法不变。
 
 ## 排序题
@@ -372,6 +388,7 @@ let next = item.score_json("{\"RESPONSE\":[\"A\"]}")
 | `ContentPackage::describe()` / `resource_files(id)` / `read_file(path)` | 兼容报告、传递依赖文件和原始字节 |
 | `ContentPackage::score_attempts_jsonl(text)` | 跨题批量评分、重复检测与作答汇总 |
 | `BatchReport::to_json()` / `to_csv()` / `rows()` / `attempts()` | 导出报告和独立结果数组 |
+| `BatchReport::items()` / `items_csv()` | 已提交资源的逐题统计及 CSV |
 
 响应 JSON 为单个对象：
 
@@ -472,6 +489,7 @@ moon check --target all --deny-warn
 moon test --target all --deny-warn
 moon info --target all
 python -m unittest tools.project_test -v
+node --test web/results_test.mjs
 npm ci --prefix sdk --ignore-scripts
 python tools/project.py check
 ```

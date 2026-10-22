@@ -184,8 +184,25 @@ export interface PackageBatchReport {
   readonly has_errors: boolean;
   readonly rows: readonly PackageBatchRow[];
   readonly attempts: readonly AttemptSummary[];
+  readonly items: readonly ItemSummary[];
+  readonly unassigned_resource_count: number;
+}
+export interface ItemSummary {
+  readonly resource_id: string;
+  readonly row_count: number;
+  readonly scored_count: number;
+  readonly error_count: number;
+  readonly answered_count: number;
+  readonly unanswered_count: number;
+  readonly matched_count: number;
+  readonly unmatched_count: number;
+  readonly unclassified_count: number;
+  readonly score_mean: number | null;
+  readonly score_min: number | null;
+  readonly score_max: number | null;
 }
 export interface PackageBatchEvaluation {
   readonly report: PackageBatchReport;
   readonly csv: string;
+  readonly itemsCsv: string;
 }

@@ -90,6 +90,8 @@ pub struct BatchReport {
   // private fields
 }
 pub fn BatchReport::attempts(Self) -> Array[AttemptSummary]
+pub fn BatchReport::items(Self) -> Array[ItemSummary]
+pub fn BatchReport::items_csv(Self) -> String
 pub fn BatchReport::rows(Self) -> Array[BatchRow]
 pub fn BatchReport::to_csv(Self) -> String
 pub fn BatchReport::to_json(Self) -> Json
@@ -174,6 +176,24 @@ pub fn Item::explain_json(Self, String) -> Explanation raise QtiError
 pub fn Item::score(Self, Response) -> Score raise QtiError
 pub fn Item::score_json(Self, String) -> Score raise QtiError
 pub fn Item::to_repr(Self) -> @debug.Repr
+
+pub struct ItemSummary {
+  resource_id : String
+  row_count : Int32
+  scored_count : Int32
+  error_count : Int32
+  answered_count : Int32
+  unanswered_count : Int32
+  matched_count : Int32
+  unmatched_count : Int32
+  unclassified_count : Int32
+  score_mean : Double?
+  score_min : Double?
+  score_max : Double?
+} derive(@debug.Debug)
+pub fn ItemSummary::to_json(Self) -> Json
+pub fn ItemSummary::to_repr(Self) -> @debug.Repr
+pub impl ToJson for ItemSummary
 
 pub(all) struct Limits {
   max_characters : Int32

@@ -1,9 +1,14 @@
+import { downloadText } from './workspace.mjs';
+import { selectRows, formatScore } from './results.mjs';
+
 const $ = id => document.getElementById(id);
 
 export function createBatchPanel() {
   let bundle;
   let result;
   let revision = 0;
+  let page = 0;
+  let sampleSource = null;
   const source = $('batch-source');
 
   function showError(error) {
@@ -16,8 +21,16 @@ export function createBatchPanel() {
     $('batch-results').hidden = true;
     $('download-json').disabled = true;
     $('download-csv').disabled = true;
+    $('download-items-csv').disabled = true;
     $('batch-rows').replaceChildren();
     $('attempt-summaries').replaceChildren();
+    $('item-summaries').replaceChildren();
+    $('item-chart').replaceChildren();
+    $('row-search').value = '';
+    $('row-status').value = 'all';
+    $('row-resource').replaceChildren(new Option('全部资源', ''));
+    page = 0;
+    for (const id of ['metric-total', 'metric-scored', 'metric-errors', 'metric-unanswered', 'nav-result-count']) $(id).textContent = '—';
     showError(null);
   }
 
@@ -31,16 +44,57 @@ export function createBatchPanel() {
     parent.append(row);
   }
 
-  function render(report) {
-    $('batch-summary').textContent = `${report.row_count} 条记录 · ${report.scored_count} 条评分成功 · ${report.error_count} 条错误 · ${report.unassigned_count} 条未归属作答`;
-    for (const entry of report.rows) {
+  function renderRows() {
+    if (!result) return;
+    const view = selectRows(result.report.rows, { query: $('row-search').value,
+      status: $('row-status').value, resource: $('row-resource').value, page });
+    page = view.page;
+    const rows = document.createDocumentFragment();
+    for (const entry of view.rows) {
       const location = entry.error?.location;
       const diagnostic = entry.error ? `${entry.error.code} · ${entry.error.message}` +
         (location ? `（XML ${location.line}:${location.column}）` : '') : '';
-      tableRow($('batch-rows'), [entry.line, entry.attempt_id, entry.resource_id,
+      tableRow(rows, [entry.line, entry.attempt_id, entry.resource_id,
         entry.ok ? (entry.result.status === 'unanswered' ? '未作答' : '已作答') : '错误',
         entry.result?.score, diagnostic]);
     }
+    $('batch-rows').replaceChildren(rows);
+    $('row-range').textContent = view.count ? `${view.start}–${view.start + view.rows.length - 1} / ${view.count} 条 · 第 ${page + 1} 页` : '没有匹配的评分记录';
+    $('previous-rows').disabled = page === 0;
+    $('next-rows').disabled = page + 1 >= view.pages;
+  }
+
+  function render(report) {
+    $('metric-total').textContent = report.row_count;
+    $('metric-scored').textContent = report.scored_count;
+    $('metric-errors').textContent = report.error_count;
+    $('metric-unanswered').textContent = report.unanswered_count;
+    $('nav-result-count').textContent = report.row_count;
+    $('batch-summary').textContent = `${report.row_count} 条记录 · ${report.scored_count} 条评分成功 · ${report.error_count} 条错误 · ${report.unassigned_count} 条未归属作答 · ${report.unassigned_resource_count} 条未归属题目`;
+    const itemRows = document.createDocumentFragment();
+    for (const item of report.items) {
+      $('row-resource').append(new Option(item.resource_id, item.resource_id));
+      tableRow(itemRows, [item.resource_id, `${item.scored_count} / ${item.row_count}`, item.error_count,
+        item.unanswered_count, formatScore(item.score_mean), formatScore(item.score_min), formatScore(item.score_max),
+        `${item.matched_count} / ${item.scored_count}（未声明 ${item.unclassified_count}）`]);
+    }
+    $('item-summaries').replaceChildren(itemRows);
+    for (const item of report.items.slice(0, 12)) {
+      const row = document.createElement('div'); row.className = 'chart-row';
+      const label = document.createElement('span'); label.textContent = item.resource_id;
+      const bar = document.createElement('div'); bar.className = 'chart-bar';
+      bar.setAttribute('role', 'img');
+      bar.setAttribute('aria-label', `${item.resource_id}：${item.answered_count} 条已作答，${item.unanswered_count} 条未作答，${item.error_count} 条错误`);
+      for (const [state, count] of [['answered', item.answered_count], ['unanswered', item.unanswered_count], ['error', item.error_count]]) {
+        const segment = document.createElement('span'); segment.className = `bar-${state}`;
+        segment.style.width = `${count / item.row_count * 100}%`; bar.append(segment);
+      }
+      const count = document.createElement('small'); count.textContent = `${item.row_count} 条`;
+      row.append(label, bar, count); $('item-chart').append(row);
+    }
+    const note = document.createElement('p'); note.className = 'batch-help';
+    note.textContent = report.items.length ? '图示按首次出现顺序展示前 12 项；完整逐题统计见下表与 CSV。' : '暂无可归属题目的记录。';
+    $('item-chart').append(note);
     for (const attempt of report.attempts) {
       tableRow($('attempt-summaries'), [attempt.attempt_id,
         `${attempt.scored_count} / ${attempt.row_count}`, attempt.error_count, attempt.score_sum,
@@ -49,7 +103,15 @@ export function createBatchPanel() {
     $('batch-results').hidden = false;
     $('download-json').disabled = false;
     $('download-csv').disabled = false;
+    $('download-items-csv').disabled = false;
+    renderRows();
   }
+
+  for (const id of ['row-search', 'row-status', 'row-resource']) {
+    $(id).addEventListener(id === 'row-search' ? 'input' : 'change', () => { page = 0; renderRows(); });
+  }
+  $('previous-rows').addEventListener('click', () => { --page; renderRows(); });
+  $('next-rows').addEventListener('click', () => { ++page; renderRows(); });
 
   source.addEventListener('input', () => {
     ++revision;
@@ -80,10 +142,11 @@ export function createBatchPanel() {
   }
 
   $('sample-attempts').addEventListener('click', () => loadSource(async () => {
-    const response = await fetch('../examples/package-attempts.jsonl');
+    if (!sampleSource) throw new Error('请导入与当前题包对应的作答。');
+    const response = await fetch(`../examples/${sampleSource}`);
     if (!response.ok) throw new Error('示例作答载入失败');
     return response.text();
-  }, 'package-attempts.jsonl'));
+  }, sampleSource || ''));
 
   $('open-attempts').addEventListener('click', () => $('attempts-input').click());
   $('attempts-input').addEventListener('change', event => {
@@ -98,24 +161,20 @@ export function createBatchPanel() {
 
   function download(format) {
     if (!result) return;
-    const content = format === 'json' ? JSON.stringify(result.report, null, 2) + '\n' : '\uFEFF' + result.csv;
-    const blob = new Blob([content], { type: format === 'json' ? 'application/json;charset=utf-8' : 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `qti-score-results.${format}`;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const content = format === 'json' ? JSON.stringify(result.report, null, 2) + '\n' : '\uFEFF' + (format === 'items' ? result.itemsCsv : result.csv);
+    downloadText(content, format === 'items' ? 'qti-score-items.csv' : `qti-score-results.${format}`,
+      format === 'json' ? 'application/json;charset=utf-8' : 'text/csv;charset=utf-8');
   }
   $('download-json').addEventListener('click', () => download('json'));
   $('download-csv').addEventListener('click', () => download('csv'));
+  $('download-items-csv').addEventListener('click', () => download('items'));
 
   return {
-    setPackage(next, identifier = '') {
+    setPackage(next, identifier = '', nextSample = null) {
       ++revision;
       bundle = next;
+      sampleSource = nextSample;
+      $('sample-attempts').disabled = !next || !sampleSource;
       clearResult();
       $('run-batch').disabled = !bundle;
       $('batch-package').textContent = bundle ? `当前题包：${identifier}` : '请先导入题包，再进行批量评分。';

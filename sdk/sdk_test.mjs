@@ -549,6 +549,33 @@ test('ordered package items and batch reports use the same positional scorer', (
   } finally { item.dispose(); bundle.dispose(); }
 });
 
+test('item analytics expose observed scores and match counts through the MoonBit bridge', () => {
+  const bundle = importPackage(packageBytes());
+  try {
+    const { report, itemsCsv } = bundle.scoreAttempts(packageAttempts());
+    assert.deepEqual(report.items.map(s => s.resource_id), ['choice', 'measurement', 'essay']);
+    assert.deepEqual(report.items.map(s => [s.row_count, s.scored_count, s.score_mean, s.score_min, s.score_max]),
+      [[2, 2, 0.5, 0, 1], [3, 2, 0.75, 0.5, 1], [1, 0, null, null, null]]);
+    for (const s of report.items) assert.equal(s.matched_count + s.unmatched_count + s.unclassified_count, s.scored_count);
+    assert.equal(itemsCsv.split('\r\n').length, 5);
+    assert.ok(itemsCsv.includes('"essay",1,0,1,0,0,0,0,0,,,\r\n'));
+    report.items.length = 0;
+    assert.equal(bundle.scoreAttempts(packageAttempts()).report.items.length, 3);
+  } finally { bundle.dispose(); }
+});
+
+test('item analytics keep unassignable resource errors and empty means explicit', () => {
+  const bundle = importPackage(packageBytes());
+  try {
+    const { report } = bundle.scoreAttempts('bad-json\n' + JSON.stringify({ attempt_id: 'a', resource_id: '=missing', response: {} }));
+    assert.equal(report.unassigned_resource_count, 1);
+    assert.equal(report.items[0].resource_id, '=missing');
+    assert.equal(report.items[0].score_mean, null);
+    assert.ok(bundle.scoreAttempts(JSON.stringify({ attempt_id: 'a', resource_id: '=missing', response: {} })).itemsCsv.includes('"\'=missing"'));
+    assert.deepEqual(bundle.scoreAttempts('').report.items, []);
+  } finally { bundle.dispose(); }
+});
+
 test('package batch groups attempts and retains errors without assigning zero scores', () => {
   const bundle = importPackage(packageBytes());
   try {

@@ -48,6 +48,10 @@ pub impl ToJson for BatchReport with fn to_json(self) {
     "has_errors": self.has_errors,
     "rows": self.entries,
     "attempts": self.summaries,
+    "items": self.items(),
+    "unassigned_resource_count": self.entries
+    .filter(row => row.resource_id is None)
+    .length(),
   }
 }
 

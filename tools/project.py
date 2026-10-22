@@ -3,10 +3,12 @@
 import argparse
 import csv
 import datetime
+import decimal
 import functools
 import hashlib
 import io
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -137,10 +139,43 @@ def extract_json(stdout):
     raise RuntimeError("No JSON result in command output: {}".format(stdout))
 
 
+def verify_item_statistics(report):
+    groups = {}
+    for row in report["rows"]:
+        if row["resource_id"] is not None:
+            groups.setdefault(row["resource_id"], []).append(row)
+    if report["unassigned_resource_count"] != sum(row["resource_id"] is None for row in report["rows"]):
+        raise AssertionError("Unassigned resource count differs")
+    if [item["resource_id"] for item in report["items"]] != list(groups):
+        raise AssertionError("Item statistics order/grouping differs")
+    for item in report["items"]:
+        rows = groups[item["resource_id"]]
+        scored = [row["result"] for row in rows if row["ok"]]
+        expected = {"row_count": len(rows), "scored_count": len(scored),
+                    "error_count": len(rows) - len(scored),
+                    "answered_count": sum(s["status"] == "answered" for s in scored),
+                    "unanswered_count": sum(s["status"] == "unanswered" for s in scored),
+                    "matched_count": sum(s["matches_correct"] is True for s in scored),
+                    "unmatched_count": sum(s["matches_correct"] is False for s in scored),
+                    "unclassified_count": sum(s["matches_correct"] is None for s in scored)}
+        if any(item[key] != value for key, value in expected.items()):
+            raise AssertionError("Item count differs from independent row aggregation")
+        scores = [row["score"] for row in scored]
+        if not scores:
+            if any(item[key] is not None for key in ["score_mean", "score_min", "score_max"]):
+                raise AssertionError("An unscored item must have null statistics")
+        else:
+            # Decimal addition provides an independent mean without binary sum overflow.
+            mean = float(sum(decimal.Decimal(str(score)) for score in scores) / len(scores))
+            if not math.isfinite(item["score_mean"]) or not math.isclose(item["score_mean"], mean, rel_tol=1e-12, abs_tol=1e-300) or \
+                    [item["score_min"], item["score_max"]] != [min(scores), max(scores)]:
+                raise AssertionError("Item score statistics differ from independent aggregation")
+
+
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.15.0",
+        "module": "Project2026-creator/qti-score", "version": "0.16.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }
@@ -185,6 +220,9 @@ def verify(moon, env, output, offline=False):
     report["checks"].append({"command": ["node", "--test", "sdk/sdk_test.mjs"],
                              "sdk": str(sdk), "returncode": sdk_tests.returncode,
                              "output": (sdk_tests.stdout + sdk_tests.stderr).strip()})
+    view_tests = command([node, "--test", "web/results_test.mjs"], env)
+    report["checks"].append({"command": ["node", "--test", "web/results_test.mjs"],
+                             "returncode": view_tests.returncode, "output": (view_tests.stdout + view_tests.stderr).strip()})
     tsc = ROOT / "sdk/node_modules/typescript/lib/tsc.js"
     if not tsc.is_file():
         raise RuntimeError("TypeScript development dependency missing; run npm ci --prefix sdk --ignore-scripts")
@@ -490,6 +528,20 @@ finally {bundle.dispose();}
                                              (sdk / "index.mjs").as_uri(), str(batch_archive)], env, source).stdout)
         if sdk_evaluation["report"] != cli_report:
             raise AssertionError("CLI and SDK batch reports differ")
+        verify_item_statistics(cli_report)
+        item_csv_run = subprocess.run(arguments + ["--items-csv"], cwd=str(ROOT), env=env,
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        item_csv = item_csv_run.stdout.decode("utf-8")
+        if item_csv_run.returncode != expected_exit or item_csv != sdk_evaluation["itemsCsv"]:
+            raise AssertionError("CLI and SDK item CSV exports differ")
+        item_rows = list(csv.DictReader(io.StringIO(item_csv, newline="")))
+        if len(item_rows) != len(cli_report["items"]):
+            raise AssertionError("Item CSV row count differs")
+        for exported_item, item in zip(item_rows, cli_report["items"]):
+            for key in ["score_mean", "score_min", "score_max"]:
+                if (exported_item[key] == "") != (item[key] is None) or \
+                        (item[key] is not None and float(exported_item[key]) != item[key]):
+                    raise AssertionError("Item CSV numeric value differs")
         csv_run = subprocess.run(arguments + ["--csv"], cwd=str(ROOT), env=env,
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         exported = csv_run.stdout.decode("utf-8")
@@ -532,7 +584,8 @@ finally {bundle.dispose();}
             raise AssertionError("Composite fallback batch scores differ from authored expectations")
         report["batch_cases"].append({"name": name, "expected_exit": expected_exit,
                                       "cli_report": cli_report, "sdk_report": sdk_evaluation["report"],
-                                      "csv": exported, "csv_decoded": decoded})
+                                      "csv": exported, "csv_decoded": decoded, "items_csv": item_csv,
+                                      "item_statistics_verified": True})
     # A real CLI failure must return a nonzero code as well as a JSON error.
     bad = cache / "invalid-response.json"
     bad.write_text('{"RESPONSE":"not-a-choice"}', encoding="utf-8")

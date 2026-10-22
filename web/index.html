@@ -8,9 +8,29 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="topbar"><a class="brand" href="./"><span class="mark" aria-hidden="true">q.</span>QTI Score</a><span class="tag">QTI 3 · 本地评分内核</span><a href="../README.md" class="doc-link">使用文档 ↗</a></header>
-  <main>
-    <section class="intro"><div><p class="eyebrow">ASSESSMENT INFRASTRUCTURE</p><h1>一份题目，一致的评分规则。</h1><p class="lead">载入标准题目，提交一次作答，查看评分结果。<br>单选、多选、排序、配对、选词、文本与数值填空，共用同一个 MoonBit 评分内核。</p></div><div class="flow" aria-hidden="true"><span>题目 XML</span><i>→</i><span>学习者响应</span><i>→</i><strong>得分</strong></div></section>
+  <noscript><p class="error">请启用 JavaScript 后使用本地评分工作台；也可按照使用文档运行命令行工具。</p></noscript>
+  <a class="skip-link" href="#main-content">跳到主内容</a>
+  <aside class="sidebar">
+    <a class="brand" href="./"><span class="mark" aria-hidden="true">q.</span><span>QTI Score<small>ASSESSMENT WORKSPACE</small></span></a>
+    <p class="nav-label">工作空间</p>
+    <nav class="workspace-nav" aria-label="工作空间">
+      <button type="button" data-view="workbench" aria-current="page"><span aria-hidden="true">◫</span>题目工作台<span class="nav-count">22</span></button>
+      <button type="button" data-view="package"><span aria-hidden="true">▣</span>题包资源</button>
+      <button type="button" data-view="results"><span aria-hidden="true">▥</span>结果分析<span id="nav-result-count" class="nav-count">—</span></button>
+    </nav>
+    <div class="sidebar-note"><span class="local-icon" aria-hidden="true">◎</span><strong>在你的设备上评分</strong><p>题目与作答留在当前浏览器。无需账号，即可开始验证。</p><span class="version-label">MoonBit · v0.16.0</span></div>
+    <a href="../README.md" class="sidebar-doc">使用文档 <span aria-hidden="true">↗</span></a>
+  </aside>
+  <div class="page-shell">
+  <header class="topbar"><span class="breadcrumb">工作空间 <span aria-hidden="true">/</span> <strong id="view-label">题目工作台</strong></span><span class="local-badge"><span class="status-dot"></span>本地运行</span><a href="https://github.com/Project2026-creator/qti-score" target="_blank" rel="noreferrer" class="doc-link">GitHub ↗</a></header>
+  <main id="main-content" tabindex="-1">
+    <section id="view-workbench" class="workspace-view" aria-labelledby="workbench-title">
+    <section class="intro"><div><p class="eyebrow">BUILD CONFIDENCE IN EVERY SCORE</p><h1 id="workbench-title">每一次评分，都有据可循。</h1><p class="lead">从标准题目到可验证的结果，在一个工作台里完成。</p></div><div class="hero-note"><span class="hero-symbol" aria-hidden="true">✓</span><div><strong>QTI 3 评分内核</strong><small>预览、验证、解释，共用同一套规则</small></div></div></section>
+    <div class="workspace-layout">
+    <aside class="sample-library" aria-label="示例题库">
+      <div class="library-heading"><h2>示例题库</h2><span id="example-count">22 道</span></div>
+      <label class="search-field"><span aria-hidden="true">⌕</span><input id="example-search" type="search" placeholder="搜索题型或评分规则" aria-label="搜索示例"></label>
+      <p class="library-help">选择示例，直接体验评分</p>
     <nav class="examples" aria-label="示例题目">
       <button type="button" data-example="single" aria-pressed="true"><span class="example-number">01</span><span><strong>单选题</strong><small>完全匹配 · match_correct</small></span><span class="example-arrow">↗</span></button>
       <button type="button" data-example="multiple" aria-pressed="false"><span class="example-number">02</span><span><strong>多选题</strong><small>部分得分 · map_response</small></span><span class="example-arrow">↗</span></button>
@@ -35,32 +55,55 @@
       <button type="button" data-example="composite-inline-required" aria-pressed="false"><span class="example-number">21</span><span><strong>必答复合</strong><small>独立选项 · 遗漏校验</small></span><span class="example-arrow">↗</span></button>
       <button type="button" data-example="composite-fallback" aria-pressed="false"><span class="example-number">22</span><span><strong>诊断扣分</strong><small>区分漏答 · 默认分支</small></span><span class="example-arrow">↗</span></button>
     </nav>
+    <p id="example-empty" class="empty-message" role="status" hidden>没有匹配的示例，试试“数值”或“复合”。</p>
+    </aside>
+    <div class="editor-area">
+    <div class="editor-toolbar"><div><span class="status-dot"></span><span id="workspace-item">题目预览</span></div><div><button id="import-xml" class="secondary" type="button">导入 XML ↥</button><button id="download-xml" class="text-button" type="button">导出 XML ↓</button><button id="toggle-source" class="secondary" type="button" aria-pressed="false">查看 XML</button></div></div>
+    <div id="fatal-error" class="error" role="alert" hidden></div>
+    <div id="editor-mount"></div>
+    <section class="trace-controls"><label><input id="enable-trace" type="checkbox">记录评分过程（开发者诊断）</label><details id="trace-panel"><summary>评分解释</summary><ol id="trace-summary"></ol><details><summary>原始解释 JSON</summary><pre id="score-trace">勾选记录评分过程后，重新提交作答。</pre></details></details></section>
+    <section class="history-panel" aria-labelledby="history-heading"><div class="panel-heading"><div><span class="step">COMPARE ATTEMPTS</span><h2 id="history-heading">本次会话的评分记录</h2></div><button id="clear-history" class="text-button" type="button" disabled>清空记录</button></div><p id="history-empty" class="empty-message">提交作答后，可以在这里对照不同响应的得分。最多保留最近 20 次，刷新后清除。</p><ol id="score-history" class="score-history"></ol><div class="history-actions"><button id="download-history" class="secondary" type="button" disabled>导出评分记录 JSON ↓</button></div></section>
+    </div>
+    </div>
+    </section>
+    <section id="view-package" class="workspace-view" aria-labelledby="package-title" hidden>
+    <section class="intro"><div><p class="eyebrow">CONTENT LIBRARY</p><h1 id="package-title">题包清晰，评分有序。</h1><p class="lead">导入本地 QTI ZIP，逐题检查兼容状态，再进入结果分析。</p></div><button class="secondary" type="button" data-go="results">前往结果分析 →</button></section>
     <section class="package-panel" aria-labelledby="package-heading">
-      <div class="package-heading"><div><span class="step">CONTENT PACKAGE</span><h2 id="package-heading">从题包开始</h2><p>导入 QTI 3 ZIP，逐题检查兼容状态与共享资源。</p></div><div class="package-actions"><button id="sample-package" class="text-button" type="button">载入示例题包</button><button id="open-package" class="secondary" type="button">导入 ZIP ↥</button><input id="package-input" type="file" accept=".zip,application/zip" hidden></div></div>
+      <div class="package-heading"><div><span class="step">CONTENT PACKAGE</span><h2 id="package-heading">从题包开始</h2><p>导入 QTI 3 ZIP，逐题检查兼容状态与共享资源。</p></div><div class="package-actions"><label class="sample-selector">示例<select id="sample-package-kind"><option value="sample">基础混合</option><option value="composite-fallback">诊断扣分</option><option value="composite-inline">混合复合</option><option value="composite-tolerance">误差分档</option><option value="composite">复合填空</option><option value="slider">数值滑杆</option><option value="order">排序</option><option value="match">配对</option><option value="gap">选词填空</option><option value="hottext">文段选择</option><option value="inline-choice">文中下拉</option></select></label><button id="sample-package" class="text-button" type="button">载入示例题包</button><button id="open-package" class="secondary" type="button">导入 ZIP ↥</button><input id="package-input" type="file" accept=".zip,application/zip" hidden></div></div>
       <p id="package-status" class="package-status" role="status">支持本地题包，最大 8 MiB。文件仅在当前浏览器中读取。</p>
       <div id="package-error" class="error" role="alert" hidden></div>
       <div id="package-report" hidden><div id="package-items" class="package-items" aria-label="题包中的题目"></div><p id="package-selection" class="package-status"></p><details class="package-resources"><summary>清单与资源依赖</summary><ul id="resource-list"></ul></details></div>
     </section>
-    <details class="batch-panel" id="batch-panel"><summary>题包批量评分与结果导出</summary><div class="batch-body">
+    <div class="info-strip"><span aria-hidden="true">ⓘ</span><p>选中可评分题目后，前往“题目工作台”预览和作答。不支持的题目保留诊断，其他题目仍可使用。</p><button type="button" class="text-button" data-go="workbench">打开工作台 →</button></div>
+    </section>
+    <section id="view-results" class="workspace-view" aria-labelledby="analysis-title" hidden>
+    <section class="intro"><div><p class="eyebrow">RESULTS &amp; INSIGHTS</p><h1 id="analysis-title">从每一份作答，看见结果。</h1><p class="lead">逐题查看得分与异常，保留每一条提交的来源。</p></div><button class="secondary" type="button" data-go="package">管理题包 →</button></section>
+    <div class="metric-grid" aria-label="批量结果概览"><div class="metric-card"><span>提交记录</span><strong id="metric-total">—</strong><small>本批次非空输入行</small></div><div class="metric-card"><span>评分成功</span><strong id="metric-scored">—</strong><small>包含有效的空响应</small></div><div class="metric-card"><span>需要检查</span><strong id="metric-errors">—</strong><small>错误行不折算为零分</small></div><div class="metric-card"><span>未作答</span><strong id="metric-unanswered">—</strong><small>仅统计评分成功的行</small></div></div>
+    <section class="batch-panel" id="batch-panel"><div class="panel-heading"><div><span class="step">BATCH SCORING</span><h2>批量评分</h2></div><span class="small-tag">JSONL → RESULTS</span></div><div class="batch-body">
       <p id="batch-package" class="batch-help" role="status">请先导入题包，再进行批量评分。</p>
       <p class="batch-help">每行一份 JSON：<code>{"attempt_id":"class-01","resource_id":"choice","response":{"RESPONSE":"A"}}</code>。相同作答 ID 跨题共享；同一作答 ID 与题目资源的重复行全部报错。最多 4096 条非空记录、4,194,304 个码元。</p>
-      <div class="batch-actions"><button id="sample-attempts" class="text-button" type="button">载入示例作答</button><button id="open-attempts" class="text-button" type="button">导入 JSONL ↥</button><input id="attempts-input" type="file" accept=".jsonl,.ndjson,.txt,application/x-ndjson,text/plain" hidden><span id="batch-filename">尚未载入作答</span></div>
+      <div class="batch-actions"><button id="sample-attempts" class="text-button" type="button" disabled>载入示例作答</button><button id="open-attempts" class="text-button" type="button">导入 JSONL ↥</button><input id="attempts-input" type="file" accept=".jsonl,.ndjson,.txt,application/x-ndjson,text/plain" hidden><span id="batch-filename">尚未载入作答</span></div>
       <label class="sr-only" for="batch-source">批量作答 JSONL</label><textarea id="batch-source" spellcheck="false" autocapitalize="off" placeholder="每行包含 attempt_id、resource_id 和 response"></textarea>
-      <div class="batch-actions"><button id="run-batch" class="primary" type="button" disabled>批量评分 →</button><button id="download-json" class="secondary" type="button" disabled>导出 JSON</button><button id="download-csv" class="secondary" type="button" disabled>导出 CSV</button></div>
+      <div class="batch-actions"><button id="run-batch" class="primary" type="button" disabled>批量评分 →</button><button id="download-json" class="secondary" type="button" disabled>完整 JSON ↓</button><button id="download-csv" class="secondary" type="button" disabled>明细 CSV ↓</button><button id="download-items-csv" class="secondary" type="button" disabled>逐题统计 CSV ↓</button></div>
       <div id="batch-error" class="error" role="alert" hidden></div>
       <div id="batch-results" hidden><p id="batch-summary" class="batch-summary" role="status"></p><p class="batch-help">汇总仅相加评分成功的提交行。未提交的题目不补零；分数和不代表试卷总分或完成状态。</p>
+        <section class="item-analysis" aria-labelledby="item-analysis-heading"><div class="section-heading"><div><h3 id="item-analysis-heading">逐题表现</h3><p>均分包含成功的空响应与负分；错误行不参与。这里只描述本批提交，不推断题目难度、通过率或测验信度。</p></div></div><div id="item-chart" class="item-chart" aria-label="各题已作答、未作答和错误记录"></div><div class="chart-legend"><span class="legend-answered">已作答</span><span class="legend-unanswered">未作答</span><span class="legend-error">错误</span></div><div class="batch-table"><table><caption>按题目资源统计</caption><thead><tr><th>题目资源</th><th>成功／提交</th><th>错误</th><th>未作答</th><th>平均分</th><th>最低分</th><th>最高分</th><th>完全匹配</th></tr></thead><tbody id="item-summaries"></tbody></table></div></section>
         <div class="batch-table"><table><caption>按作答 ID 汇总</caption><thead><tr><th>作答 ID</th><th>成功／提交</th><th>错误</th><th>成功行分数和</th><th>说明</th></tr></thead><tbody id="attempt-summaries"></tbody></table></div>
+        <div class="result-filters"><label class="search-field"><span aria-hidden="true">⌕</span><input id="row-search" type="search" placeholder="搜索作答 ID、资源或错误" aria-label="搜索评分记录"></label><label>状态<select id="row-status"><option value="all">全部状态</option><option value="answered">已作答</option><option value="unanswered">未作答</option><option value="error">错误</option></select></label><label>题目<select id="row-resource"><option value="">全部资源</option></select></label></div>
         <div class="batch-table"><table><caption>逐行评分结果</caption><thead><tr><th>输入行</th><th>作答 ID</th><th>题目资源</th><th>结果</th><th>得分</th><th>错误详情</th></tr></thead><tbody id="batch-rows"></tbody></table></div>
+        <div class="pagination"><p id="row-range" role="status"></p><div><button id="previous-rows" class="secondary" type="button">上一页</button><button id="next-rows" class="secondary" type="button">下一页</button></div></div><p class="batch-help">筛选仅影响页面明细；导出文件和上方统计始终包含完整批次。</p>
       </div>
-    </div></details>
-    <div id="fatal-error" class="error" role="alert" hidden></div>
+    </div></section>
+    </section>
+    <template id="editor-template">
     <section class="workbench" aria-label="评分工作台">
       <section class="panel source-panel"><div class="panel-heading"><div><span class="step">01 / SOURCE</span><h2>题目定义</h2></div><button id="open-file" class="text-button" type="button">导入 XML ↥</button><input id="file-input" type="file" accept=".xml,text/xml,application/xml" hidden></div><div class="file-bar"><span id="filename">single.xml</span><span>QTI 3 XML</span></div><label class="sr-only" for="xml-source">QTI 题目 XML 源码</label><textarea id="xml-source" spellcheck="false" autocapitalize="off" aria-describedby="source-status"></textarea><div class="source-bottom"><span id="source-status" role="status">正在载入内核…</span><button id="compile" type="button" class="secondary">编译题目</button></div><div id="compile-error" class="error" role="alert" hidden></div></section>
       <section class="panel response-panel"><div class="panel-heading"><div><span class="step">02 / RESPONSE</span><h2>尝试作答</h2></div><span id="template-name" class="small-tag">—</span></div><div class="question"><p id="item-id" class="eyebrow">ITEM</p><h3 id="question-title">正在载入示例</h3><div id="item-instructions" class="item-instructions" aria-label="考生说明" hidden></div><p id="question-prompt" class="question-prompt"></p><form id="answer-form"><fieldset id="answer-controls"><legend class="sr-only">选择或填写你的答案</legend></fieldset><div class="answer-actions"><button id="submit-score" class="primary" type="submit" disabled>提交评分 <span aria-hidden="true">→</span></button><button id="clear-answer" class="text-button" type="button">清空作答</button></div></form></div><div class="response-json"><span>响应 JSON</span><pre id="response-json">{"RESPONSE":null}</pre></div><section class="result" aria-labelledby="result-heading" aria-live="polite"><div><span class="step" id="result-heading">03 / RESULT</span><p id="result-message">提交作答后，在这里查看结果。</p><p id="match-message" class="match-message"></p></div><div class="score"><span id="score-value">—</span><small>得分</small></div></section><div id="score-error" class="error" role="alert" hidden></div></section>
     </section>
-    <section class="trace-controls"><label><input id="enable-trace" type="checkbox">记录评分过程（开发者诊断）</label><details id="trace-panel"><summary>评分解释</summary><ol id="trace-summary"></ol><details><summary>原始解释 JSON</summary><pre id="score-trace">勾选记录评分过程后，重新提交作答。</pre></details></details></section>
+    </template>
     <footer><span><span class="status-dot"></span>评分在当前浏览器运行，题目与作答不会上传。</span><span>支持明确的 QTI 子集 · <a href="https://www.1edtech.org/standards/qti/index" target="_blank" rel="noreferrer">QTI 规范 ↗</a></span></footer>
   </main>
+  </div>
   <script type="module" src="app.mjs"></script>
 </body>
 </html>
