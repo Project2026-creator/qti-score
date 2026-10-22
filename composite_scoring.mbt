@@ -126,6 +126,12 @@ fn CompositeItem::execute_responses(
       let (selected, condition) : (Bool, Json?) = match branch.credit {
         Mapped => (value != Null, None)
         Matched(_) => (binding.matches(value) == Some(true), None)
+        Unanswered(_) =>
+          (
+            value == Null,
+            Some({ "operator": "is_null", "matched": value == Null }),
+          )
+        Otherwise(_) => (true, Some({ "operator": "else", "matched": true }))
         Compared(comparison, _) => {
           let response = match value {
             Number(n) => Some(n)
@@ -157,7 +163,10 @@ fn CompositeItem::execute_responses(
         continue
       }
       let contribution = match branch.credit {
-        Matched(weight) | Compared(_, weight) => weight
+        Matched(weight)
+        | Compared(_, weight)
+        | Unanswered(weight)
+        | Otherwise(weight) => weight
         Mapped =>
           match value {
             Text(text) =>

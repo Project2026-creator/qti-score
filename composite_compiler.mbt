@@ -247,7 +247,9 @@ fn parse_composite_rules(
   for index = 1; index < node.children.length(); index = index + 1 {
     let condition = node.children[index]
     condition.only_attributes([])
-    condition.only_children(["qti-response-if", "qti-response-else-if"])
+    condition.only_children([
+      "qti-response-if", "qti-response-else-if", "qti-response-else",
+    ])
     if condition.name() != "qti-response-condition" ||
       condition.children.is_empty() {
       raise Unsupported(
@@ -261,6 +263,21 @@ fn parse_composite_rules(
     let branches : Array[CompositeBranch] = []
     let mut binding_index = -1
     for i, branch in condition.children {
+      if branch.name() == "qti-response-else" {
+        if i == 0 || i != condition.children.length() - 1 {
+          raise InvalidItem(
+            branch.location(),
+            "response-else must be last after response-if",
+          )
+        }
+        branch.only_attributes([])
+        branch.only_children(["qti-set-outcome-value"])
+        let weight = composite_literal(
+          composite_contribution(branch.one("qti-set-outcome-value").unwrap()),
+        )
+        branches.push({ credit: Otherwise(weight), source: branch.source(), })
+        continue
+      }
       let expected = if i == 0 {
         "qti-response-if"
       } else {
@@ -300,7 +317,7 @@ fn parse_composite_branch(
 ) -> (Int32, CompositeBranch) raise QtiError {
   branch.only_attributes([])
   branch.only_children([
-    "qti-not", "qti-match", "qti-equal", "qti-set-outcome-value",
+    "qti-not", "qti-match", "qti-equal", "qti-is-null", "qti-set-outcome-value",
   ])
   if branch.children.length() != 2 ||
     branch.children[1].name() != "qti-set-outcome-value" {
@@ -322,6 +339,10 @@ fn parse_composite_branch(
     predicate.only_children(["qti-variable", "qti-correct"])
     ignore(predicate.one("qti-correct"))
     predicate.one("qti-variable").unwrap()
+  } else if predicate.name() == "qti-is-null" {
+    predicate.only_attributes([])
+    predicate.only_children(["qti-variable"])
+    predicate.one("qti-variable").unwrap()
   } else if predicate.name() == "qti-equal" {
     // Exactly one variable identifies the response owned by this condition.
     // The shared numeric parser validates its other operand and tolerances.
@@ -342,28 +363,15 @@ fn parse_composite_branch(
   }
   let binding = bindings[binding_index]
   let assignment = branch.children[1]
-  assignment.only_attributes(["identifier"])
-  assignment.only_children(["qti-sum"])
-  if assignment.required("identifier") != "SCORE" {
-    raise Unsupported(
-      assignment.location(),
-      "only SCORE assignment is supported",
-    )
-  }
-  let sum = assignment.one("qti-sum").unwrap()
-  sum.only_attributes([])
-  sum.only_children(["qti-variable", "qti-map-response", "qti-base-value"])
-  if sum.children.length() != 2 {
-    raise Unsupported(sum.location(), "expected SCORE plus one contribution")
-  }
-  composite_ref(sum.children[0], "qti-variable", "SCORE")
-  let term = sum.children[1]
+  let term = composite_contribution(assignment)
   let credit = if predicate.name() == "qti-not" {
     if binding.mapping is None {
       raise InvalidItem(term.location(), "map-response requires a mapping")
     }
     composite_ref(term, "qti-map-response", id)
     CompositeCredit::Mapped
+  } else if predicate.name() == "qti-is-null" {
+    CompositeCredit::Unanswered(composite_literal(term))
   } else if predicate.name() == "qti-equal" {
     if !binding.base_type.is_numeric() {
       raise Unsupported(
@@ -398,4 +406,27 @@ fn parse_composite_branch(
     CompositeCredit::Matched(composite_literal(term))
   }
   (binding_index, { credit, source: branch.source(), })
+}
+
+///|
+fn composite_contribution(assignment : Node) -> Node raise QtiError {
+  if assignment.name() != "qti-set-outcome-value" {
+    raise Unsupported(assignment.location(), "expected SCORE assignment")
+  }
+  assignment.only_attributes(["identifier"])
+  assignment.only_children(["qti-sum"])
+  if assignment.required("identifier") != "SCORE" {
+    raise Unsupported(
+      assignment.location(),
+      "only SCORE assignment is supported",
+    )
+  }
+  let sum = assignment.one("qti-sum").unwrap()
+  sum.only_attributes([])
+  sum.only_children(["qti-variable", "qti-map-response", "qti-base-value"])
+  if sum.children.length() != 2 {
+    raise Unsupported(sum.location(), "expected SCORE plus one contribution")
+  }
+  composite_ref(sum.children[0], "qti-variable", "SCORE")
+  sum.children[1]
 }

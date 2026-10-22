@@ -220,7 +220,7 @@ test "composite branch ordering and same-response ownership are validated" {
     source
     .swap("<qti-response-else-if>", "<qti-response-else>")
     .swap("</qti-response-else-if>", "</qti-response-else>"),
-    "unsupported",
+    "invalid_item",
   )
   composite_tolerance_rejected(
     source.swap(

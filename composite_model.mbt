@@ -21,6 +21,8 @@ priv enum CompositeCredit {
   Mapped
   Matched(Double)
   Compared(NumericTest, Double)
+  Unanswered(Double)
+  Otherwise(Double)
 } derive(Debug)
 
 ///|

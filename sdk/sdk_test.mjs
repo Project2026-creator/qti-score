@@ -14,6 +14,54 @@ const hasCode = code => cause => cause instanceof QtiScoreError && cause.code ==
 const packageBytes = () => readFileSync(new URL('../web/sample-package.zip', import.meta.url));
 const packageAttempts = () => readFileSync(new URL('../examples/package-attempts.jsonl', import.meta.url), 'utf8');
 
+test('composite fallback preserves penalties, optional omissions and first-true execution', () => {
+  const item = compileItem(fixture('composite-fallback'));
+  try {
+    const input = { ACTION: 'Ignore', RATIO: 80 };
+    assert.deepEqual(item.score(input), { score: -1.5, status: 'answered', matches_correct: false });
+    assert.deepEqual(input, { ACTION: 'Ignore', RATIO: 80 });
+    const rows = item.scoreBatch([{ ACTION: 'Adapt', RATIO: 75 }, { ACTION: 'Adapt', RATIO: 80 }, {}, { RATIO: 'bad' }, input]);
+    assert.deepEqual(rows.map(r => r.ok ? r.result.score : r.error.code), [4, 1.5, 0, 'invalid_response', -1.5]);
+    const trace = item.explain(input);
+    assert.equal(trace.result.score, -1.5);
+    assert.equal(trace.steps.filter(s => s.operation === 'composite_add').length, 2);
+    assert.equal(trace.steps.filter(s => s.details.condition?.operator === 'else').length, 2);
+    assert.ok(trace.steps.filter(s => s.details.condition?.operator === 'else').every(s => s.details.selected && s.location.line > 0));
+    const correct = item.explain({ ACTION: 'Adapt', RATIO: 75 });
+    assert.ok(!correct.steps.some(s => s.details.condition?.operator === 'else'));
+    assert.equal(evaluateItem(fixture('composite-fallback'), input).score, -1.5);
+  } finally { item.dispose(); }
+});
+
+test('composite authored NULL credit stays unanswered while required controls still reject omissions', () => {
+  const pattern = '</qti-is-null><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">0</qti-base-value>';
+  const source = fixture('composite-fallback').replaceAll(pattern, pattern.replace('>0</qti-base-value>', '>0.25</qti-base-value>'));
+  assert.deepEqual(evaluateItem(source, {}), { score: 0.5, status: 'unanswered', matches_correct: false });
+  const required = compileItem(source.replace('response-identifier="ACTION">', 'response-identifier="ACTION" required="true">'));
+  try {
+    for (const response of [{}, { ACTION: null }, { ACTION: '' }, { RATIO: 75 }]) assert.throws(() => required.score(response), hasCode('invalid_response'));
+    assert.equal(required.score({ ACTION: 'Adapt', RATIO: 75 }).score, 4);
+    assert.ok(!JSON.stringify(required.describe()).includes('operator'));
+    const duplicate = source.replace('</qti-response-else>', '</qti-response-else><qti-response-else/>');
+    assert.throws(() => compileItem(duplicate), hasCode('invalid_item'));
+  } finally { required.dispose(); }
+});
+
+test('composite fallback package exports preserve negative scores and independent item lifetimes', () => {
+  const bundle = importPackage(readFileSync(new URL('../web/composite-fallback-package.zip', import.meta.url)));
+  const item = bundle.getItem('diagnostic');
+  try {
+    assert.equal(bundle.describe().ready_count, 2);
+    const { report, csv } = bundle.scoreAttempts(readFileSync(new URL('../examples/composite-fallback-attempts.jsonl', import.meta.url), 'utf8'));
+    assert.deepEqual(report.rows.map(r => r.ok ? r.result.score : null), [4, 2, 1.5, 1, 0, null, null, -1.5]);
+    assert.deepEqual(report.attempts.map(a => a.score_sum), [6, 1.5, 1, 0, null, null, -1.5]);
+    assert.equal(report.error_count, 2);
+    assert.ok(csv.includes('invalid_response') && csv.includes('-1.5'));
+    bundle.dispose();
+    assert.equal(item.score({ RATIO: 80 }).score, -0.5);
+  } finally { item.dispose(); bundle.dispose(); }
+});
+
 test('mixed composite choices and numerical tiers share the existing score and explain APIs', () => {
   const item = compileItem(fixture('composite-inline'));
   try {

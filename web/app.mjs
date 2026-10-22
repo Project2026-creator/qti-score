@@ -80,7 +80,7 @@ function renderExplanation(steps) {
       case 'composite_condition': {
         const condition = detail.condition;
         const branch = detail.branch === undefined ? '' : `第 ${detail.branch + 1} 档，`;
-        const comparison = condition?.reason === 'null_operand' ? '空响应，' : condition ? `${labels[condition.mode] || '数值比较'}，` : '';
+        const comparison = condition?.reason === 'null_operand' ? '空响应，' : condition ? `${labels[condition.mode] || (condition.operator === 'is_null' ? '未作答检查' : condition.operator === 'else' ? '默认分支' : '数值比较')}，` : '';
         const range = condition?.lower === undefined ? '' : `区间 ${condition.include_lower ? '[' : '('}${condition.lower}, ${condition.upper}${condition.include_upper ? ']' : ')'}，`;
         text = `${detail.identifier}：${branch}${comparison}${range}${detail.selected ? '命中并计分' : '未命中'}。`;
         break;
@@ -377,6 +377,7 @@ $('answer-form').addEventListener('submit', event => {
   if (value.status !== 'unanswered') {
     if (value.matches_correct === null) matchMessage = '题目未提供标准响应。';
     else if (value.matches_correct) matchMessage = '与标准响应完全匹配。';
+    else if (value.score < 0) matchMessage = '未与标准响应完全匹配，已按题目规则扣分。';
     else if (item.template === 'match_correct') matchMessage = '未与标准响应完全匹配；本题按完全匹配评分。';
     else matchMessage = '未与标准响应完全匹配；评分规则仍可给予部分分数。';
   }
@@ -436,7 +437,7 @@ $('sample-package').addEventListener('click', () => loadPackage(async () => {
 }, 'sample-package.zip'));
 
 try {
-  engine = await import('../sdk/index.mjs?v=0.13.0');
+  engine = await import('../sdk/index.mjs?v=0.14.0');
   await loadExample('single');
 } catch (error) {
   $('source-status').textContent = '内核未载入';
