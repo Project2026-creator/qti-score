@@ -38,7 +38,7 @@ moon run cmd/main -- batch examples/multiple.xml examples/attempts.jsonl
 python tools/project.py serve
 ```
 
-浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换十九个示例、编辑或导入 XML，并查看作答和评分结果。勾选“记录评分过程”后，提交作答会显示分支判断、映射贡献、顺序比较与分值限制。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；普通选择／排序的 `shuffle` 不改变评分计算，演示按原文顺序显示选项。文中下拉题的随机呈现暂未实现，明确拒绝 `shuffle="true"`。
+浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换二十一个示例、编辑或导入 XML，并查看作答和评分结果。勾选“记录评分过程”后，提交作答会显示分支判断、映射贡献、顺序比较与分值限制。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；普通选择／排序的 `shuffle` 不改变评分计算，演示按原文顺序显示选项。文中下拉题的随机呈现暂未实现，明确拒绝 `shuffle="true"`。
 
 ## 排序题
 
@@ -178,7 +178,7 @@ moon run cmd/main -- package-batch web/slider-package.zip examples/slider-attemp
 
 ## 多响应复合填空
 
-支持一道题包含 2–8 个 `single/string`、`single/integer` 或 `single/float` 的 `qti-text-entry-interaction`。变量可以使用不同名称，声明、交互和评分规则须一一对应。文本与数值可以混合，文段保留各空的位置。已有单响应题目及其元信息保持原样。
+支持一道题包含 2–8 个独立响应：`single/string`、`single/integer`、`single/float` 使用 `qti-text-entry-interaction`；`single/identifier` 使用 `qti-inline-choice-interaction`。变量可以使用不同名称，声明、交互和评分规则须一一对应。下拉选择、文本与数值可以混合，文段保留各空的位置。已有单响应题目及其元信息保持原样。
 
 ```sh
 moon run cmd/main -- score examples/composite.xml examples/composite-response.json
@@ -219,6 +219,24 @@ moon run cmd/main -- package-batch web/composite-tolerance-package.zip examples/
 比较遇到空操作数返回 NULL，该分支不执行；无命中时没有贡献。`matches_correct` 仍表示所有标准响应的精确匹配，允许误差后得分不代表它为 true。错误数值使整次评分失败。元信息保持原样，不返回正确值、容差与分档规则；显式解释的 `composite_condition` 增加从 0 开始的 `branch`、比较区间、开闭标志、匹配结果与 XML 位置，浏览器将其显示为从 1 开始的档位。
 
 独立题包同时包含测量题与旧复合题。7 行示例作答得到 5、2、4、1、错误、未作答 0、3；6 行成功、1 行失败，CLI 返回报告并退出 1。支持既有 SDK、题包、批量导出入口，公开 MoonBit API 与 SDK 元信息类型没有改变。
+
+### 下拉选择与填空混合
+
+0.13.0 支持复合题内的单值下拉选择。每个下拉框独立声明选项集合，支持 `match` 权重或非 NULL 守卫后的 `map-response`，并可和数值容差分档一起计分。选项 ID 精确区分大小写；响应、正确值及映射键都须属于对应下拉框，其他框中的合法选项不能借用。
+
+```sh
+moon run cmd/main -- score examples/composite-inline.xml examples/composite-inline-response.json
+python tools/project.py build-web
+moon run cmd/main -- package-batch web/composite-inline-package.zip examples/composite-inline-attempts.jsonl
+```
+
+混合示例中 `{"ACTION":"Adapt","RATIO":75}` 得 4 分，`{"ACTION":"Review","RATIO":74.5}` 得 1.5 分。可选下拉框未选择时保持 NULL，跳过映射及其下界。`required="true"` 或 `min-choices="1"` 的下拉框必须作答；缺失、NULL、空字符串均报 `invalid_response`，整次尝试不会返回部分分数。未知 ID、数组、数值或布尔选项同样拒绝，错误行不影响后续批量行。
+
+元信息在标识符响应上增加 `inline_choice:{required,label,choices}`，`placeholder` 为占位提示；选项文字只出现在该响应的 choices 中，不混入公共 passage。旧文本／数值响应的元信息不变。TypeScript 新增 `CompositeResponseDescription` 联合，按 `base_type === 'identifier'` 可访问下拉描述；若调用方穷举复合响应类型，需要处理这个新增分支。普通元信息不返回正确值、映射或评分规则。
+
+浏览器提供原生下拉框、独立可访问标签、必答提示及统一清空操作，选择值仍由 MoonBit 核心校验。静态文字、标签、占位提示及选项验证复用原有单响应下拉实现。随机呈现 `shuffle="true"`、多值下拉、动态／富媒体选项及其他复合交互仍不支持。
+
+独立题包包含可选混合题与两个必答下拉框的题目。8 行批量作答得到 4、2、1.5、2、错误、错误、未作答 0、已作答 0；6 行成功、2 行失败，CLI 返回报告并退出 1。既有编译、评分、解释、题包访问与导出方法保持不变。
 
 ## QTI ZIP 题包
 
@@ -436,11 +454,11 @@ npm ci --prefix sdk --ignore-scripts
 python tools/project.py check
 ```
 
-最后一个命令会构建浏览器桥接模块与独立 SDK，运行 SDK 接入测试和 TypeScript 类型检查，并以固定提交版本的官方单选、多选、排序、配对、文段选词、下拉选词及滑杆题目进行 **55 个评分场景**核对，另检查 **12 个本地数值场景**、**8 个本地排序场景**、**11 个本地配对场景**、**11 个本地选词场景**、**12 个本地文段场景**和 **8 个本地下拉场景**、**14 个本地滑杆场景**和 **30 个本地复合场景**。CLI、桥接与 SDK 的结果必须一致，本地场景的评分解释也逐步对照，同时检查 CLI 错误退出码。排序官方题目的核对覆盖全部 6 种三项排列及两种 NULL 输入。预期值根据标准规则与题目声明编写，不由待测评分器生成。TypeScript 是 SDK 的开发依赖，由前一条 npm 命令安装；普通 MoonBit 核心测试不依赖它。
+最后一个命令会构建浏览器桥接模块与独立 SDK，运行 SDK 接入测试和 TypeScript 类型检查，并以固定提交版本的官方单选、多选、排序、配对、文段选词、下拉选词及滑杆题目进行 **55 个评分场景**核对，另检查 **12 个本地数值场景**、**8 个本地排序场景**、**11 个本地配对场景**、**11 个本地选词场景**、**12 个本地文段场景**和 **8 个本地下拉场景**、**14 个本地滑杆场景**和 **46 个本地复合场景**。CLI、桥接与 SDK 的结果必须一致，本地场景的评分解释也逐步对照，同时检查 CLI 错误退出码。排序官方题目的核对覆盖全部 6 种三项排列及两种 NULL 输入。预期值根据标准规则与题目声明编写，不由待测评分器生成。TypeScript 是 SDK 的开发依赖，由前一条 npm 命令安装；普通 MoonBit 核心测试不依赖它。
 
 检查还对照 CLI 与 SDK 的完整题包报告及 2 个题包评分／解释场景，并验证不支持和未知资源的非零退出码。核心测试覆盖 Store/Deflate/数据描述符、CRC、解压限额、URI 编码、xml:base、缺失文件、长依赖链与循环；SDK 测试覆盖字节隔离、独立安装和对象生命周期。
 
-跨题批量检查包含 13 组输入：混合成功／失败、全成功、重复及格式错误、空批次、带逗号／引号／公式前缀的 ID，以及独立排序题包、配对题包、选词题包、文段题包、下拉题包、滑杆题包、复合题包和复合容差题包。逐项对照 CLI 与 SDK 的完整 JSON 报告和 CSV 字节，并用 Python 标准库的独立 CSV 解析器检查列数、得分空值、错误码及文本转义。核心另覆盖整数原始词法、负分、非零 NULL 分与汇总溢出。
+跨题批量检查包含 14 组输入：混合成功／失败、全成功、重复及格式错误、空批次、带逗号／引号／公式前缀的 ID，以及独立排序题包、配对题包、选词题包、文段题包、下拉题包、滑杆题包、复合题包、复合容差题包和混合下拉题包。逐项对照 CLI 与 SDK 的完整 JSON 报告和 CSV 字节，并用 Python 标准库的独立 CSV 解析器检查列数、得分空值、错误码及文本转义。核心另覆盖整数原始词法、负分、非零 NULL 分与汇总溢出。
 
 另检查固定官方 `gap_match.xml` 的一处声明冲突：原文件省略最大关联数，默认 1，与其两个标准配对不一致，预期返回 `invalid_item`。保留原文件的 SHA-256，并仅添加 `max-associations="0"`，对这个明确标注的派生版本运行 **8 个评分场景**。报告将其记为 `derived_cases`，原文件拒绝结果记为 `official_rejections`，与上述 55 个未修改官方场景分别列出。来源见 [固定官方文件](https://github.com/1EdTech/qti-examples/blob/0a92fbbb6d2e620a1f7fad19977be4c418246bc0/qtiv3-examples/packaging/items/gap_match.xml)。
 

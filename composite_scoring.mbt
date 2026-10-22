@@ -19,7 +19,7 @@ fn composite_value(
       if text == "" || (base_type.is_numeric() && text.trim() == "") {
         return Null
       }
-      if base_type == Text {
+      if base_type == Text || base_type == Identifier {
         return Text(text)
       }
       Number(
@@ -93,10 +93,7 @@ fn CompositeItem::execute_responses(
     }
   }
   let values = self.bindings.map(b => {
-    composite_value(
-      responses.get(b.identifier).unwrap_or(Response::Null),
-      b.base_type,
-    )
+    b.response_value(responses.get(b.identifier).unwrap_or(Response::Null))
   })
   let mut all_correct = Some(true)
   for i, binding in self.bindings {
@@ -166,7 +163,7 @@ fn CompositeItem::execute_responses(
             Text(text) =>
               binding.mapping
               .unwrap()
-              .score_values([text], Text, steps, branch.source)
+              .score_values([text], binding.base_type, steps, branch.source)
             Number(n) =>
               binding.mapping
               .unwrap()

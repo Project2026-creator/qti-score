@@ -58,13 +58,14 @@ fn compile_composite_root(root : Node) -> CompositeItem raise QtiError {
       )
     }
     let base_type = match declaration.required("base-type") {
+      "identifier" => BaseType::Identifier
       "string" => BaseType::Text
       "integer" => BaseType::Integer
       "float" => BaseType::Float
       _ =>
         raise Unsupported(
           declaration.location(),
-          "composite supports text and numeric entry only",
+          "composite supports text/numeric entry and inline choice only",
         )
     }
     let correct = declaration
@@ -79,6 +80,8 @@ fn compile_composite_root(root : Node) -> CompositeItem raise QtiError {
       correct,
       mapping,
       placeholder: "",
+      choices: [],
+      inline_choice: None,
       source: declaration.source(),
     })
   }
@@ -109,6 +112,9 @@ fn compile_composite_root(root : Node) -> CompositeItem raise QtiError {
       "every composite response needs exactly one entry interaction",
     )
   }
+  for binding in bindings {
+    binding.validate_choice_declaration()
+  }
   let processing = root.one("qti-response-processing").unwrap()
   let rules = parse_composite_rules(processing, bindings)
   {
@@ -134,12 +140,8 @@ fn composite_passage(
   if node.name() == "qti-rubric-block" {
     return
   }
-  if node.name() == "qti-text-entry-interaction" {
-    node.only_attributes([
-      "response-identifier", "expected-length", "placeholder-text", "class", "id",
-      "dir",
-    ])
-    node.only_children([])
+  if node.name() == "qti-text-entry-interaction" ||
+    node.name() == "qti-inline-choice-interaction" {
     let id = node.required("response-identifier")
     let mut found = false
     for i, binding in bindings {
@@ -151,10 +153,7 @@ fn composite_passage(
           )
         }
         seen[id] = true
-        bindings[i] = {
-          ..binding,
-          placeholder: node.attr("placeholder-text").unwrap_or(""),
-        }
+        bindings[i] = binding.with_interaction(node)
         found = true
       }
     }
@@ -163,9 +162,6 @@ fn composite_passage(
         node.location(),
         "entry references an undeclared response '\{id}'",
       )
-    }
-    if node.attr("expected-length") is Some(_) {
-      ignore(nonnegative_int(node, "expected-length"))
     }
     parts.push(Response(id))
     return

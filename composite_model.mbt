@@ -5,6 +5,8 @@ priv struct CompositeBinding {
   correct : Array[String]?
   mapping : Mapping?
   placeholder : String
+  choices : Array[Choice]
+  inline_choice : InlineChoiceInteraction?
   source : SourceLocation
 } derive(Debug)
 
@@ -53,10 +55,23 @@ pub fn CompositeItem::describe(self : CompositeItem) -> Json {
     "prompt": self.title,
     "template": "composite_rules",
     "responses": self.bindings.map(b => {
-      "identifier": b.identifier,
-      "cardinality": "single",
-      "base_type": b.base_type.name(),
-      "placeholder": b.placeholder,
+      let response : Json = {
+        "identifier": b.identifier,
+        "cardinality": "single",
+        "base_type": b.base_type.name(),
+        "placeholder": b.placeholder,
+      }
+      if b.inline_choice is Some(spec) && response is Object(fields) {
+        fields["inline_choice"] = {
+          "required": spec.required,
+          "label": spec.label,
+          "choices": b.choices.map(c => {
+            "identifier": c.identifier,
+            "text": c.text,
+          }),
+        }
+      }
+      response
     }),
     "passage": self.passage.map(p => {
       match p {

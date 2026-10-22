@@ -70,6 +70,7 @@ fn parse_inline_choice_interaction(
   node : Node,
   body : Node,
   choices : Array[Choice],
+  response_id~ : String = "RESPONSE",
 ) -> InlineChoiceInteraction raise QtiError {
   node.only_attributes([
     "response-identifier", "shuffle", "required", "min-choices", "data-prompt", "class",
@@ -102,7 +103,10 @@ fn parse_inline_choice_interaction(
     choice.only_attributes(["identifier", "fixed", "class", "id", "dir"])
     ignore(xml_bool(choice, "fixed", default=false))
     let id = identifier(choice.required("identifier"), choice.location())
-    if ids.contains(id) || id == "RESPONSE" || id == "SCORE" {
+    if ids.contains(id) ||
+      id == response_id ||
+      id == "RESPONSE" ||
+      id == "SCORE" {
       raise InvalidItem(
         choice.location(),
         "duplicate or reserved inline choice '\{id}'",

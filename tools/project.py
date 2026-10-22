@@ -106,6 +106,9 @@ def build_sample_package():
     examples.append(("composite-tolerance-package.zip", [("imsmanifest.xml", "composite-tolerance-manifest.xml"),
                                                         ("items/composite-tolerance.xml", "composite-tolerance.xml"),
                                                         ("items/composite.xml", "composite.xml")]))
+    examples.append(("composite-inline-package.zip", [("imsmanifest.xml", "composite-inline-manifest.xml"),
+                                                     ("items/composite-inline.xml", "composite-inline.xml"),
+                                                     ("items/composite-inline-required.xml", "composite-inline-required.xml")]))
     for filename, files in examples:
         with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path, source in files:
@@ -151,7 +154,7 @@ def extract_json(stdout):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.12.0",
+        "module": "Project2026-creator/qti-score", "version": "0.13.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }
@@ -266,6 +269,15 @@ def verify(moon, env, output, offline=False):
                        ({},0), ({"PLATFORM":None,"COUNT":None},0), ({"COUNT":"04"},2)]),
         ("composite-numeric", [({"RATIO":0.75,"TOTAL":20},3), ({"RATIO":0.7,"TOTAL":20},2),
                                ({"RATIO":0.7},1), ({"TOTAL":20},1), ({},0), ({"RATIO":0,"TOTAL":0},0)]),
+        ("composite-inline", [({"ACTION":"Adapt","RATIO":75},4), ({"ACTION":"Review","RATIO":75},2.5),
+                              ({"ACTION":"Adapt","RATIO":74.5},3), ({"ACTION":"Ignore","RATIO":74.5},1),
+                              ({"RATIO":75},2), ({"ACTION":"Adapt"},2), ({"ACTION":"Review"},0.5),
+                              ({"ACTION":"Ignore"},0), ({},0), ({"ACTION":None,"RATIO":None},0),
+                              ({"ACTION":"Adapt","RATIO":77},2), ({"ACTION":"Adapt","RATIO":76},3)]),
+        ("composite-inline-required", [({"METHOD":"Formative","ACTION":"Adapt"},2),
+                                       ({"METHOD":"Summative","ACTION":"Adapt"},1),
+                                       ({"METHOD":"Formative","ACTION":"Ignore"},1),
+                                       ({"METHOD":"Summative","ACTION":"Ignore"},0)]),
         ("composite-tolerance", [({"UNIT":"cm","LENGTH":100,"GROUPS":4},5),
                                  ({"UNIT":"cm","LENGTH":100.5,"GROUPS":4},4),
                                  ({"LENGTH":99},2), ({"LENGTH":101},2), ({"LENGTH":98.999},1),
@@ -419,6 +431,7 @@ try {
     batch_scenarios.append(("slider-package", (ROOT / "examples/slider-attempts.jsonl").read_text(encoding="utf-8"), 7, 5, 2, 1))
     batch_scenarios.append(("composite-package", (ROOT / "examples/composite-attempts.jsonl").read_text(encoding="utf-8"), 6, 5, 1, 1))
     batch_scenarios.append(("composite-tolerance-package", (ROOT / "examples/composite-tolerance-attempts.jsonl").read_text(encoding="utf-8"), 7, 6, 1, 1))
+    batch_scenarios.append(("composite-inline-package", (ROOT / "examples/composite-inline-attempts.jsonl").read_text(encoding="utf-8"), 8, 6, 2, 1))
     batch_script = """
 import {readFileSync} from 'node:fs';
 const {importPackage}=await import(process.argv[1]);
@@ -443,6 +456,8 @@ finally {bundle.dispose();}
             batch_archive = ROOT / "web/composite-package.zip"
         if name == "composite-tolerance-package":
             batch_archive = ROOT / "web/composite-tolerance-package.zip"
+        if name == "composite-inline-package":
+            batch_archive = ROOT / "web/composite-inline-package.zip"
         path = cache / ("batch-" + name + ".jsonl")
         path.write_text(source, encoding="utf-8")
         arguments = [moon, "run", "cmd/main", "--", "package-batch", str(batch_archive), str(path)]
@@ -493,6 +508,8 @@ finally {bundle.dispose();}
             raise AssertionError("Composite package batch scores differ from authored expectations")
         if name == "composite-tolerance-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [5, 2, 4, 1, None, 0, 3]:
             raise AssertionError("Composite tolerance batch scores differ from authored expectations")
+        if name == "composite-inline-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [4, 2, 1.5, 2, None, None, 0, 0]:
+            raise AssertionError("Composite inline batch scores differ from authored expectations")
         report["batch_cases"].append({"name": name, "expected_exit": expected_exit,
                                       "cli_report": cli_report, "sdk_report": sdk_evaluation["report"],
                                       "csv": exported, "csv_decoded": decoded})

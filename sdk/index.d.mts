@@ -52,13 +52,32 @@ export interface SingleItemDescription {
   readonly slider?: SliderDescription;
   readonly instructions?: readonly string[];
 }
+export interface CompositeEntryDescription {
+  readonly identifier: string;
+  readonly cardinality: 'single';
+  readonly base_type: 'string' | 'integer' | 'float';
+  readonly placeholder: string;
+  readonly inline_choice?: never;
+}
+export interface CompositeInlineChoiceDescription {
+  readonly identifier: string;
+  readonly cardinality: 'single';
+  readonly base_type: 'identifier';
+  readonly placeholder: string;
+  readonly inline_choice: {
+    readonly required: boolean;
+    readonly label: string;
+    readonly choices: readonly Choice[];
+  };
+}
+export type CompositeResponseDescription = CompositeEntryDescription | CompositeInlineChoiceDescription;
 export interface CompositeItemDescription {
   readonly kind: 'composite';
   readonly identifier: string;
   readonly title: string;
   readonly prompt: string;
   readonly template: 'composite_rules';
-  readonly responses: readonly { readonly identifier: string; readonly cardinality: 'single'; readonly base_type: 'string' | 'integer' | 'float'; readonly placeholder: string }[];
+  readonly responses: readonly CompositeResponseDescription[];
   readonly passage: readonly ({ readonly text: string } | { readonly response: string })[];
   readonly instructions?: readonly string[];
   readonly response_identifier?: never;

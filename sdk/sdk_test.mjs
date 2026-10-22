@@ -14,6 +14,66 @@ const hasCode = code => cause => cause instanceof QtiScoreError && cause.code ==
 const packageBytes = () => readFileSync(new URL('../web/sample-package.zip', import.meta.url));
 const packageAttempts = () => readFileSync(new URL('../examples/package-attempts.jsonl', import.meta.url), 'utf8');
 
+test('mixed composite choices and numerical tiers share the existing score and explain APIs', () => {
+  const item = compileItem(fixture('composite-inline'));
+  try {
+    assert.equal(item.score({ ACTION: 'Adapt', RATIO: 75 }).score, 4);
+    assert.equal(item.score({ ACTION: 'Review', RATIO: 74.5 }).score, 1.5);
+    assert.equal(item.explain({ ACTION: 'Review', RATIO: 74.5 }).result.score, 1.5);
+    assert.deepEqual(item.score({}), { score: 0, status: 'unanswered', matches_correct: false });
+    const trace = item.explain({ ACTION: 'Adapt' });
+    assert.ok(trace.steps.some(s => s.operation === 'composite_add' && s.details.identifier === 'ACTION' && s.details.contribution === 2));
+    assert.deepEqual(evaluateItem(fixture('composite-inline'), { RATIO: 75 }), item.score({ RATIO: 75 }));
+  } finally { item.dispose(); }
+});
+
+test('composite inline metadata is isolated and keeps choice text out of the passage', () => {
+  const item = compileItem(fixture('composite-inline'));
+  try {
+    const metadata = item.describe();
+    const spec = metadata.responses[0].inline_choice;
+    assert.equal(metadata.responses[0].base_type, 'identifier');
+    assert.equal(spec.required, false);
+    assert.equal(spec.label, '学习行动');
+    assert.deepEqual(spec.choices.map(c => c.identifier), ['Adapt', 'Review', 'Ignore']);
+    assert.ok(!JSON.stringify(metadata.passage).includes('调整策略并再次尝试'));
+    spec.choices[0].identifier = 'changed'; spec.choices.length = 0; spec.required = true;
+    assert.equal(item.describe().responses[0].inline_choice.choices[0].identifier, 'Adapt');
+    assert.equal(item.score({ ACTION: 'Adapt' }).score, 2);
+    assert.equal(item.score({}).score, 0);
+  } finally { item.dispose(); }
+});
+
+test('composite required fields and foreign choices fail per attempt without aborting a batch', () => {
+  const item = compileItem(fixture('composite-inline-required'));
+  try {
+    const rows = item.scoreBatch([{}, { METHOD: 'Formative' }, { METHOD: 'Formative', ACTION: 'Formative' },
+      { METHOD: 'Formative', ACTION: 'Adapt' }, { METHOD: 'Summative', ACTION: 'Ignore' }]);
+    assert.deepEqual(rows.map(r => r.ok ? r.result.score : r.error.code), ['invalid_response', 'invalid_response', 'invalid_response', 2, 0]);
+    for (const action of [null, '', ['Adapt'], 1, undefined]) {
+      assert.throws(() => item.score({ METHOD: 'Formative', ACTION: action }), hasCode('invalid_response'));
+    }
+    const metadata = item.describe();
+    assert.ok(metadata.responses.every(b => b.inline_choice.required));
+    assert.throws(() => compileItem(fixture('composite-inline').replace('map-key="Review"', 'map-key="Missing"')), hasCode('invalid_item'));
+  } finally { item.dispose(); }
+});
+
+test('mixed inline packages preserve row errors, CSV output and independent item lifetimes', () => {
+  const bundle = importPackage(readFileSync(new URL('../web/composite-inline-package.zip', import.meta.url)));
+  const item = bundle.getItem('mixed');
+  try {
+    assert.equal(bundle.describe().ready_count, 2);
+    const { report, csv } = bundle.scoreAttempts(readFileSync(new URL('../examples/composite-inline-attempts.jsonl', import.meta.url), 'utf8'));
+    assert.deepEqual(report.rows.map(r => r.ok ? r.result.score : null), [4, 2, 1.5, 2, null, null, 0, 0]);
+    assert.deepEqual(report.attempts.map(a => a.score_sum), [6, 1.5, 2, null, null, 0, 0]);
+    assert.equal(report.error_count, 2);
+    assert.ok(csv.includes('invalid_response'));
+    bundle.dispose();
+    assert.equal(item.score({ ACTION: 'Review', RATIO: 75 }).score, 2.5);
+  } finally { item.dispose(); bundle.dispose(); }
+});
+
 test('composite numeric tiers stop at the first match and expose interval diagnostics only on request', () => {
   const item = compileItem(fixture('composite-tolerance'));
   try {

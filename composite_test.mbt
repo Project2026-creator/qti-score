@@ -142,6 +142,7 @@ test "composite compiler rejects missing duplicated and incompatible bindings" {
   let source = fixture("composite")
   for
     xml in [
+      source.swap("base-type=\"integer\"", "base-type=\"identifier\""),
       source.swap(
         "identifier=\"COUNT\" cardinality", "identifier=\"PLATFORM\" cardinality",
       ),
@@ -170,7 +171,6 @@ test "composite compiler rejects missing duplicated and incompatible bindings" {
       source.swap(
         "cardinality=\"single\" base-type=\"integer\"", "cardinality=\"multiple\" base-type=\"integer\"",
       ),
-      source.swap("base-type=\"integer\"", "base-type=\"identifier\""),
       source.swap("<qti-item-body>", "<qti-item-body><script>run()</script>"),
     ] {
     try @qti.compile_composite_item(xml) catch {

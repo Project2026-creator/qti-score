@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="feedback-and-ratio" title="学习行动与资源比例">
+  <qti-response-declaration identifier="ACTION" cardinality="single" base-type="identifier">
+    <qti-correct-response><qti-value>Adapt</qti-value></qti-correct-response>
+    <qti-mapping default-value="0" lower-bound="0" upper-bound="2"><qti-map-entry map-key="Adapt" mapped-value="2"/><qti-map-entry map-key="Review" mapped-value="0.5"/></qti-mapping>
+  </qti-response-declaration>
+  <qti-response-declaration identifier="RATIO" cardinality="single" base-type="float"><qti-correct-response><qti-value>75</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>先选择利用反馈的行动，再计算资源比例。行动最多 2 分，比例最多 2 分；比例允许 1 个百分点的绝对误差。</p></qti-content-body></qti-rubric-block>
+    <p>收到具体反馈后，应当<qti-inline-choice-interaction response-identifier="ACTION" data-prompt="请选择行动"><qti-label>学习行动</qti-label><qti-inline-choice identifier="Adapt">调整策略并再次尝试</qti-inline-choice><qti-inline-choice identifier="Review">只重读反馈</qti-inline-choice><qti-inline-choice identifier="Ignore">忽略反馈</qti-inline-choice></qti-inline-choice-interaction>。</p>
+    <p>20 份资源中有 15 份通过复核，通过率为 <qti-text-entry-interaction response-identifier="RATIO" placeholder-text="填写百分数"/> %。</p>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">0</qti-base-value></qti-set-outcome-value>
+    <qti-response-condition><qti-response-if><qti-not><qti-is-null><qti-variable identifier="ACTION"/></qti-is-null></qti-not><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-map-response identifier="ACTION"/></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+    <qti-response-condition><qti-response-if><qti-equal><qti-correct identifier="RATIO"/><qti-variable identifier="RATIO"/></qti-equal><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">2</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if><qti-response-else-if><qti-equal tolerance-mode="absolute" tolerance="1"><qti-correct identifier="RATIO"/><qti-variable identifier="RATIO"/></qti-equal><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">1</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-else-if></qti-response-condition>
+  </qti-response-processing>
+</qti-assessment-item>

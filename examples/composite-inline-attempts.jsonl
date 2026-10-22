@@ -1,0 +1,8 @@
+{"attempt_id":"learner-01","resource_id":"mixed","response":{"ACTION":"Adapt","RATIO":75}}
+{"attempt_id":"learner-01","resource_id":"required","response":{"METHOD":"Formative","ACTION":"Adapt"}}
+{"attempt_id":"learner-02","resource_id":"mixed","response":{"ACTION":"Review","RATIO":74.5}}
+{"attempt_id":"learner-03","resource_id":"mixed","response":{"RATIO":75}}
+{"attempt_id":"learner-04","resource_id":"required","response":{"METHOD":"Formative"}}
+{"attempt_id":"learner-05","resource_id":"mixed","response":{"ACTION":"Formative"}}
+{"attempt_id":"learner-06","resource_id":"mixed","response":{}}
+{"attempt_id":"learner-07","resource_id":"required","response":{"METHOD":"Summative","ACTION":"Ignore"}}

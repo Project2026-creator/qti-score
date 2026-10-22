@@ -10,6 +10,18 @@ const metadata: ItemDescription = describeItem('<xml/>');
 if (metadata.kind === 'composite') {
   const id: string = metadata.responses[0].identifier;
   const multi: ResponseObject = { PLATFORM: 'LMS', COUNT: 4 };
+  for (const binding of metadata.responses) {
+    if (binding.base_type === 'identifier') {
+      const required: boolean = binding.inline_choice.required;
+      const choice: string = binding.inline_choice.choices[0].identifier;
+      // @ts-expect-error composite choice metadata is immutable
+      binding.inline_choice.choices[0].identifier = 'changed';
+      void [required, choice];
+    } else {
+      const entryType: 'string' | 'integer' | 'float' = binding.base_type;
+      void entryType;
+    }
+  }
   // @ts-expect-error composite descriptions do not expose single-item choices
   metadata.choices[0];
   void [id, multi];
