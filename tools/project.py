@@ -5,17 +5,22 @@ import csv
 import datetime
 import functools
 import hashlib
-import http.server
 import io
 import json
 import os
 from pathlib import Path
 import shutil
-import socketserver
 import subprocess
 import sys
 import urllib.request
 import zipfile
+
+if __package__:
+    from .reporting import portable_report
+    from .serve import DevelopmentHandler, LoopbackHTTPServer
+else:
+    from reporting import portable_report
+    from serve import DevelopmentHandler, LoopbackHTTPServer
 
 ROOT = Path(__file__).resolve().parents[1]
 REVISION = "0a92fbbb6d2e620a1f7fad19977be4c418246bc0"
@@ -30,28 +35,6 @@ OFFICIAL_HASHES = {
     "choice_multiple.xml": "c0cdfc4017844b8b8b54a52eac149ea227d2c0dfd33cd0086ff9b1c2871a2cb7",
     "order.xml": "f47faff0c906c31a2e9cb3d2c7c1558278007cf47bf5593e42bcf41455185da8",
 }
-
-
-class DevelopmentHandler(http.server.SimpleHTTPRequestHandler):
-    def do_GET(self):
-        # Rebuilt modules must not be mixed with a previous SDK in browser cache.
-        for name in ("If-Modified-Since", "If-None-Match"):
-            if name in self.headers:
-                del self.headers[name]
-        super().do_GET()
-
-    def end_headers(self):
-        self.send_header("Cache-Control", "no-store")
-        super().end_headers()
-
-
-class LoopbackHTTPServer(http.server.ThreadingHTTPServer):
-    def server_bind(self):
-        # Avoid reverse DNS: older Windows Python can fail to decode localized
-        # host names even when binding only to the numeric loopback address.
-        socketserver.TCPServer.server_bind(self)
-        self.server_name = "127.0.0.1"
-        self.server_port = self.server_address[1]
 
 
 def moon_environment(explicit=None):
@@ -157,7 +140,7 @@ def extract_json(stdout):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.14.0",
+        "module": "Project2026-creator/qti-score", "version": "0.15.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }
@@ -167,6 +150,30 @@ def verify(moon, env, output, offline=False):
         report["checks"].append({"command": ["moon"] + arguments,
                                  "returncode": result.returncode,
                                  "output": (result.stdout + result.stderr).strip()})
+    service_tests = command([sys.executable, "-m", "unittest", "tools.project_test", "-v"], env)
+    report["checks"].append({"command": ["python", "-m", "unittest", "tools.project_test", "-v"],
+                             "returncode": service_tests.returncode,
+                             "output": (service_tests.stdout + service_tests.stderr).strip()})
+    version = json.loads((ROOT / "sdk/package.json").read_text(encoding="utf-8"))["version"]
+    for flag in ["--version", "--help"]:
+        arguments = [moon, "run", "cmd/main", "--", flag]
+        result = command(arguments, env)
+        if result.stdout.splitlines()[0] != "QTI Score " + version:
+            raise AssertionError("CLI and SDK version metadata differ")
+        report["checks"].append({"command": ["moon"] + arguments[1:],
+                                 "returncode": result.returncode, "output": result.stdout.strip()})
+    for arguments in [
+            ["describe", str(ROOT / "_build/not-present.xml")],
+            ["score", "examples/single.xml", str(ROOT / "_build/not-present.json")],
+            ["inspect-package", str(ROOT / "_build/not-present.zip")]]:
+        result = subprocess.run([moon, "run", "cmd/main", "--"] + arguments, cwd=str(ROOT), env=env,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding="utf-8", errors="replace")
+        error = extract_json(result.stdout)
+        if result.returncode != 1 or error.get("error", {}).get("code") != "io_error" or \
+                error["error"]["message"] != "Could not read input file":
+            raise AssertionError("File errors must not expose the local input path")
+        report["checks"].append({"command": ["moon", "run", "cmd/main", "--"] + arguments,
+                                 "returncode": result.returncode, "expected_nonzero": True, "result": error})
     bridge = build_web(moon, env)
     node = shutil.which("node")
     if not node:
@@ -562,6 +569,10 @@ finally {bundle.dispose();}
     report["batch_cases_passed"] = len(batch_scenarios)
     report["entry_point_parity"] = True
     report["passed"] = True
+    report["path_labels"] = {"<project>": "project root", "<home>": "user home",
+                             "<moon>": "MoonBit executable", "<node>": "Node.js executable",
+                             "<python>": "Python executable"}
+    report = portable_report(report, ROOT, [("moon", moon), ("node", node), ("python", sys.executable)])
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print("All checks passed; {} official, {} derived, {} feature, {} package and {} batch cases agree across entry points.".format(

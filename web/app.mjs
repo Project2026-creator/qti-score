@@ -437,7 +437,7 @@ $('sample-package').addEventListener('click', () => loadPackage(async () => {
 }, 'sample-package.zip'));
 
 try {
-  engine = await import('../sdk/index.mjs?v=0.14.0');
+  engine = await import('../sdk/index.mjs?v=0.15.0');
   await loadExample('single');
 } catch (error) {
   $('source-status').textContent = '内核未载入';

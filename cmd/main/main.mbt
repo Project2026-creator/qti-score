@@ -1,17 +1,22 @@
 ///|
 fn main {
   let args = @env.args()
+  let version = "0.15.0"
   // Node keeps both the runtime and script prefix; other targets keep argv[0].
   let offset = if args.length() > 1 && args[1].has_suffix(".js") {
     2
   } else {
     1
   }
+  if args.length() > offset && args[offset] == "--version" {
+    println("QTI Score \{version}")
+    return
+  }
   if args.length() <= offset ||
     args[offset] == "--help" ||
     args[offset] == "help" {
     println(
-      "QTI Score 0.8.0\n  describe ITEM.xml\n  score ITEM.xml RESPONSE.json\n  explain ITEM.xml RESPONSE.json\n  batch ITEM.xml RESPONSES.jsonl\n  inspect-package ARCHIVE.zip\n  package-score ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-explain ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-batch ARCHIVE.zip ATTEMPTS.jsonl [--csv]\n\nResponses: {\"RESPONSE\": \"A\"}, {\"RESPONSE\": [\"A\",\"B\"]}, {\"RESPONSE\": 100.5}, or {\"RESPONSE\": null}\nBatch rows: {\"attempt_id\":\"a\",\"resource_id\":\"choice\",\"response\":{\"RESPONSE\":\"A\"}}\nExplain is an explicit developer diagnostic and may reveal scoring rules.",
+      "QTI Score \{version}\n  --version\n  describe ITEM.xml\n  score ITEM.xml RESPONSE.json\n  explain ITEM.xml RESPONSE.json\n  batch ITEM.xml RESPONSES.jsonl\n  inspect-package ARCHIVE.zip\n  package-score ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-explain ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-batch ARCHIVE.zip ATTEMPTS.jsonl [--csv]\n\nResponses: {\"RESPONSE\":\"A\"}, {\"RESPONSE\":[\"A\",\"B\"]}, {\"RESPONSE\":100.5}, {\"RESPONSE\":null}, or composite {\"ACTION\":\"Adapt\",\"RATIO\":75}\nBatch rows: {\"attempt_id\":\"a\",\"resource_id\":\"choice\",\"response\":{\"RESPONSE\":\"A\"}}\nExplain is an explicit developer diagnostic and may reveal scoring rules.",
     )
     return
   }

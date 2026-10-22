@@ -13,6 +13,7 @@ QTI Score 将 QTI 3 题目编译成可重复使用的评分对象。核心库负
 ```sh
 moon update
 moon test --target all
+moon run cmd/main -- --version
 moon run cmd/main -- score examples/multiple.xml examples/multiple-response.json
 ```
 
@@ -39,6 +40,8 @@ python tools/project.py serve
 ```
 
 浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换二十二个示例、编辑或导入 XML，并查看作答和评分结果。勾选“记录评分过程”后，提交作答会显示分支判断、映射贡献、顺序比较与分值限制。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；普通选择／排序的 `shuffle` 不改变评分计算，演示按原文顺序显示选项。文中下拉题的随机呈现暂未实现，明确拒绝 `shuffle="true"`。
+
+演示服务只绑定 `127.0.0.1`，根地址跳转到工作台。HTTP 仅提供页面模块、SDK、示例文件、示例题包和使用文档；Git 元数据、构建缓存、依赖目录、工具源码和目录列表不在服务范围内。GET 与 HEAD 使用相同的资源边界，重建后的模块不使用条件缓存。页面与资源仍可离线使用，下载题包和 JSON/CSV 导出方法不变。
 
 ## 排序题
 
@@ -468,6 +471,7 @@ moon fmt --check
 moon check --target all --deny-warn
 moon test --target all --deny-warn
 moon info --target all
+python -m unittest tools.project_test -v
 npm ci --prefix sdk --ignore-scripts
 python tools/project.py check
 ```
@@ -481,6 +485,10 @@ python tools/project.py check
 另检查固定官方 `gap_match.xml` 的一处声明冲突：原文件省略最大关联数，默认 1，与其两个标准配对不一致，预期返回 `invalid_item`。保留原文件的 SHA-256，并仅添加 `max-associations="0"`，对这个明确标注的派生版本运行 **8 个评分场景**。报告将其记为 `derived_cases`，原文件拒绝结果记为 `official_rejections`，与上述 55 个未修改官方场景分别列出。来源见 [固定官方文件](https://github.com/1EdTech/qti-examples/blob/0a92fbbb6d2e620a1f7fad19977be4c418246bc0/qtiv3-examples/packaging/items/gap_match.xml)。
 
 官方 XML 首次运行时下载到 `_build/reference/`，校验固定 SHA-256 后使用，后续可用 `--offline` 运行。结构化结果默认保存到 `_build/validation.json`，也可用 `--output PATH` 指定位置。检查还覆盖批处理空行、失败后继续处理及退出码。普通 MoonBit 测试使用仓库内自编题目，依赖下载后可离线运行。
+
+验证报告中的运行环境路径使用 `<project>`、`<home>`、`<moon>`、`<node>`、`<python>` 标签，保留版本、参数、退出码和实际评分结果，便于跨机器查看和分享。`path_labels` 说明各标签的含义；报告中的标签不是可直接执行的文件路径。原始命令示例见本文，生成报告不修改输入文件或评分对象。
+
+完整检查也运行 Python 标准库测试，验证报告转换不会改变分数、CSV 和标准来源链接，并通过真实回环 HTTP 请求检查资源范围、目录列表、编码路径、HEAD 及条件缓存。CLI 的 `--version` 与 `--help` 版本和 SDK 元数据一起核对；文件读取失败的结构化错误只说明读取失败，不包含输入文件的本机路径。
 
 ## 依据与依赖
 
