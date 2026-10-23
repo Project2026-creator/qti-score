@@ -11,12 +11,19 @@ if (metadata.kind === 'composite') {
   const id: string = metadata.responses[0].identifier;
   const multi: ResponseObject = { PLATFORM: 'LMS', COUNT: 4 };
   for (const binding of metadata.responses) {
-    if (binding.base_type === 'identifier') {
+    if (binding.inline_choice) {
       const required: boolean = binding.inline_choice.required;
       const choice: string = binding.inline_choice.choices[0].identifier;
       // @ts-expect-error composite choice metadata is immutable
       binding.inline_choice.choices[0].identifier = 'changed';
       void [required, choice];
+    } else if (binding.choice) {
+      const required: boolean = binding.choice.required;
+      const orientation: 'horizontal' | 'vertical' = binding.choice.orientation;
+      const option: string = binding.choice.choices[0].identifier;
+      // @ts-expect-error choice metadata is immutable
+      binding.choice.choices[0].identifier = 'changed';
+      void [required, orientation, option];
     } else {
       const entryType: 'string' | 'integer' | 'float' = binding.base_type;
       void entryType;

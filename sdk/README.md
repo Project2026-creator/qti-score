@@ -139,7 +139,20 @@ Version 0.9.0 supports one `qti-inline-choice-interaction` per item with single/
 
 Optional NULL, empty string and omitted RESPONSE are unanswered zeroes. `required=true` or `min-choices=1` makes an empty response an `invalid_response` error. Either constraint requires selection; minimum must be zero or one. This validation is specific to inline choice and does not change other item kinds. In package batch reports, a required omission has no score, whereas an optional omission remains an unanswered zero. The native browser select shows the authored label and placeholder and supports keyboard selection and clear/reset.
 
-One choice is valid. Unknown/case-mismatched IDs, wrong containers and duplicate/reserved authored IDs are rejected. Only static text context is supported; shuffle=true, dynamic content, media and composite items are explicitly rejected. Other item descriptions omit `inline_choice`; existing response types, methods, disposal and package APIs are unchanged.
+One choice is valid. Unknown/case-mismatched IDs, wrong containers and duplicate/reserved authored IDs are rejected. Only static text context is supported; shuffled inline choices, dynamic content and media are explicitly rejected. Composite items can contain inline choices as described in the composite sections. Other interaction descriptions omit `inline_choice`; existing response types, methods, disposal and package APIs are unchanged.
+
+## Block single choices in composite items
+
+Version 0.17.0 extends composite items with block `qti-choice-interaction` controls bound to single identifier responses. They can coexist with inline choices, text and numeric entries. `describe().responses` contains either `choice:{required,prompt,orientation,choices}` or the existing `inline_choice` field. Narrow the TypeScript union by testing these properties; identifier base type alone no longer implies a dropdown. Existing entry/dropdown metadata and public methods retain their shapes.
+
+```js
+for (const binding of item.describe().responses) {
+  if (binding.choice) console.log(binding.choice.prompt, binding.choice.choices);
+  else if (binding.inline_choice) console.log(binding.inline_choice.label);
+}
+```
+
+Maximum is one (default one), minimum zero or one (default zero), and orientation horizontal or vertical (default vertical). This profile requires at least two nonempty static options. Required missing/null/empty responses fail the whole attempt; valid optional NULL contributes according to authored rules. Options, correct references and map keys are validated per response; identifiers are case sensitive. Wrong containers, unknown IDs, foreign field options and unsupported content are rejected. No author answers or rules are added to ordinary metadata. The browser uses independent native radio groups, supports reset and keyboard input, and displays authored option order even when shuffle is true. The scoring kernel does not implement delivery randomization. See `examples/composite-choice.xml` and `composite-choice-required.xml`.
 
 ## Contextual hottext and candidate instructions
 

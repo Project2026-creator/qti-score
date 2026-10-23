@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="required-assessment-actions" title="评价方式与反馈行动（单选）">
+  <qti-response-declaration identifier="METHOD" cardinality="single" base-type="identifier"><qti-correct-response><qti-value>Formative</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-response-declaration identifier="ACTION" cardinality="single" base-type="identifier"><qti-correct-response><qti-value>Adapt</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>两组单选均为必答，每组正确得 1 分。遗漏任一组时整次作答不评分。</p></qti-content-body></qti-rubric-block>
+    <qti-choice-interaction response-identifier="METHOD" min-choices="1" orientation="horizontal"><qti-prompt>利用过程证据改进教学属于：</qti-prompt><qti-simple-choice identifier="Formative">形成性评价</qti-simple-choice><qti-simple-choice identifier="Summative">总结性评价</qti-simple-choice></qti-choice-interaction>
+    <qti-choice-interaction response-identifier="ACTION" max-choices="1" min-choices="1"><qti-prompt>获得反馈后应当：</qti-prompt><qti-simple-choice identifier="Adapt">调整策略</qti-simple-choice><qti-simple-choice identifier="Ignore">忽略反馈</qti-simple-choice></qti-choice-interaction>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">0</qti-base-value></qti-set-outcome-value>
+    <qti-response-condition><qti-response-if><qti-match><qti-variable identifier="METHOD"/><qti-correct identifier="METHOD"/></qti-match><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">1</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+    <qti-response-condition><qti-response-if><qti-match><qti-variable identifier="ACTION"/><qti-correct identifier="ACTION"/></qti-match><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">1</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+  </qti-response-processing>
+</qti-assessment-item>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/imscp_v1p1" identifier="mixed-choice-bank"><resources>
+  <resource identifier="mixed" type="imsqti_item_xmlv3p0" href="items/composite-choice.xml"><file href="items/composite-choice.xml"/></resource>
+  <resource identifier="required" type="imsqti_item_xmlv3p0" href="items/composite-choice-required.xml"><file href="items/composite-choice-required.xml"/></resource>
+</resources></manifest>

@@ -14,11 +14,11 @@
     <a class="brand" href="./"><span class="mark" aria-hidden="true">q.</span><span>QTI Score<small>ASSESSMENT WORKSPACE</small></span></a>
     <p class="nav-label">工作空间</p>
     <nav class="workspace-nav" aria-label="工作空间">
-      <button type="button" data-view="workbench" aria-current="page"><span aria-hidden="true">◫</span>题目工作台<span class="nav-count">22</span></button>
+      <button type="button" data-view="workbench" aria-current="page"><span aria-hidden="true">◫</span>题目工作台<span class="nav-count">24</span></button>
       <button type="button" data-view="package"><span aria-hidden="true">▣</span>题包资源</button>
       <button type="button" data-view="results"><span aria-hidden="true">▥</span>结果分析<span id="nav-result-count" class="nav-count">—</span></button>
     </nav>
-    <div class="sidebar-note"><span class="local-icon" aria-hidden="true">◎</span><strong>在你的设备上评分</strong><p>题目与作答留在当前浏览器。无需账号，即可开始验证。</p><span class="version-label">MoonBit · v0.16.0</span></div>
+    <div class="sidebar-note"><span class="local-icon" aria-hidden="true">◎</span><strong>在你的设备上评分</strong><p>题目与作答留在当前浏览器。无需账号，即可开始验证。</p><span class="version-label">MoonBit · v0.17.0</span></div>
     <a href="../README.md" class="sidebar-doc">使用文档 <span aria-hidden="true">↗</span></a>
   </aside>
   <div class="page-shell">
@@ -28,32 +28,34 @@
     <section class="intro"><div><p class="eyebrow">BUILD CONFIDENCE IN EVERY SCORE</p><h1 id="workbench-title">每一次评分，都有据可循。</h1><p class="lead">从标准题目到可验证的结果，在一个工作台里完成。</p></div><div class="hero-note"><span class="hero-symbol" aria-hidden="true">✓</span><div><strong>QTI 3 评分内核</strong><small>预览、验证、解释，共用同一套规则</small></div></div></section>
     <div class="workspace-layout">
     <aside class="sample-library" aria-label="示例题库">
-      <div class="library-heading"><h2>示例题库</h2><span id="example-count">22 道</span></div>
+      <div class="library-heading"><h2>示例题库</h2><span id="example-count">24 道</span></div>
       <label class="search-field"><span aria-hidden="true">⌕</span><input id="example-search" type="search" placeholder="搜索题型或评分规则" aria-label="搜索示例"></label>
       <p class="library-help">选择示例，直接体验评分</p>
     <nav class="examples" aria-label="示例题目">
-      <button type="button" data-example="single" aria-pressed="true"><span class="example-number">01</span><span><strong>单选题</strong><small>完全匹配 · match_correct</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="multiple" aria-pressed="false"><span class="example-number">02</span><span><strong>多选题</strong><small>部分得分 · map_response</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="text" aria-pressed="false"><span class="example-number">03</span><span><strong>文本填空</strong><small>大小写与 Unicode</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="numeric" aria-pressed="false"><span class="example-number">04</span><span><strong>数值填空</strong><small>精确匹配与误差容限</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="order" aria-pressed="false"><span class="example-number">05</span><span><strong>排序题</strong><small>逐位置比较 · ordered</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="order-subset" aria-pressed="false"><span class="example-number">06</span><span><strong>选择并排序</strong><small>子集数量与顺序检查</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="match" aria-pressed="false"><span class="example-number">07</span><span><strong>配对题</strong><small>关联次数与部分得分</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="match-single" aria-pressed="false"><span class="example-number">08</span><span><strong>单组配对</strong><small>有向关联 · 完全匹配</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="gap" aria-pressed="false"><span class="example-number">09</span><span><strong>选词填空</strong><small>词语复用与空位限制</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="gap-single" aria-pressed="false"><span class="example-number">10</span><span><strong>单空选词</strong><small>在文段中完全匹配</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="hottext" aria-pressed="false"><span class="example-number">11</span><span><strong>文段多选</strong><small>选择证据片段 · 部分得分</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="hottext-single" aria-pressed="false"><span class="example-number">12</span><span><strong>文段单选</strong><small>原文定位 · 完全匹配</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="inline-choice" aria-pressed="false"><span class="example-number">13</span><span><strong>下拉选词</strong><small>保留上下文 · 可选作答</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="inline-choice-required" aria-pressed="false"><span class="example-number">14</span><span><strong>必答下拉</strong><small>漏答检查 · 部分得分</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="slider" aria-pressed="false"><span class="example-number">15</span><span><strong>整数滑杆</strong><small>范围与步长 · 数值映射</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="slider-float" aria-pressed="false"><span class="example-number">16</span><span><strong>小数滑杆</strong><small>垂直方向 · 容差评分</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="composite" aria-pressed="false"><span class="example-number">17</span><span><strong>复合填空</strong><small>多个响应 · 加权合成</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="composite-numeric" aria-pressed="false"><span class="example-number">18</span><span><strong>数值复合</strong><small>逐空映射 · 部分得分</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="composite-tolerance" aria-pressed="false"><span class="example-number">19</span><span><strong>测量复合</strong><small>误差容限 · 分档计分</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="composite-inline" aria-pressed="false"><span class="example-number">20</span><span><strong>混合复合</strong><small>下拉选择 · 数值填空</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="composite-inline-required" aria-pressed="false"><span class="example-number">21</span><span><strong>必答复合</strong><small>独立选项 · 遗漏校验</small></span><span class="example-arrow">↗</span></button>
-      <button type="button" data-example="composite-fallback" aria-pressed="false"><span class="example-number">22</span><span><strong>诊断扣分</strong><small>区分漏答 · 默认分支</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="single" aria-pressed="true"><span class="example-number">01</span><span><strong>单选题</strong><small>完全匹配 · match_correct</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="multiple" aria-pressed="false"><span class="example-number">02</span><span><strong>多选题</strong><small>部分得分 · map_response</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="text" aria-pressed="false"><span class="example-number">03</span><span><strong>文本填空</strong><small>大小写与 Unicode</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="numeric" aria-pressed="false"><span class="example-number">04</span><span><strong>数值填空</strong><small>精确匹配与误差容限</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="order" aria-pressed="false"><span class="example-number">05</span><span><strong>排序题</strong><small>逐位置比较 · ordered</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="order-subset" aria-pressed="false"><span class="example-number">06</span><span><strong>选择并排序</strong><small>子集数量与顺序检查</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="match" aria-pressed="false"><span class="example-number">07</span><span><strong>配对题</strong><small>关联次数与部分得分</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="match-single" aria-pressed="false"><span class="example-number">08</span><span><strong>单组配对</strong><small>有向关联 · 完全匹配</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="gap" aria-pressed="false"><span class="example-number">09</span><span><strong>选词填空</strong><small>词语复用与空位限制</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="gap-single" aria-pressed="false"><span class="example-number">10</span><span><strong>单空选词</strong><small>在文段中完全匹配</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="hottext" aria-pressed="false"><span class="example-number">11</span><span><strong>文段多选</strong><small>选择证据片段 · 部分得分</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="hottext-single" aria-pressed="false"><span class="example-number">12</span><span><strong>文段单选</strong><small>原文定位 · 完全匹配</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="inline-choice" aria-pressed="false"><span class="example-number">13</span><span><strong>下拉选词</strong><small>保留上下文 · 可选作答</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="inline-choice-required" aria-pressed="false"><span class="example-number">14</span><span><strong>必答下拉</strong><small>漏答检查 · 部分得分</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="slider" aria-pressed="false"><span class="example-number">15</span><span><strong>整数滑杆</strong><small>范围与步长 · 数值映射</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="slider-float" aria-pressed="false"><span class="example-number">16</span><span><strong>小数滑杆</strong><small>垂直方向 · 容差评分</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="composite" aria-pressed="false"><span class="example-number">17</span><span><strong>复合填空</strong><small>多个响应 · 加权合成</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="composite-numeric" aria-pressed="false"><span class="example-number">18</span><span><strong>数值复合</strong><small>逐空映射 · 部分得分</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="composite-tolerance" aria-pressed="false"><span class="example-number">19</span><span><strong>测量复合</strong><small>误差容限 · 分档计分</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="composite-inline" aria-pressed="false"><span class="example-number">20</span><span><strong>混合复合</strong><small>下拉选择 · 数值填空</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="composite-inline-required" aria-pressed="false"><span class="example-number">21</span><span><strong>必答复合</strong><small>独立选项 · 遗漏校验</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="composite-fallback" aria-pressed="false"><span class="example-number">22</span><span><strong>诊断扣分</strong><small>区分漏答 · 默认分支</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="composite-choice" aria-pressed="false"><span class="example-number">23</span><span><strong>选择与计算</strong><small>单选、下拉与填空组合</small></span><span class="example-arrow">↗</span></button>
+      <button type="button" disabled data-example="composite-choice-required" aria-pressed="false"><span class="example-number">24</span><span><strong>双组必答单选</strong><small>独立选项 · 漏答检查</small></span><span class="example-arrow">↗</span></button>
     </nav>
     <p id="example-empty" class="empty-message" role="status" hidden>没有匹配的示例，试试“数值”或“复合”。</p>
     </aside>
@@ -69,7 +71,7 @@
     <section id="view-package" class="workspace-view" aria-labelledby="package-title" hidden>
     <section class="intro"><div><p class="eyebrow">CONTENT LIBRARY</p><h1 id="package-title">题包清晰，评分有序。</h1><p class="lead">导入本地 QTI ZIP，逐题检查兼容状态，再进入结果分析。</p></div><button class="secondary" type="button" data-go="results">前往结果分析 →</button></section>
     <section class="package-panel" aria-labelledby="package-heading">
-      <div class="package-heading"><div><span class="step">CONTENT PACKAGE</span><h2 id="package-heading">从题包开始</h2><p>导入 QTI 3 ZIP，逐题检查兼容状态与共享资源。</p></div><div class="package-actions"><label class="sample-selector">示例<select id="sample-package-kind"><option value="sample">基础混合</option><option value="composite-fallback">诊断扣分</option><option value="composite-inline">混合复合</option><option value="composite-tolerance">误差分档</option><option value="composite">复合填空</option><option value="slider">数值滑杆</option><option value="order">排序</option><option value="match">配对</option><option value="gap">选词填空</option><option value="hottext">文段选择</option><option value="inline-choice">文中下拉</option></select></label><button id="sample-package" class="text-button" type="button">载入示例题包</button><button id="open-package" class="secondary" type="button">导入 ZIP ↥</button><input id="package-input" type="file" accept=".zip,application/zip" hidden></div></div>
+      <div class="package-heading"><div><span class="step">CONTENT PACKAGE</span><h2 id="package-heading">从题包开始</h2><p>导入 QTI 3 ZIP，逐题检查兼容状态与共享资源。</p></div><div class="package-actions"><label class="sample-selector">示例<select id="sample-package-kind"><option value="sample">基础混合</option><option value="composite-choice">&#x9009;&#x62e9;&#x4e0e;&#x8ba1;&#x7b97;</option><option value="composite-fallback">诊断扣分</option><option value="composite-inline">混合复合</option><option value="composite-tolerance">误差分档</option><option value="composite">复合填空</option><option value="slider">数值滑杆</option><option value="order">排序</option><option value="match">配对</option><option value="gap">选词填空</option><option value="hottext">文段选择</option><option value="inline-choice">文中下拉</option></select></label><button id="sample-package" class="text-button" type="button">载入示例题包</button><button id="open-package" class="secondary" type="button">导入 ZIP ↥</button><input id="package-input" type="file" accept=".zip,application/zip" hidden></div></div>
       <p id="package-status" class="package-status" role="status">支持本地题包，最大 8 MiB。文件仅在当前浏览器中读取。</p>
       <div id="package-error" class="error" role="alert" hidden></div>
       <div id="package-report" hidden><div id="package-items" class="package-items" aria-label="题包中的题目"></div><p id="package-selection" class="package-status"></p><details class="package-resources"><summary>清单与资源依赖</summary><ul id="resource-list"></ul></details></div>

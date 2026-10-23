@@ -1,0 +1,8 @@
+{"attempt_id":"learner-01","resource_id":"mixed","response":{"METHOD":"Formative","ACTION":"Adapt","RATIO":75,"UNIT":"%"}}
+{"attempt_id":"learner-01","resource_id":"required","response":{"METHOD":"Formative","ACTION":"Adapt"}}
+{"attempt_id":"learner-02","resource_id":"mixed","response":{"METHOD":"Formative","ACTION":"Review","RATIO":74.5,"UNIT":"%"}}
+{"attempt_id":"learner-03","resource_id":"mixed","response":{"METHOD":"Summative","ACTION":"Ignore","RATIO":80,"UNIT":"%"}}
+{"attempt_id":"learner-04","resource_id":"mixed","response":{}}
+{"attempt_id":"learner-05","resource_id":"required","response":{"METHOD":"Formative"}}
+{"attempt_id":"learner-06","resource_id":"mixed","response":{"METHOD":["Formative"]}}
+{"attempt_id":"learner-07","resource_id":"required","response":{"METHOD":"Summative","ACTION":"Ignore"}}

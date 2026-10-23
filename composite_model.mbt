@@ -7,7 +7,15 @@ priv struct CompositeBinding {
   placeholder : String
   choices : Array[Choice]
   inline_choice : InlineChoiceInteraction?
+  choice : CompositeChoice?
   source : SourceLocation
+} derive(Debug)
+
+///|
+priv struct CompositeChoice {
+  prompt : String
+  required : Bool
+  orientation : String
 } derive(Debug)
 
 ///|
@@ -67,6 +75,17 @@ pub fn CompositeItem::describe(self : CompositeItem) -> Json {
         fields["inline_choice"] = {
           "required": spec.required,
           "label": spec.label,
+          "choices": b.choices.map(c => {
+            "identifier": c.identifier,
+            "text": c.text,
+          }),
+        }
+      }
+      if b.choice is Some(spec) && response is Object(fields) {
+        fields["choice"] = {
+          "prompt": spec.prompt,
+          "required": spec.required,
+          "orientation": spec.orientation,
           "choices": b.choices.map(c => {
             "identifier": c.identifier,
             "text": c.text,

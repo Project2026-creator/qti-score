@@ -97,6 +97,9 @@ def build_sample_package():
     examples.append(("composite-fallback-package.zip", [("imsmanifest.xml", "composite-fallback-manifest.xml"),
                                                        ("items/composite-fallback.xml", "composite-fallback.xml"),
                                                        ("items/composite-inline-required.xml", "composite-inline-required.xml")]))
+    examples.append(("composite-choice-package.zip", [("imsmanifest.xml", "composite-choice-manifest.xml"),
+                                                     ("items/composite-choice.xml", "composite-choice.xml"),
+                                                     ("items/composite-choice-required.xml", "composite-choice-required.xml")]))
     for filename, files in examples:
         with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path, source in files:
@@ -175,7 +178,7 @@ def verify_item_statistics(report):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.16.0",
+        "module": "Project2026-creator/qti-score", "version": "0.17.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }
@@ -325,6 +328,17 @@ def verify(moon, env, output, offline=False):
         ("composite-inline-required", [({"METHOD":"Formative","ACTION":"Adapt"},2),
                                        ({"METHOD":"Summative","ACTION":"Adapt"},1),
                                        ({"METHOD":"Formative","ACTION":"Ignore"},1),
+                                       ({"METHOD":"Summative","ACTION":"Ignore"},0)]),
+        ("composite-choice", [({"METHOD":"Formative","ACTION":"Adapt","RATIO":75,"UNIT":"%"},6),
+                              ({"METHOD":"Formative","ACTION":"Review","RATIO":74.5,"UNIT":"%"},4.5),
+                              ({"METHOD":"Summative","ACTION":"Ignore","RATIO":80,"UNIT":"%"},1),
+                              ({"METHOD":"Formative"},2), ({"ACTION":"Adapt"},1), ({"ACTION":"Review"},0.5),
+                              ({"RATIO":75},2), ({"UNIT":"%"},1), ({"METHOD":"Summative"},0),
+                              ({"RATIO":74},1), ({"RATIO":76},1), ({"RATIO":76.001},0),
+                              ({},0), ({"METHOD":None},0), ({"METHOD":""},0)]),
+        ("composite-choice-required", [({"METHOD":"Formative","ACTION":"Adapt"},2),
+                                       ({"METHOD":"Formative","ACTION":"Ignore"},1),
+                                       ({"METHOD":"Summative","ACTION":"Adapt"},1),
                                        ({"METHOD":"Summative","ACTION":"Ignore"},0)]),
         ("composite-fallback", [({"ACTION":"Adapt","RATIO":75},4), ({"ACTION":"Adapt","RATIO":74.5},3),
                                 ({"ACTION":"Adapt","RATIO":80},1.5), ({"ACTION":"Ignore","RATIO":75},1),
@@ -486,6 +500,7 @@ try {
     batch_scenarios.append(("composite-tolerance-package", (ROOT / "examples/composite-tolerance-attempts.jsonl").read_text(encoding="utf-8"), 7, 6, 1, 1))
     batch_scenarios.append(("composite-inline-package", (ROOT / "examples/composite-inline-attempts.jsonl").read_text(encoding="utf-8"), 8, 6, 2, 1))
     batch_scenarios.append(("composite-fallback-package", (ROOT / "examples/composite-fallback-attempts.jsonl").read_text(encoding="utf-8"), 8, 6, 2, 1))
+    batch_scenarios.append(("composite-choice-package", (ROOT / "examples/composite-choice-attempts.jsonl").read_text(encoding="utf-8"), 8, 6, 2, 1))
     batch_script = """
 import {readFileSync} from 'node:fs';
 const {importPackage}=await import(process.argv[1]);
@@ -514,6 +529,8 @@ finally {bundle.dispose();}
             batch_archive = ROOT / "web/composite-inline-package.zip"
         if name == "composite-fallback-package":
             batch_archive = ROOT / "web/composite-fallback-package.zip"
+        if name == "composite-choice-package":
+            batch_archive = ROOT / "web/composite-choice-package.zip"
         path = cache / ("batch-" + name + ".jsonl")
         path.write_text(source, encoding="utf-8")
         arguments = [moon, "run", "cmd/main", "--", "package-batch", str(batch_archive), str(path)]
@@ -582,6 +599,8 @@ finally {bundle.dispose();}
             raise AssertionError("Composite inline batch scores differ from authored expectations")
         if name == "composite-fallback-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [4, 2, 1.5, 1, 0, None, None, -1.5]:
             raise AssertionError("Composite fallback batch scores differ from authored expectations")
+        if name == "composite-choice-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [6, 2, 4.5, 1, 0, None, None, 0]:
+            raise AssertionError("Composite choice batch scores differ from authored expectations")
         report["batch_cases"].append({"name": name, "expected_exit": expected_exit,
                                       "cli_report": cli_report, "sdk_report": sdk_evaluation["report"],
                                       "csv": exported, "csv_decoded": decoded, "items_csv": item_csv,

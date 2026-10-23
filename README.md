@@ -39,11 +39,11 @@ moon run cmd/main -- batch examples/multiple.xml examples/attempts.jsonl
 python tools/project.py serve
 ```
 
-浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换二十二个示例、编辑或导入 XML，并查看作答和评分结果。勾选“记录评分过程”后，提交作答会显示分支判断、映射贡献、顺序比较与分值限制。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；普通选择／排序的 `shuffle` 不改变评分计算，演示按原文顺序显示选项。文中下拉题的随机呈现暂未实现，明确拒绝 `shuffle="true"`。
+浏览器打开 [http://127.0.0.1:4173/web/](http://127.0.0.1:4173/web/)。可切换二十四个示例、编辑或导入 XML，并查看作答和评分结果。勾选“记录评分过程”后，提交作答会显示分支判断、映射贡献、顺序比较与分值限制。示例界面用纯文本呈现题干，不实现完整 QTI 内容渲染；普通选择／排序的 `shuffle` 不改变评分计算，演示按原文顺序显示选项。文中下拉题的随机呈现暂未实现，明确拒绝 `shuffle="true"`。
 
 工作空间按“题目工作台 / 题包资源 / 结果分析”导航。示例题库可按中文题型或英文规则搜索；“查看 XML”展开源码并排预览，窄屏时自动纵向排列。工作台保留最近 20 次成功评分的响应与结果，可清空或导出 JSON；记录仅存在当前页面内存中，刷新后清除，不包含标准答案或解释步骤。XML 可单独导出。
 
-题包资源页提供十一组示例题包和各自配套的批量作答。载入后前往“结果分析”，依次载入示例作答并评分。自行导入的题包需要提供对应 JSONL，不会自动套用其他题包的示例数据。结果页提供逐题统计、作答汇总、状态/资源/文本筛选、每页 50 行明细和三种完整批次导出；筛选不改变统计或导出内容。切换题包或编辑作答会清除旧结果。
+题包资源页提供十二组示例题包和各自配套的批量作答。载入后前往“结果分析”，依次载入示例作答并评分。自行导入的题包需要提供对应 JSONL，不会自动套用其他题包的示例数据。结果页提供逐题统计、作答汇总、状态/资源/文本筛选、每页 50 行明细和三种完整批次导出；筛选不改变统计或导出内容。切换题包或编辑作答会清除旧结果。
 
 ### 逐题统计
 
@@ -197,7 +197,7 @@ moon run cmd/main -- package-batch web/slider-package.zip examples/slider-attemp
 
 ## 多响应复合填空
 
-支持一道题包含 2–8 个独立响应：`single/string`、`single/integer`、`single/float` 使用 `qti-text-entry-interaction`；`single/identifier` 使用 `qti-inline-choice-interaction`。变量可以使用不同名称，声明、交互和评分规则须一一对应。下拉选择、文本与数值可以混合，文段保留各空的位置。已有单响应题目及其元信息保持原样。
+支持一道题包含 2–8 个独立响应：`single/string`、`single/integer`、`single/float` 使用 `qti-text-entry-interaction`；`single/identifier` 使用 `qti-inline-choice-interaction` 或块级 `qti-choice-interaction`。变量可以使用不同名称，声明、交互和评分规则须一一对应。单选、下拉、文本与数值可以混合，文段保留各交互的位置。已有单响应题目及其元信息保持原样。
 
 ```sh
 moon run cmd/main -- score examples/composite.xml examples/composite-response.json
@@ -253,11 +253,27 @@ moon run cmd/main -- package-batch web/composite-inline-package.zip examples/com
 
 混合示例中 `{"ACTION":"Adapt","RATIO":75}` 得 4 分，`{"ACTION":"Review","RATIO":74.5}` 得 1.5 分。可选下拉框未选择时保持 NULL，跳过映射及其下界。`required="true"` 或 `min-choices="1"` 的下拉框必须作答；缺失、NULL、空字符串均报 `invalid_response`，整次尝试不会返回部分分数。未知 ID、数组、数值或布尔选项同样拒绝，错误行不影响后续批量行。
 
-元信息在标识符响应上增加 `inline_choice:{required,label,choices}`，`placeholder` 为占位提示；选项文字只出现在该响应的 choices 中，不混入公共 passage。旧文本／数值响应的元信息不变。TypeScript 新增 `CompositeResponseDescription` 联合，按 `base_type === 'identifier'` 可访问下拉描述；若调用方穷举复合响应类型，需要处理这个新增分支。普通元信息不返回正确值、映射或评分规则。
+下拉元信息使用 `inline_choice:{required,label,choices}`，`placeholder` 为占位提示；选项文字只出现在该响应的 choices 中，不混入公共 passage。旧文本／数值响应的元信息不变。TypeScript 使用 `CompositeResponseDescription` 联合；0.17.0 起标识符响应既可以是下拉，也可以是块级单选，应继续检查 `binding.inline_choice` 或 `binding.choice` 来缩窄类型。普通元信息不返回正确值、映射或评分规则。
 
 浏览器提供原生下拉框、独立可访问标签、必答提示及统一清空操作，选择值仍由 MoonBit 核心校验。静态文字、标签、占位提示及选项验证复用原有单响应下拉实现。随机呈现 `shuffle="true"`、多值下拉、动态／富媒体选项及其他复合交互仍不支持。
 
 独立题包包含可选混合题与两个必答下拉框的题目。8 行批量作答得到 4、2、1.5、2、错误、错误、未作答 0、已作答 0；6 行成功、2 行失败，CLI 返回报告并退出 1。既有编译、评分、解释、题包访问与导出方法保持不变。
+
+### 块级单选与混合响应
+
+0.17.0 支持复合题中的 `qti-choice-interaction`，每个交互绑定一个 `single/identifier` 响应。`max-choices` 只接受 1，省略时默认为 1；`min-choices` 为 0 或 1，默认为 0。`min-choices="1"` 的单选在缺失、NULL 或空字符串时使整次作答失败，不返回已填部分的分数。未知、大小写不符、带额外空白的选项，以及数组、数字、布尔响应均被拒绝。每组分别验证选项集合，相同选项 ID 在不同响应中不会合并。
+
+本子集要求至少两个非空 `qti-simple-choice`，接受静态 prompt、常见纯文本标签及 `fixed` 布尔属性；动态内容、富媒体、多值选择和未列出的属性明确拒绝。`orientation` 接受 horizontal/vertical，默认 vertical；网页以独立单选组呈现并保留键盘焦点，窄屏可将横向提示改为纵向布局。与已有普通选择题一样，核心接受 `shuffle` 布尔值，演示仍按作者顺序显示，不执行随机呈现。依据见 [QTI 3 ChoiceInteraction 信息模型](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/index.html#Data_ChoiceInteraction)。
+
+单选响应的元信息新增 `choice:{required,prompt,orientation,choices}`，不含 `inline_choice`。prompt 和候选文字保留在该组中，不混入共享 passage，也不返回正确答案或映射。TypeScript 调用方需要处理新增的 `CompositeChoiceDescription` 分支；MoonBit 公开评分方法保持不变。
+
+```sh
+moon run cmd/main -- score examples/composite-choice.xml examples/composite-choice-response.json
+python tools/project.py build-web
+moon run cmd/main -- package-batch web/composite-choice-package.zip examples/composite-choice-attempts.jsonl
+```
+
+示例把单选、下拉、数值和文本四个响应组合计分：`{"METHOD":"Formative","ACTION":"Adapt","RATIO":75,"UNIT":"%"}` 得 6 分；将行动改为 Review、数值改为 74.5 时得 4.5 分。另一个示例提供两组必答单选。配套批量文件为 8 行、6 成功、2 错误，成功行得分为 6、2、4.5、1、0、0；漏答与错误响应不计为零分，逐题统计沿用既有规则。
 
 ### 漏答、错答与默认分支
 

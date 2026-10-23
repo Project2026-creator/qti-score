@@ -12,6 +12,9 @@ const $ = id => document.getElementById(id);
 const workspace = createWorkspace();
 const batchPanel = createBatchPanel();
 const source = $('xml-source');
+const engineControls = [...document.querySelectorAll('[data-example], #compile, #open-file, #import-xml, #open-package, #sample-package')];
+for (const control of engineControls) control.disabled = true;
+source.disabled = true;
 let engine;
 let compiledItem;
 let orderControl;
@@ -332,6 +335,7 @@ async function loadPackage(readBytes, name, sampleSource = null) {
 }
 
 async function loadExample(name) {
+  if (!engine) return;
   const request = ++loading;
   $('submit-score').disabled = true;
   try {
@@ -446,9 +450,12 @@ $('sample-package').addEventListener('click', () => {
 });
 
 try {
-  engine = await import('../sdk/index.mjs?v=0.16.0');
+  engine = await import('../sdk/index.mjs?v=0.17.0');
   await loadExample('single');
 } catch (error) {
   $('source-status').textContent = '内核未载入';
   showError('fatal-error', { code: 'engine_unavailable', message: '请先执行 python tools/project.py serve 以构建并启动工作台。' });
+} finally {
+  for (const control of engineControls) control.disabled = !engine;
+  source.disabled = !engine;
 }

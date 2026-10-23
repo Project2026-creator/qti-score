@@ -14,7 +14,7 @@ PACKAGE_FILES = frozenset([
     "sample-package.zip", "order-package.zip", "match-package.zip", "gap-package.zip",
     "hottext-package.zip", "inline-choice-package.zip", "slider-package.zip",
     "composite-package.zip", "composite-tolerance-package.zip", "composite-inline-package.zip",
-    "composite-fallback-package.zip",
+    "composite-fallback-package.zip", "composite-choice-package.zip",
 ])
 
 

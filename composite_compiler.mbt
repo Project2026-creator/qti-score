@@ -65,7 +65,7 @@ fn compile_composite_root(root : Node) -> CompositeItem raise QtiError {
       _ =>
         raise Unsupported(
           declaration.location(),
-          "composite supports text/numeric entry and inline choice only",
+          "composite supports text/numeric entry, inline choice and single choice only",
         )
     }
     let correct = declaration
@@ -82,6 +82,7 @@ fn compile_composite_root(root : Node) -> CompositeItem raise QtiError {
       placeholder: "",
       choices: [],
       inline_choice: None,
+      choice: None,
       source: declaration.source(),
     })
   }
@@ -109,7 +110,7 @@ fn compile_composite_root(root : Node) -> CompositeItem raise QtiError {
   if seen.length() != bindings.length() {
     raise InvalidItem(
       body.location(),
-      "every composite response needs exactly one entry interaction",
+      "every composite response needs exactly one interaction",
     )
   }
   for binding in bindings {
@@ -141,7 +142,8 @@ fn composite_passage(
     return
   }
   if node.name() == "qti-text-entry-interaction" ||
-    node.name() == "qti-inline-choice-interaction" {
+    node.name() == "qti-inline-choice-interaction" ||
+    node.name() == "qti-choice-interaction" {
     let id = node.required("response-identifier")
     let mut found = false
     for i, binding in bindings {

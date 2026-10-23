@@ -14,6 +14,55 @@ const hasCode = code => cause => cause instanceof QtiScoreError && cause.code ==
 const packageBytes = () => readFileSync(new URL('../web/sample-package.zip', import.meta.url));
 const packageAttempts = () => readFileSync(new URL('../examples/package-attempts.jsonl', import.meta.url), 'utf8');
 
+test('composite single choices preserve separate scalar control descriptions and partial credit', () => {
+  const item = compileItem(fixture('composite-choice'));
+  try {
+    const answer = { METHOD: 'Formative', ACTION: 'Adapt', RATIO: 75, UNIT: '%' };
+    assert.deepEqual(item.score(answer), { score: 6, status: 'answered', matches_correct: true });
+    assert.equal(item.explain(answer).result.score, 6);
+    assert.equal(item.score({ METHOD: 'Formative', ACTION: 'Review', RATIO: 74.5, UNIT: '%' }).score, 4.5);
+    const metadata = item.describe();
+    assert.equal(metadata.responses[0].choice.prompt, '利用学习过程中的证据调整教学，属于哪种评价？');
+    assert.equal(metadata.responses[0].choice.required, false);
+    assert.equal(metadata.responses[0].inline_choice, undefined);
+    assert.equal(metadata.responses[1].inline_choice.choices.length, 3);
+    metadata.responses[0].choice.choices.length = 0;
+    assert.equal(item.describe().responses[0].choice.choices.length, 2);
+    assert.equal(item.score({}).status, 'unanswered');
+    assert.equal(item.score({ METHOD: 'Summative' }).score, 0);
+    assert.deepEqual(answer, { METHOD: 'Formative', ACTION: 'Adapt', RATIO: 75, UNIT: '%' });
+  } finally { item.dispose(); }
+});
+
+test('composite required choices reject invalid shapes and stay usable after row errors', () => {
+  const item = compileItem(fixture('composite-choice-required'));
+  try {
+    const invalid = [{}, { METHOD: 'Formative' }, { METHOD: ['Formative'], ACTION: 'Adapt' },
+      { METHOD: 'formative', ACTION: 'Adapt' }, { METHOD: 'Adapt', ACTION: 'Adapt' }];
+    const rows = item.scoreBatch([...invalid, { METHOD: 'Formative', ACTION: 'Adapt' }]);
+    assert.deepEqual(rows.map(r => r.ok ? r.result.score : r.error.code), [...invalid.map(() => 'invalid_response'), 2]);
+    const description = item.describe();
+    assert.equal(description.responses[0].choice.orientation, 'horizontal');
+    assert.equal(description.responses[1].choice.required, true);
+  } finally { item.dispose(); }
+});
+
+test('composite choice package reports and exports retain independent item handles', () => {
+  const bundle = importPackage(readFileSync(new URL('../web/composite-choice-package.zip', import.meta.url)));
+  const item = bundle.getItem('mixed');
+  try {
+    assert.equal(bundle.describe().ready_count, 2);
+    const { report, csv, itemsCsv } = bundle.scoreAttempts(readFileSync(new URL('../examples/composite-choice-attempts.jsonl', import.meta.url), 'utf8'));
+    assert.deepEqual(report.rows.map(row => row.ok ? row.result.score : null), [6, 2, 4.5, 1, 0, null, null, 0]);
+    assert.deepEqual(report.attempts.map(a => a.score_sum), [8, 4.5, 1, 0, null, null, 0]);
+    assert.equal(report.items[0].score_mean, 2.875);
+    assert.ok(csv.includes('invalid_response'));
+    assert.ok(itemsCsv.includes('"mixed",5,4,1'));
+    bundle.dispose();
+    assert.equal(item.score({ METHOD: 'Formative' }).score, 2);
+  } finally { item.dispose(); bundle.dispose(); }
+});
+
 test('composite fallback preserves penalties, optional omissions and first-true execution', () => {
   const item = compileItem(fixture('composite-fallback'));
   try {

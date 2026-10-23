@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="assessment-and-calculation" title="评价决策与资源计算">
+  <qti-response-declaration identifier="METHOD" cardinality="single" base-type="identifier"><qti-correct-response><qti-value>Formative</qti-value></qti-correct-response><qti-mapping default-value="0" lower-bound="0" upper-bound="2"><qti-map-entry map-key="Formative" mapped-value="2"/></qti-mapping></qti-response-declaration>
+  <qti-response-declaration identifier="ACTION" cardinality="single" base-type="identifier"><qti-correct-response><qti-value>Adapt</qti-value></qti-correct-response><qti-mapping default-value="0"><qti-map-entry map-key="Adapt" mapped-value="1"/><qti-map-entry map-key="Review" mapped-value="0.5"/></qti-mapping></qti-response-declaration>
+  <qti-response-declaration identifier="RATIO" cardinality="single" base-type="float"><qti-correct-response><qti-value>75</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-response-declaration identifier="UNIT" cardinality="single" base-type="string"><qti-correct-response><qti-value>%</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>选择评价方式和反馈行动，再填写通过率及单位。四个响应独立评分，最多 6 分；本题均可留空。</p></qti-content-body></qti-rubric-block>
+    <qti-choice-interaction response-identifier="METHOD" max-choices="1" min-choices="0" orientation="vertical" shuffle="false">
+      <qti-prompt>利用学习过程中的证据调整教学，属于哪种评价？</qti-prompt>
+      <qti-simple-choice identifier="Formative">形成性评价</qti-simple-choice>
+      <qti-simple-choice identifier="Summative">总结性评价</qti-simple-choice>
+    </qti-choice-interaction>
+    <p>收到反馈后应 <qti-inline-choice-interaction response-identifier="ACTION"><qti-label>反馈行动</qti-label><qti-inline-choice identifier="Adapt">调整策略</qti-inline-choice><qti-inline-choice identifier="Review">重读反馈</qti-inline-choice><qti-inline-choice identifier="Ignore">忽略反馈</qti-inline-choice></qti-inline-choice-interaction>。</p>
+    <p>20 份资源中 15 份通过复核，通过率为 <qti-text-entry-interaction response-identifier="RATIO" placeholder-text="填写百分数"/> <qti-text-entry-interaction response-identifier="UNIT" placeholder-text="填写单位符号"/>。</p>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">0</qti-base-value></qti-set-outcome-value>
+    <qti-response-condition><qti-response-if><qti-not><qti-is-null><qti-variable identifier="METHOD"/></qti-is-null></qti-not><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-map-response identifier="METHOD"/></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+    <qti-response-condition><qti-response-if><qti-not><qti-is-null><qti-variable identifier="ACTION"/></qti-is-null></qti-not><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-map-response identifier="ACTION"/></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+    <qti-response-condition><qti-response-if><qti-equal><qti-correct identifier="RATIO"/><qti-variable identifier="RATIO"/></qti-equal><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">2</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if><qti-response-else-if><qti-equal tolerance-mode="absolute" tolerance="1"><qti-correct identifier="RATIO"/><qti-variable identifier="RATIO"/></qti-equal><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">1</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-else-if></qti-response-condition>
+    <qti-response-condition><qti-response-if><qti-match><qti-variable identifier="UNIT"/><qti-correct identifier="UNIT"/></qti-match><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">1</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+  </qti-response-processing>
+</qti-assessment-item>
