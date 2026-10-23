@@ -1,7 +1,7 @@
 ///|
 fn main {
   let args = @env.args()
-  let version = "0.17.0"
+  let version = "0.18.0"
   // Node keeps both the runtime and script prefix; other targets keep argv[0].
   let offset = if args.length() > 1 && args[1].has_suffix(".js") {
     2

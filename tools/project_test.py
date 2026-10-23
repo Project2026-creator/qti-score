@@ -3,6 +3,7 @@ import copy
 import functools
 import http.client
 import json
+import re
 from pathlib import Path
 import tempfile
 import threading
@@ -110,6 +111,20 @@ class PublicAssetTests(unittest.TestCase):
                 self.assertNotIn(b"PRIVATE_SENTINEL", body)
                 self.assertEqual(headers["Cache-Control"], "no-store")
                 self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
+
+    def test_every_advertised_sample_package_is_available_over_http(self):
+        page = (Path(__file__).resolve().parents[1] / "web/index.html").read_text(encoding="utf-8")
+        chooser = re.search(r'<select id="sample-package-kind">(.*?)</select>', page, re.S)
+        self.assertIsNotNone(chooser)
+        keys = re.findall(r'<option value="([a-z-]+)"', chooser.group(1))
+        self.assertGreater(len(keys), 0)
+        for key in keys:
+            filename = key + "-package.zip"
+            (self.root / "web" / filename).write_bytes(b"public sample archive")
+            with self.subTest(package=filename):
+                status, _, body = self.request("/web/" + filename)
+                self.assertEqual(status, 200)
+                self.assertEqual(body, b"public sample archive")
 
     def test_root_redirects_to_workbench_without_a_directory_listing(self):
         status, headers, body = self.request("/")

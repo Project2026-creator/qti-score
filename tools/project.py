@@ -100,6 +100,9 @@ def build_sample_package():
     examples.append(("composite-choice-package.zip", [("imsmanifest.xml", "composite-choice-manifest.xml"),
                                                      ("items/composite-choice.xml", "composite-choice.xml"),
                                                      ("items/composite-choice-required.xml", "composite-choice-required.xml")]))
+    examples.append(("composite-multiple-package.zip", [("imsmanifest.xml", "composite-multiple-manifest.xml"),
+                                                       ("items/composite-multiple.xml", "composite-multiple.xml"),
+                                                       ("items/composite-multiple-required.xml", "composite-multiple-required.xml")]))
     for filename, files in examples:
         with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path, source in files:
@@ -178,7 +181,7 @@ def verify_item_statistics(report):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.17.0",
+        "module": "Project2026-creator/qti-score", "version": "0.18.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }
@@ -336,6 +339,16 @@ def verify(moon, env, output, offline=False):
                               ({"RATIO":75},2), ({"UNIT":"%"},1), ({"METHOD":"Summative"},0),
                               ({"RATIO":74},1), ({"RATIO":76},1), ({"RATIO":76.001},0),
                               ({},0), ({"METHOD":None},0), ({"METHOD":""},0)]),
+        ("composite-multiple", [({"EVIDENCE":["Quiz","Feedback"],"ACTION":"Adapt","COUNT":4},4),
+                                ({"EVIDENCE":["Feedback","Quiz"]},2), ({"EVIDENCE":["Quiz"]},1),
+                                ({"EVIDENCE":["Quiz","Quiz"]},1), ({"EVIDENCE":["Quiz","Rank"]},0),
+                                ({"EVIDENCE":["Rank"]},0), ({"ACTION":"Adapt"},1), ({"COUNT":4},1),
+                                ({},0), ({"EVIDENCE":[]},0), ({"EVIDENCE":None},0)]),
+        ("composite-multiple-required", [({"EVIDENCE":["Feedback","Quiz"],"TOOLS":["Quiz","Portfolio"]},4),
+                                         ({"EVIDENCE":["Quiz","Quiz"],"TOOLS":["Quiz","Quiz"]},1),
+                                         ({"EVIDENCE":["Quiz","Feedback","Rank"],"TOOLS":["Quiz"]},1),
+                                         ({"EVIDENCE":["Quiz","Feedback"],"TOOLS":["Quiz","Portfolio","Poster"]},4),
+                                         ({"EVIDENCE":["Quiz","Rank"],"TOOLS":["Poster"]},0)]),
         ("composite-choice-required", [({"METHOD":"Formative","ACTION":"Adapt"},2),
                                        ({"METHOD":"Formative","ACTION":"Ignore"},1),
                                        ({"METHOD":"Summative","ACTION":"Adapt"},1),
@@ -501,6 +514,7 @@ try {
     batch_scenarios.append(("composite-inline-package", (ROOT / "examples/composite-inline-attempts.jsonl").read_text(encoding="utf-8"), 8, 6, 2, 1))
     batch_scenarios.append(("composite-fallback-package", (ROOT / "examples/composite-fallback-attempts.jsonl").read_text(encoding="utf-8"), 8, 6, 2, 1))
     batch_scenarios.append(("composite-choice-package", (ROOT / "examples/composite-choice-attempts.jsonl").read_text(encoding="utf-8"), 8, 6, 2, 1))
+    batch_scenarios.append(("composite-multiple-package", (ROOT / "examples/composite-multiple-attempts.jsonl").read_text(encoding="utf-8"), 10, 7, 3, 1))
     batch_script = """
 import {readFileSync} from 'node:fs';
 const {importPackage}=await import(process.argv[1]);
@@ -531,6 +545,8 @@ finally {bundle.dispose();}
             batch_archive = ROOT / "web/composite-fallback-package.zip"
         if name == "composite-choice-package":
             batch_archive = ROOT / "web/composite-choice-package.zip"
+        if name == "composite-multiple-package":
+            batch_archive = ROOT / "web/composite-multiple-package.zip"
         path = cache / ("batch-" + name + ".jsonl")
         path.write_text(source, encoding="utf-8")
         arguments = [moon, "run", "cmd/main", "--", "package-batch", str(batch_archive), str(path)]
@@ -601,6 +617,8 @@ finally {bundle.dispose();}
             raise AssertionError("Composite fallback batch scores differ from authored expectations")
         if name == "composite-choice-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [6, 2, 4.5, 1, 0, None, None, 0]:
             raise AssertionError("Composite choice batch scores differ from authored expectations")
+        if name == "composite-multiple-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [4, 4, 2, 1, 0, None, None, None, 1, 2]:
+            raise AssertionError("Composite multiple batch scores differ from authored expectations")
         report["batch_cases"].append({"name": name, "expected_exit": expected_exit,
                                       "cli_report": cli_report, "sdk_report": sdk_evaluation["report"],
                                       "csv": exported, "csv_decoded": decoded, "items_csv": item_csv,

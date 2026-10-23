@@ -3,6 +3,7 @@ priv enum CompositeValue {
   Null
   Text(String)
   Number(Double)
+  Values(Array[String])
 } derive(Eq)
 
 ///|
@@ -54,6 +55,7 @@ fn CompositeBinding::matches(
     match value {
       Null => false
       Text(text) => text == values[0]
+      Values(selected) => bag_equal(selected, values)
       Number(number) =>
         number ==
         (numeric_value(values[0], self.base_type) catch {
@@ -110,10 +112,10 @@ fn CompositeItem::execute_responses(
       } else {
         "answered"
       },
-      "count": if value == Null {
-        0
-      } else {
-        1
+      "count": match value {
+        Null => 0
+        Values(ids) => ids.length()
+        _ => 1
       },
     })
   }
@@ -177,6 +179,10 @@ fn CompositeItem::execute_responses(
               binding.mapping
               .unwrap()
               .score_numeric(Some(n), steps, branch.source)
+            Values(ids) =>
+              binding.mapping
+              .unwrap()
+              .score_values(ids, binding.base_type, steps, branch.source)
             Null => abort("NULL response passed non-NULL guard")
           }
       }

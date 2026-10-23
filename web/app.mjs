@@ -450,7 +450,7 @@ $('sample-package').addEventListener('click', () => {
 });
 
 try {
-  engine = await import('../sdk/index.mjs?v=0.17.0');
+  engine = await import('../sdk/index.mjs?v=0.18.0');
   await loadExample('single');
 } catch (error) {
   $('source-status').textContent = '内核未载入';

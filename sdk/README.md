@@ -154,6 +154,26 @@ for (const binding of item.describe().responses) {
 
 Maximum is one (default one), minimum zero or one (default zero), and orientation horizontal or vertical (default vertical). This profile requires at least two nonempty static options. Required missing/null/empty responses fail the whole attempt; valid optional NULL contributes according to authored rules. Options, correct references and map keys are validated per response; identifiers are case sensitive. Wrong containers, unknown IDs, foreign field options and unsupported content are rejected. No author answers or rules are added to ordinary metadata. The browser uses independent native radio groups, supports reset and keyboard input, and displays authored option order even when shuffle is true. The scoring kernel does not implement delivery randomization. See `examples/composite-choice.xml` and `composite-choice-required.xml`.
 
+## Multiple choices in composite items
+
+Version 0.18.0 adds block choices bound to `multiple/identifier`, mixed with the existing scalar controls. Pass arrays of choice IDs:
+
+```js
+const item = compileItem(xml);
+try {
+  const result = item.score({ EVIDENCE: ['Quiz', 'Feedback'], ACTION: 'Adapt', COUNT: 4 });
+  for (const binding of item.describe().responses) {
+    if (binding.cardinality === 'multiple') {
+      console.log(binding.choice.min_choices, binding.choice.max_choices);
+    }
+  }
+} finally { item.dispose(); }
+```
+
+`CompositeMultipleChoiceDescription` adds a `cardinality:'multiple'` branch with `choice:{required,prompt,orientation,min_choices,max_choices,choices}`. Existing single-choice metadata is unchanged. The maximum defaults to one, zero means unlimited, and the minimum defaults to zero. Authored nonzero bounds must be consistent and cannot exceed available choices; correct responses must satisfy the bounds. Positive minimums make missing/null/empty arrays invalid for the entire attempt. Optional empty arrays are NULL and follow authored branches. Scalars, null array members, empty member strings, unknown IDs and invalid counts are rejected. Only identifier block choices support multiple cardinality.
+
+Matching compares unordered bags, retaining duplicate multiplicity. Mapping scores each distinct ID once; count limits apply to the raw array length. Caller arrays are not mutated. Explanations include the original count and any `duplicate_ignored` steps. Values are limited to 4096 per response and 65536 UTF-16 units per string, in addition to JSON input limits. Browser controls show native checkboxes, selection counts, reset and keyboard support. The package example contains ten rows: seven successes, three isolated response errors. See `examples/composite-multiple.xml`, `composite-multiple-required.xml` and their package/JSONL fixtures. Semantics follow [QTI 3 ChoiceInteraction](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/index.html#Data_ChoiceInteraction).
+
 ## Contextual hottext and candidate instructions
 
 Version 0.8.0 supports `qti-hottext-interaction` with single/multiple identifier responses. Select IDs, not literal text or offsets: `{RESPONSE:['Evidence','Support']}` or a string for single cardinality. The core checks known unique IDs and min/max choices, then reuses match_correct or map_response. Maximum defaults to one (zero means unlimited), minimum to zero; single requires maximum one. Null and empty matching containers remain unanswered. Ordinary multiple-choice duplicate semantics are unchanged.

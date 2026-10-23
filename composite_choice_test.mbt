@@ -221,12 +221,12 @@ test "choice declarations reject foreign correct answers and mapping keys" {
     ),
     "invalid_item",
   )
-  reject_composite_choice(
+  let multiple = @qti.compile_composite_item(
     fixture("composite-choice").swap(
       "identifier=\"METHOD\" cardinality=\"single\"", "identifier=\"METHOD\" cardinality=\"multiple\"",
     ),
-    "unsupported",
   )
+  assert_eq(multiple.score_json("{\"METHOD\":[\"Formative\"]}").score, 2.0)
 }
 
 ///|

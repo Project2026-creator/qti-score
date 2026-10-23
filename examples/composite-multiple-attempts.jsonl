@@ -1,0 +1,10 @@
+{"attempt_id":"learner-a","resource_id":"mixed","response":{"EVIDENCE":["Quiz","Feedback"],"ACTION":"Adapt","COUNT":4}}
+{"attempt_id":"learner-a","resource_id":"required","response":{"EVIDENCE":["Feedback","Quiz"],"TOOLS":["Quiz","Portfolio"]}}
+{"attempt_id":"learner-b","resource_id":"mixed","response":{"EVIDENCE":["Quiz"],"COUNT":4}}
+{"attempt_id":"learner-c","resource_id":"mixed","response":{"EVIDENCE":["Quiz","Rank"],"ACTION":"Adapt"}}
+{"attempt_id":"learner-d","resource_id":"mixed","response":{"EVIDENCE":[]}}
+{"attempt_id":"learner-e","resource_id":"required","response":{"EVIDENCE":["Quiz"],"TOOLS":["Quiz"]}}
+{"attempt_id":"learner-f","resource_id":"mixed","response":{"EVIDENCE":["Quiz","Feedback","Rank"]}}
+{"attempt_id":"learner-g","resource_id":"mixed","response":{"EVIDENCE":"Quiz"}}
+{"attempt_id":"learner-h","resource_id":"required","response":{"EVIDENCE":["Quiz","Quiz"],"TOOLS":["Quiz","Quiz"]}}
+{"attempt_id":"learner-i","resource_id":"mixed","response":{"EVIDENCE":["Feedback","Quiz"]}}

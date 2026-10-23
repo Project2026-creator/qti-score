@@ -43,7 +43,7 @@ python tools/project.py serve
 
 工作空间按“题目工作台 / 题包资源 / 结果分析”导航。示例题库可按中文题型或英文规则搜索；“查看 XML”展开源码并排预览，窄屏时自动纵向排列。工作台保留最近 20 次成功评分的响应与结果，可清空或导出 JSON；记录仅存在当前页面内存中，刷新后清除，不包含标准答案或解释步骤。XML 可单独导出。
 
-题包资源页提供十二组示例题包和各自配套的批量作答。载入后前往“结果分析”，依次载入示例作答并评分。自行导入的题包需要提供对应 JSONL，不会自动套用其他题包的示例数据。结果页提供逐题统计、作答汇总、状态/资源/文本筛选、每页 50 行明细和三种完整批次导出；筛选不改变统计或导出内容。切换题包或编辑作答会清除旧结果。
+题包资源页提供十三组示例题包和各自配套的批量作答。载入后前往“结果分析”，依次载入示例作答并评分。自行导入的题包需要提供对应 JSONL，不会自动套用其他题包的示例数据。结果页提供逐题统计、作答汇总、状态/资源/文本筛选、每页 50 行明细和三种完整批次导出；筛选不改变统计或导出内容。切换题包或编辑作答会清除旧结果。
 
 ### 逐题统计
 
@@ -197,7 +197,7 @@ moon run cmd/main -- package-batch web/slider-package.zip examples/slider-attemp
 
 ## 多响应复合填空
 
-支持一道题包含 2–8 个独立响应：`single/string`、`single/integer`、`single/float` 使用 `qti-text-entry-interaction`；`single/identifier` 使用 `qti-inline-choice-interaction` 或块级 `qti-choice-interaction`。变量可以使用不同名称，声明、交互和评分规则须一一对应。单选、下拉、文本与数值可以混合，文段保留各交互的位置。已有单响应题目及其元信息保持原样。
+支持一道题包含 2–8 个独立响应：`single/string`、`single/integer`、`single/float` 使用 `qti-text-entry-interaction`；`single/identifier` 使用 `qti-inline-choice-interaction` 或块级 `qti-choice-interaction`；`multiple/identifier` 使用块级 `qti-choice-interaction`。变量可以使用不同名称，声明、交互和评分规则须一一对应。单选、多选、下拉、文本与数值可以混合，文段保留各交互的位置。已有单响应题目及其元信息保持原样。
 
 ```sh
 moon run cmd/main -- score examples/composite.xml examples/composite-response.json
@@ -263,7 +263,7 @@ moon run cmd/main -- package-batch web/composite-inline-package.zip examples/com
 
 0.17.0 支持复合题中的 `qti-choice-interaction`，每个交互绑定一个 `single/identifier` 响应。`max-choices` 只接受 1，省略时默认为 1；`min-choices` 为 0 或 1，默认为 0。`min-choices="1"` 的单选在缺失、NULL 或空字符串时使整次作答失败，不返回已填部分的分数。未知、大小写不符、带额外空白的选项，以及数组、数字、布尔响应均被拒绝。每组分别验证选项集合，相同选项 ID 在不同响应中不会合并。
 
-本子集要求至少两个非空 `qti-simple-choice`，接受静态 prompt、常见纯文本标签及 `fixed` 布尔属性；动态内容、富媒体、多值选择和未列出的属性明确拒绝。`orientation` 接受 horizontal/vertical，默认 vertical；网页以独立单选组呈现并保留键盘焦点，窄屏可将横向提示改为纵向布局。与已有普通选择题一样，核心接受 `shuffle` 布尔值，演示仍按作者顺序显示，不执行随机呈现。依据见 [QTI 3 ChoiceInteraction 信息模型](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/index.html#Data_ChoiceInteraction)。
+本子集要求至少两个非空 `qti-simple-choice`，接受静态 prompt、常见纯文本标签及 `fixed` 布尔属性；动态内容、富媒体和未列出的属性明确拒绝。`orientation` 接受 horizontal/vertical，默认 vertical；网页以独立单选组呈现并保留键盘焦点，窄屏可将横向提示改为纵向布局。与已有普通选择题一样，核心接受 `shuffle` 布尔值，演示仍按作者顺序显示，不执行随机呈现。依据见 [QTI 3 ChoiceInteraction 信息模型](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/index.html#Data_ChoiceInteraction)。
 
 单选响应的元信息新增 `choice:{required,prompt,orientation,choices}`，不含 `inline_choice`。prompt 和候选文字保留在该组中，不混入共享 passage，也不返回正确答案或映射。TypeScript 调用方需要处理新增的 `CompositeChoiceDescription` 分支；MoonBit 公开评分方法保持不变。
 
@@ -274,6 +274,24 @@ moon run cmd/main -- package-batch web/composite-choice-package.zip examples/com
 ```
 
 示例把单选、下拉、数值和文本四个响应组合计分：`{"METHOD":"Formative","ACTION":"Adapt","RATIO":75,"UNIT":"%"}` 得 6 分；将行动改为 Review、数值改为 74.5 时得 4.5 分。另一个示例提供两组必答单选。配套批量文件为 8 行、6 成功、2 错误，成功行得分为 6、2、4.5、1、0、0；漏答与错误响应不计为零分，逐题统计沿用既有规则。
+
+### 复合题中的多选与部分得分
+
+0.18.0 增加 `multiple/identifier` 块级选择，可以与单选、下拉及文本／数值填空组合。多选必须传标识符数组，例如 `{"EVIDENCE":["Quiz","Feedback"],"ACTION":"Adapt","COUNT":4}`；文本数组、ordered、动态选项和多值下拉不在当前子集内。每组仍要求至少两个静态选项。
+
+`min-choices` 默认 0，`max-choices` 默认 1，0 表示不设上限。非零最大值不得小于最小值，界限不得超过可用选项数；声明的标准答案也必须满足界限。`min-choices>0` 表示该组必答，缺失、NULL 或空数组使整次评分失败；可选空数组归一为 NULL，按作者的空响应／默认分支处理，不进入非空映射。单值空字符串不会替代多值空数组。未知选项、空成员、错误类型、超选或非空但少选均返回 `invalid_response`，所有响应通过验证后才开始合成分数。
+
+完全匹配使用多重集合：顺序不影响结果，重复次数影响结果。映射仅对不同标识符各计一次，选择数量按原始数组长度检查。这与原有普通多选题一致；`["Quiz","Quiz"]` 的映射贡献只算一次，也不能匹配标准答案 `["Quiz","Feedback"]`。诊断轨迹记录原始数量和 `duplicate_ignored`。单组最多 4096 个值、每值最多 65536 个 UTF-16 单元，JSON 入口还受整体大小限制。
+
+多选元信息使用 `cardinality:"multiple"` 与 `choice:{required,prompt,orientation,min_choices,max_choices,choices}`。旧单选元信息保持原样。TypeScript 新增 `CompositeMultipleChoiceDescription`，通过 `binding.cardinality === 'multiple'` 可访问数量限制。页面用原生复选框显示选择范围与已选数量，支持键盘、清空和窄屏布局；提交时仍由 MoonBit 核心检查限制。
+
+```sh
+moon run cmd/main -- score examples/composite-multiple.xml examples/composite-multiple-response.json
+python tools/project.py build-web
+moon run cmd/main -- package-batch web/composite-multiple-package.zip examples/composite-multiple-attempts.jsonl
+```
+
+“证据与教学设计”示例组合多选映射、单选和整数计算，完整响应得 4 分。“双组必答多选”展示最少两项、完全匹配及不限上限的独立映射。配套 JSONL 为 10 行，7 行成功、3 行错误，成功行得分依次为 4、4、2、1、0、1、2；错误行保留诊断，不转换为零分。规则依据见 [QTI 3 ChoiceInteraction](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/index.html#Data_ChoiceInteraction)。
 
 ### 漏答、错答与默认分支
 
@@ -510,7 +528,7 @@ npm ci --prefix sdk --ignore-scripts
 python tools/project.py check
 ```
 
-最后一个命令会构建浏览器桥接模块与独立 SDK，运行 SDK 接入测试和 TypeScript 类型检查，并以固定提交版本的官方单选、多选、排序、配对、文段选词、下拉选词及滑杆题目进行 **55 个评分场景**核对，另检查 **12 个本地数值场景**、**8 个本地排序场景**、**11 个本地配对场景**、**11 个本地选词场景**、**12 个本地文段场景**和 **8 个本地下拉场景**、**14 个本地滑杆场景**和 **58 个本地复合场景**。CLI、桥接与 SDK 的结果必须一致，本地场景的评分解释也逐步对照，同时检查 CLI 错误退出码。排序官方题目的核对覆盖全部 6 种三项排列及两种 NULL 输入。预期值根据标准规则与题目声明编写，不由待测评分器生成。TypeScript 是 SDK 的开发依赖，由前一条 npm 命令安装；普通 MoonBit 核心测试不依赖它。
+最后一个命令会构建浏览器桥接模块与独立 SDK，运行 SDK 接入测试和 TypeScript 类型检查，并以固定提交版本的官方单选、多选、排序、配对、文段选词、下拉选词及滑杆题目进行 **55 个评分场景**核对，另检查 **12 个本地数值场景**、**8 个本地排序场景**、**11 个本地配对场景**、**11 个本地选词场景**、**12 个本地文段场景**和 **8 个本地下拉场景**、**14 个本地滑杆场景**和 **93 个本地复合场景**。CLI、桥接与 SDK 的结果必须一致，本地场景的评分解释也逐步对照，同时检查 CLI 错误退出码。排序官方题目的核对覆盖全部 6 种三项排列及两种 NULL 输入。预期值根据标准规则与题目声明编写，不由待测评分器生成。TypeScript 是 SDK 的开发依赖，由前一条 npm 命令安装；普通 MoonBit 核心测试不依赖它。
 
 检查还对照 CLI 与 SDK 的完整题包报告及 2 个题包评分／解释场景，并验证不支持和未知资源的非零退出码。核心测试覆盖 Store/Deflate/数据描述符、CRC、解压限额、URI 编码、xml:base、缺失文件、长依赖链与循环；SDK 测试覆盖字节隔离、独立安装和对象生命周期。
 

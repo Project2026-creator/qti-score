@@ -1,4 +1,4 @@
-/** Collect independent scalar responses in their authored text positions. */
+/** Collect independent responses in their authored text positions. */
 export function createCompositeControl(fieldset, item) {
   const controls = new Map();
   const passage = document.createElement('div'); passage.className = 'composite-passage';
@@ -6,9 +6,10 @@ export function createCompositeControl(fieldset, item) {
     if ('text' in part) { passage.append(document.createTextNode(part.text)); continue; }
     const binding = item.responses.find(b => b.identifier === part.response);
     if (binding.choice) {
+      const multiple = binding.cardinality === 'multiple';
       const block = document.createElement('fieldset'); block.className = 'composite-choice';
-      block.setAttribute('role', 'radiogroup');
-      block.setAttribute('aria-required', String(binding.choice.required));
+      block.setAttribute('role', multiple ? 'group' : 'radiogroup');
+      if (!multiple) block.setAttribute('aria-required', String(binding.choice.required));
       block.dataset.orientation = binding.choice.orientation;
       const legend = document.createElement('legend');
       legend.textContent = (binding.choice.prompt || `第 ${item.responses.indexOf(binding) + 1} 项选择`) +
@@ -17,14 +18,26 @@ export function createCompositeControl(fieldset, item) {
       const inputs = [];
       for (const choice of binding.choice.choices) {
         const label = document.createElement('label'); label.className = 'answer-option';
-        const radio = document.createElement('input'); radio.type = 'radio';
+        const radio = document.createElement('input'); radio.type = multiple ? 'checkbox' : 'radio';
         radio.name = `composite-${binding.identifier}`; radio.value = choice.identifier;
         const text = document.createElement('span'); text.textContent = choice.text;
         label.append(radio, text); block.append(label); inputs.push(radio);
       }
+      const hint = document.createElement('p'); hint.className = 'composite-choice-help';
+      hint.id = `choice-help-${binding.identifier}`;
+      const updateHint = () => {
+        if (!multiple) return;
+        const { min_choices: minimum, max_choices: maximum } = binding.choice;
+        const count = inputs.filter(input => input.checked).length;
+        hint.textContent = `多选 · ${minimum ? `至少 ${minimum} 项` : '可留空'} · ${maximum ? `最多 ${maximum} 项` : '不设上限'} · 已选 ${count} 项`;
+      };
+      if (multiple) {
+        hint.setAttribute('role', 'status'); block.setAttribute('aria-describedby', hint.id);
+        block.addEventListener('change', updateHint); block.append(hint); updateHint();
+      }
       controls.set(binding.identifier, {
-        value: () => inputs.find(input => input.checked)?.value || null,
-        reset: () => { for (const input of inputs) input.checked = false; },
+        value: () => multiple ? inputs.filter(input => input.checked).map(input => input.value) : inputs.find(input => input.checked)?.value || null,
+        reset: () => { for (const input of inputs) input.checked = false; updateHint(); },
       });
       passage.append(block);
       continue;
@@ -53,7 +66,8 @@ export function createCompositeControl(fieldset, item) {
   }
   const help = document.createElement('p'); help.className = 'order-help';
   const requiredCount = item.responses.filter(b => b.inline_choice?.required || b.choice?.required).length;
-  help.textContent = `${item.responses.length} 个响应分别作答；${requiredCount ? `${requiredCount} 组选项必答，其余响应可留空。` : '留空表示未作答。'}得分由题目规则合成。`;
+  const requirement = requiredCount === item.responses.length ? '所有选项组均为必答。' : requiredCount ? `${requiredCount} 组选项必答，其余响应可留空。` : '留空表示未作答。';
+  help.textContent = `${item.responses.length} 个响应分别作答；${requirement}得分由题目规则合成。`;
   fieldset.append(help, passage);
   return {
     response() { return Object.fromEntries([...controls].map(([id, control]) => [id, control.value()])); },

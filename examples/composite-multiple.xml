@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="evidence-and-design" title="证据选择与教学设计">
+  <qti-response-declaration identifier="EVIDENCE" cardinality="multiple" base-type="identifier"><qti-correct-response><qti-value>Quiz</qti-value><qti-value>Feedback</qti-value></qti-correct-response><qti-mapping default-value="0" lower-bound="0" upper-bound="2"><qti-map-entry map-key="Quiz" mapped-value="1"/><qti-map-entry map-key="Feedback" mapped-value="1"/><qti-map-entry map-key="Rank" mapped-value="-1"/></qti-mapping></qti-response-declaration>
+  <qti-response-declaration identifier="ACTION" cardinality="single" base-type="identifier"><qti-correct-response><qti-value>Adapt</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-response-declaration identifier="COUNT" cardinality="single" base-type="integer"><qti-correct-response><qti-value>4</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>选择有助于改进教学的证据，再选择行动并计算分组数。多选最多两项，按证据分别给分；全题最多 4 分，均可留空。</p></qti-content-body></qti-rubric-block>
+    <qti-choice-interaction response-identifier="EVIDENCE" min-choices="0" max-choices="2" shuffle="false">
+      <qti-prompt>哪些学习证据能够帮助教师及时调整教学？</qti-prompt>
+      <qti-simple-choice identifier="Quiz">随堂测验中的错误分布</qti-simple-choice>
+      <qti-simple-choice identifier="Feedback">学习者对困难的具体反馈</qti-simple-choice>
+      <qti-simple-choice identifier="Rank">只看班级排名，不分析学习过程</qti-simple-choice>
+    </qti-choice-interaction>
+    <qti-choice-interaction response-identifier="ACTION" max-choices="1" orientation="horizontal">
+      <qti-prompt>依据证据，应采取什么行动？</qti-prompt>
+      <qti-simple-choice identifier="Adapt">调整教学策略</qti-simple-choice>
+      <qti-simple-choice identifier="Ignore">保持原样，忽略反馈</qti-simple-choice>
+    </qti-choice-interaction>
+    <p>20 名学习者每 5 人一组，共 <qti-text-entry-interaction response-identifier="COUNT" placeholder-text="填写组数"/> 组。</p>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">0</qti-base-value></qti-set-outcome-value>
+    <qti-response-condition><qti-response-if><qti-not><qti-is-null><qti-variable identifier="EVIDENCE"/></qti-is-null></qti-not><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-map-response identifier="EVIDENCE"/></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+    <qti-response-condition><qti-response-if><qti-match><qti-variable identifier="ACTION"/><qti-correct identifier="ACTION"/></qti-match><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">1</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+    <qti-response-condition><qti-response-if><qti-match><qti-variable identifier="COUNT"/><qti-correct identifier="COUNT"/></qti-match><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">1</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+  </qti-response-processing>
+</qti-assessment-item>

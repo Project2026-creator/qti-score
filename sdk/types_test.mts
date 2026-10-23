@@ -11,6 +11,13 @@ if (metadata.kind === 'composite') {
   const id: string = metadata.responses[0].identifier;
   const multi: ResponseObject = { PLATFORM: 'LMS', COUNT: 4 };
   for (const binding of metadata.responses) {
+    if (binding.cardinality === 'multiple') {
+      const limits: readonly number[] = [binding.choice.min_choices, binding.choice.max_choices];
+      const selections: ResponseObject = { [binding.identifier]: ['Evidence', 'Feedback'] as const };
+      // @ts-expect-error multiple choice limits are immutable
+      binding.choice.min_choices = 0;
+      void [limits, selections];
+    }
     if (binding.inline_choice) {
       const required: boolean = binding.inline_choice.required;
       const choice: string = binding.inline_choice.choices[0].identifier;

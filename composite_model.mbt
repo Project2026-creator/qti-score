@@ -1,6 +1,7 @@
 ///|
 priv struct CompositeBinding {
   identifier : String
+  cardinality : Cardinality
   base_type : BaseType
   correct : Array[String]?
   mapping : Mapping?
@@ -16,6 +17,8 @@ priv struct CompositeChoice {
   prompt : String
   required : Bool
   orientation : String
+  min_choices : Int32
+  max_choices : Int32
 } derive(Debug)
 
 ///|
@@ -67,7 +70,11 @@ pub fn CompositeItem::describe(self : CompositeItem) -> Json {
     "responses": self.bindings.map(b => {
       let response : Json = {
         "identifier": b.identifier,
-        "cardinality": "single",
+        "cardinality": if b.cardinality == Multiple {
+          "multiple"
+        } else {
+          "single"
+        },
         "base_type": b.base_type.name(),
         "placeholder": b.placeholder,
       }
@@ -90,6 +97,10 @@ pub fn CompositeItem::describe(self : CompositeItem) -> Json {
             "identifier": c.identifier,
             "text": c.text,
           }),
+        }
+        if b.cardinality == Multiple && fields["choice"] is Object(choice) {
+          choice["min_choices"] = Json(spec.min_choices)
+          choice["max_choices"] = Json(spec.max_choices)
         }
       }
       response

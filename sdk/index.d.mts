@@ -85,7 +85,22 @@ export interface CompositeChoiceDescription {
     readonly choices: readonly Choice[];
   };
 }
-export type CompositeResponseDescription = CompositeEntryDescription | CompositeInlineChoiceDescription | CompositeChoiceDescription;
+export interface CompositeMultipleChoiceDescription {
+  readonly identifier: string;
+  readonly cardinality: 'multiple';
+  readonly base_type: 'identifier';
+  readonly placeholder: string;
+  readonly inline_choice?: never;
+  readonly choice: {
+    readonly required: boolean;
+    readonly prompt: string;
+    readonly orientation: 'horizontal' | 'vertical';
+    readonly min_choices: number;
+    readonly max_choices: number;
+    readonly choices: readonly Choice[];
+  };
+}
+export type CompositeResponseDescription = CompositeEntryDescription | CompositeInlineChoiceDescription | CompositeChoiceDescription | CompositeMultipleChoiceDescription;
 export interface CompositeItemDescription {
   readonly kind: 'composite';
   readonly identifier: string;

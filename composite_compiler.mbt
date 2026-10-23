@@ -51,11 +51,14 @@ fn compile_composite_root(root : Node) -> CompositeItem raise QtiError {
         "duplicate or reserved response identifier",
       )
     }
-    if declaration.required("cardinality") != "single" {
-      raise Unsupported(
-        declaration.location(),
-        "composite responses require single cardinality",
-      )
+    let cardinality = match declaration.required("cardinality") {
+      "single" => Cardinality::Single
+      "multiple" => Cardinality::Multiple
+      _ =>
+        raise Unsupported(
+          declaration.location(),
+          "composite supports single or multiple cardinality",
+        )
     }
     let base_type = match declaration.required("base-type") {
       "identifier" => BaseType::Identifier
@@ -65,17 +68,24 @@ fn compile_composite_root(root : Node) -> CompositeItem raise QtiError {
       _ =>
         raise Unsupported(
           declaration.location(),
-          "composite supports text/numeric entry, inline choice and single choice only",
+          "composite supports text/numeric entry, inline choice and block choice only",
         )
+    }
+    if cardinality == Multiple && base_type != Identifier {
+      raise Unsupported(
+        declaration.location(),
+        "multiple composite responses require identifier base type",
+      )
     }
     let correct = declaration
       .one("qti-correct-response", required=false)
-      .map(n => parse_correct(n, Single, base_type))
+      .map(n => parse_correct(n, cardinality, base_type))
     let mapping = declaration
       .one("qti-mapping", required=false)
       .map(n => parse_mapping(n, base_type))
     bindings.push({
       identifier: id,
+      cardinality,
       base_type,
       correct,
       mapping,

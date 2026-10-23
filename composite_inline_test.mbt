@@ -214,7 +214,7 @@ test "composite inline interaction and declaration types must agree" {
     fixture("composite-inline").swap(
       "cardinality=\"single\" base-type=\"identifier\"", "cardinality=\"multiple\" base-type=\"identifier\"",
     ),
-    "unsupported",
+    "invalid_item",
   )
 }
 

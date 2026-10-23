@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="required-evidence" title="双组多选与完整匹配">
+  <qti-response-declaration identifier="EVIDENCE" cardinality="multiple" base-type="identifier"><qti-correct-response><qti-value>Quiz</qti-value><qti-value>Feedback</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-response-declaration identifier="TOOLS" cardinality="multiple" base-type="identifier"><qti-correct-response><qti-value>Quiz</qti-value><qti-value>Portfolio</qti-value></qti-correct-response><qti-mapping default-value="0" lower-bound="0" upper-bound="2"><qti-map-entry map-key="Quiz" mapped-value="1"/><qti-map-entry map-key="Portfolio" mapped-value="1"/></qti-mapping></qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>第一组至少选两项、最多三项，完全匹配才得 2 分；第二组至少选一项、不设上限，按选项计分，最多 2 分。两组都必须作答。</p></qti-content-body></qti-rubric-block>
+    <qti-choice-interaction response-identifier="EVIDENCE" min-choices="2" max-choices="3" orientation="horizontal">
+      <qti-prompt>选择支持形成性评价的证据。</qti-prompt>
+      <qti-simple-choice identifier="Quiz">随堂测验中的错误分布</qti-simple-choice>
+      <qti-simple-choice identifier="Feedback">学习困难的具体反馈</qti-simple-choice>
+      <qti-simple-choice identifier="Rank">仅有期末排名</qti-simple-choice>
+    </qti-choice-interaction>
+    <qti-choice-interaction response-identifier="TOOLS" min-choices="1" max-choices="0">
+      <qti-prompt>选择可积累过程性证据的工具。</qti-prompt>
+      <qti-simple-choice identifier="Quiz">随堂测验</qti-simple-choice>
+      <qti-simple-choice identifier="Portfolio">学习档案袋</qti-simple-choice>
+      <qti-simple-choice identifier="Poster">只展示最终名次的榜单</qti-simple-choice>
+    </qti-choice-interaction>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">0</qti-base-value></qti-set-outcome-value>
+    <qti-response-condition><qti-response-if><qti-match><qti-variable identifier="EVIDENCE"/><qti-correct identifier="EVIDENCE"/></qti-match><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">2</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+    <qti-response-condition><qti-response-if><qti-not><qti-is-null><qti-variable identifier="TOOLS"/></qti-is-null></qti-not><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-map-response identifier="TOOLS"/></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+  </qti-response-processing>
+</qti-assessment-item>

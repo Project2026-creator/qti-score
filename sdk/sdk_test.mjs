@@ -14,6 +14,59 @@ const hasCode = code => cause => cause instanceof QtiScoreError && cause.code ==
 const packageBytes = () => readFileSync(new URL('../web/sample-package.zip', import.meta.url));
 const packageAttempts = () => readFileSync(new URL('../examples/package-attempts.jsonl', import.meta.url), 'utf8');
 
+test('composite multiple arrays preserve partial credit, bag matching and caller inputs', () => {
+  const item = compileItem(fixture('composite-multiple'));
+  try {
+    const answer = Object.freeze({ EVIDENCE: Object.freeze(['Feedback', 'Quiz']), ACTION: 'Adapt', COUNT: 4 });
+    assert.deepEqual(item.score(answer), { score: 4, status: 'answered', matches_correct: true });
+    const explanation = item.explain({ EVIDENCE: ['Quiz', 'Quiz'] });
+    assert.equal(explanation.result.score, 1);
+    assert.equal(explanation.result.matches_correct, false);
+    assert.ok(explanation.steps.some(s => s.operation === 'duplicate_ignored'));
+    const binding = item.describe().responses[0];
+    assert.equal(binding.cardinality, 'multiple');
+    assert.equal(binding.choice.min_choices, 0);
+    assert.equal(binding.choice.max_choices, 2);
+    binding.choice.choices.length = 0;
+    assert.equal(item.describe().responses[0].choice.choices.length, 3);
+    for (const value of [null, []]) assert.equal(item.score({ EVIDENCE: value }).status, 'unanswered');
+    const invalid = ['Quiz', '', ['Quiz', 'Feedback', 'Rank'], ['Unknown'], [''], 1, [null]];
+    const rows = item.scoreBatch([...invalid.map(value => ({ EVIDENCE: value })), answer]);
+    assert.deepEqual(rows.map(r => r.ok ? r.result.score : r.error.code), [...invalid.map(() => 'invalid_response'), 4]);
+  } finally { item.dispose(); }
+});
+
+test('required multiple groups enforce minimums and preserve unordered match multiplicity', () => {
+  const item = compileItem(fixture('composite-multiple-required'));
+  try {
+    for (const response of [{}, { EVIDENCE: [], TOOLS: ['Quiz'] }, { EVIDENCE: ['Quiz'], TOOLS: ['Quiz'] },
+      { EVIDENCE: ['Quiz', 'Feedback'] }, { EVIDENCE: ['Quiz', 'Portfolio'], TOOLS: ['Quiz'] }]) {
+      assert.throws(() => item.score(response), hasCode('invalid_response'));
+    }
+    assert.equal(item.score({ EVIDENCE: ['Quiz', 'Quiz'], TOOLS: ['Quiz', 'Quiz'] }).score, 1);
+    assert.equal(item.score({ EVIDENCE: ['Feedback', 'Quiz'], TOOLS: ['Portfolio', 'Quiz', 'Poster'] }).score, 4);
+    assert.equal(item.describe().responses[1].choice.max_choices, 0);
+  } finally { item.dispose(); }
+});
+
+test('multiple package batches isolate invalid rows and retain full exports and item handles', () => {
+  const bundle = importPackage(readFileSync(new URL('../web/composite-multiple-package.zip', import.meta.url)));
+  const item = bundle.getItem('mixed');
+  try {
+    assert.equal(bundle.describe().ready_count, 2);
+    const { report, csv, itemsCsv } = bundle.scoreAttempts(readFileSync(new URL('../examples/composite-multiple-attempts.jsonl', import.meta.url), 'utf8'));
+    assert.deepEqual(report.rows.map(row => row.ok ? row.result.score : null), [4, 4, 2, 1, 0, null, null, null, 1, 2]);
+    assert.equal(report.attempts[0].score_sum, 8);
+    assert.equal(report.scored_count, 7);
+    assert.equal(report.error_count, 3);
+    assert.equal(report.items[0].score_mean, 1.8);
+    assert.ok(csv.includes('invalid_response'));
+    assert.ok(itemsCsv.includes('"mixed",7,5,2'));
+    bundle.dispose();
+    assert.equal(item.score({ EVIDENCE: ['Quiz'] }).score, 1);
+  } finally { item.dispose(); bundle.dispose(); }
+});
+
 test('composite single choices preserve separate scalar control descriptions and partial credit', () => {
   const item = compileItem(fixture('composite-choice'));
   try {
