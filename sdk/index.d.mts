@@ -59,6 +59,7 @@ export interface CompositeEntryDescription {
   readonly placeholder: string;
   readonly inline_choice?: never;
   readonly choice?: never;
+  readonly slider?: never;
 }
 export interface CompositeInlineChoiceDescription {
   readonly identifier: string;
@@ -66,6 +67,7 @@ export interface CompositeInlineChoiceDescription {
   readonly base_type: 'identifier';
   readonly placeholder: string;
   readonly choice?: never;
+  readonly slider?: never;
   readonly inline_choice: {
     readonly required: boolean;
     readonly label: string;
@@ -78,6 +80,7 @@ export interface CompositeChoiceDescription {
   readonly base_type: 'identifier';
   readonly placeholder: string;
   readonly inline_choice?: never;
+  readonly slider?: never;
   readonly choice: {
     readonly required: boolean;
     readonly prompt: string;
@@ -91,6 +94,7 @@ export interface CompositeMultipleChoiceDescription {
   readonly base_type: 'identifier';
   readonly placeholder: string;
   readonly inline_choice?: never;
+  readonly slider?: never;
   readonly choice: {
     readonly required: boolean;
     readonly prompt: string;
@@ -100,7 +104,16 @@ export interface CompositeMultipleChoiceDescription {
     readonly choices: readonly Choice[];
   };
 }
-export type CompositeResponseDescription = CompositeEntryDescription | CompositeInlineChoiceDescription | CompositeChoiceDescription | CompositeMultipleChoiceDescription;
+export interface CompositeSliderDescription {
+  readonly identifier: string;
+  readonly cardinality: 'single';
+  readonly base_type: 'integer' | 'float';
+  readonly placeholder: string;
+  readonly inline_choice?: never;
+  readonly choice?: never;
+  readonly slider: SliderDescription & { readonly prompt: string };
+}
+export type CompositeResponseDescription = CompositeEntryDescription | CompositeInlineChoiceDescription | CompositeChoiceDescription | CompositeMultipleChoiceDescription | CompositeSliderDescription;
 export interface CompositeItemDescription {
   readonly kind: 'composite';
   readonly identifier: string;

@@ -18,7 +18,14 @@ if (metadata.kind === 'composite') {
       binding.choice.min_choices = 0;
       void [limits, selections];
     }
-    if (binding.inline_choice) {
+    if (binding.slider) {
+      const kind: 'integer' | 'float' = binding.base_type;
+      const bounds: readonly number[] = [binding.slider.lower_bound, binding.slider.upper_bound];
+      const prompt: string = binding.slider.prompt;
+      // @ts-expect-error slider metadata is immutable
+      binding.slider.step = 1;
+      void [kind, bounds, prompt];
+    } else if (binding.inline_choice) {
       const required: boolean = binding.inline_choice.required;
       const choice: string = binding.inline_choice.choices[0].identifier;
       // @ts-expect-error composite choice metadata is immutable

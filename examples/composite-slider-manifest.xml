@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/imscp_v1p1" identifier="composite-slider-bank"><resources>
+  <resource identifier="mixed" type="imsqti_item_xmlv3p0" href="items/composite-slider.xml"><file href="items/composite-slider.xml"/></resource>
+  <resource identifier="continuous" type="imsqti_item_xmlv3p0" href="items/composite-slider-continuous.xml"><file href="items/composite-slider-continuous.xml"/></resource>
+</resources></manifest>

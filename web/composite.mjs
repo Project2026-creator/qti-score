@@ -1,10 +1,33 @@
+import { createSliderControl } from './slider.mjs';
+
 /** Collect independent responses in their authored text positions. */
-export function createCompositeControl(fieldset, item) {
+export function createCompositeControl(fieldset, item, onChange = () => {}) {
   const controls = new Map();
   const passage = document.createElement('div'); passage.className = 'composite-passage';
+  let sliderGroup;
   for (const part of item.passage) {
-    if ('text' in part) { passage.append(document.createTextNode(part.text)); continue; }
+    if ('text' in part) { sliderGroup = null; passage.append(document.createTextNode(part.text)); continue; }
     const binding = item.responses.find(b => b.identifier === part.response);
+    if (binding.slider) {
+      const block = document.createElement('fieldset'); block.className = 'composite-slider';
+      const legend = document.createElement('legend');
+      const title = binding.slider.prompt || `第 ${item.responses.indexOf(binding) + 1} 项数值`;
+      legend.textContent = title; block.append(legend);
+      const control = createSliderControl(block, binding, onChange, {
+        responseIdentifier: binding.identifier, idPrefix: `composite-slider-${binding.identifier}`,
+        rangeLabel: `${title}：滑杆`,
+      });
+      const clear = document.createElement('button'); clear.type = 'button';
+      clear.className = 'text-button'; clear.textContent = '清除此项';
+      clear.addEventListener('click', () => { control.reset(); onChange(); }); block.append(clear);
+      controls.set(binding.identifier, { value: () => control.response()[binding.identifier], reset: () => control.reset() });
+      if (!sliderGroup) {
+        sliderGroup = document.createElement('div'); sliderGroup.className = 'composite-slider-group';
+        passage.append(sliderGroup);
+      }
+      sliderGroup.append(block); continue;
+    }
+    sliderGroup = null;
     if (binding.choice) {
       const multiple = binding.cardinality === 'multiple';
       const block = document.createElement('fieldset'); block.className = 'composite-choice';

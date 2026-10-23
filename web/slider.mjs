@@ -1,18 +1,20 @@
 /** Range and text inputs collect a response; the MoonBit core validates it. */
-export function createSliderControl(fieldset, item, onChange) {
+export function createSliderControl(fieldset, item, onChange, {
+  responseIdentifier = 'RESPONSE', idPrefix = 'slider', rangeLabel = '数值滑杆', valueLabel = '填写数值',
+} = {}) {
   const spec = item.slider;
   let selected = false;
   const range = document.createElement('input');
-  range.type = 'range'; range.id = 'slider-answer'; range.className = 'slider-input';
+  range.type = 'range'; range.id = `${idPrefix}-answer`; range.className = 'slider-input';
   range.min = String(spec.lower_bound); range.max = String(spec.upper_bound);
   range.step = spec.step === null ? 'any' : String(spec.step);
   range.value = String(spec.lower_bound);
-  range.setAttribute('aria-label', '数值滑杆'); range.setAttribute('aria-orientation', spec.orientation);
+  range.setAttribute('aria-label', rangeLabel); range.setAttribute('aria-orientation', spec.orientation);
   range.style.direction = spec.orientation === 'vertical' ? (spec.reverse ? 'ltr' : 'rtl') : (spec.reverse ? 'rtl' : 'ltr');
   if (spec.orientation === 'vertical') range.style.writingMode = 'vertical-lr';
-  const label = document.createElement('label'); label.htmlFor = 'slider-value'; label.className = 'text-label';
-  label.textContent = '填写数值';
-  const input = document.createElement('input'); input.type = 'text'; input.id = 'slider-value';
+  const label = document.createElement('label'); label.htmlFor = `${idPrefix}-value`; label.className = 'text-label';
+  label.textContent = valueLabel;
+  const input = document.createElement('input'); input.type = 'text'; input.id = `${idPrefix}-value`;
   input.className = 'text-answer'; input.inputMode = 'decimal'; input.autocomplete = 'off'; input.maxLength = 65536;
   input.placeholder = '尚未作答';
   const adopt = document.createElement('button'); adopt.type = 'button'; adopt.className = 'secondary'; adopt.textContent = '采用滑杆当前位置';
@@ -39,7 +41,7 @@ export function createSliderControl(fieldset, item, onChange) {
   const upper = document.createElement('span'); upper.textContent = String(spec.upper_bound);
   track.append(lower, range, upper);
   if (spec.step_label && spec.step !== null && spec.orientation === 'horizontal' && (spec.upper_bound - spec.lower_bound) / spec.step <= 20) {
-    const ticks = document.createElement('datalist'); ticks.id = 'slider-ticks';
+    const ticks = document.createElement('datalist'); ticks.id = `${idPrefix}-ticks`;
     for (let i = 0; i <= Math.floor((spec.upper_bound - spec.lower_bound) / spec.step); i++) {
       const tick = document.createElement('option'); tick.value = String(Number((spec.lower_bound + i * spec.step).toPrecision(12)));
       tick.label = tick.value; ticks.append(tick);
@@ -48,7 +50,7 @@ export function createSliderControl(fieldset, item, onChange) {
   }
   fieldset.append(bounds, track, status, label, input, adopt); update();
   return {
-    response() { return { RESPONSE: selected ? input.value : null }; },
+    response() { return { [responseIdentifier]: selected ? input.value : null }; },
     reset() { selected = false; input.value = ''; range.value = String(spec.lower_bound); update(); },
   };
 }

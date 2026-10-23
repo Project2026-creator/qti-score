@@ -3,6 +3,27 @@ fn CompositeBinding::with_interaction(
   self : CompositeBinding,
   node : Node,
 ) -> CompositeBinding raise QtiError {
+  if node.name() == "qti-slider-interaction" {
+    if self.cardinality != Single || !self.base_type.is_numeric() {
+      raise InvalidItem(
+        node.location(),
+        "slider requires a single integer or float response",
+      )
+    }
+    let interaction = parse_slider_interaction(node, self.base_type)
+    if self.correct is Some(values) {
+      interaction.validate(authored_number(values[0], self.base_type, node)) catch {
+        error => raise InvalidItem(node.location(), error.message())
+      }
+    }
+    return {
+      ..self,
+      slider: Some({
+        interaction,
+        prompt: slider_body_text(node).trim().to_owned(),
+      }),
+    }
+  }
   if node.name() == "qti-choice-interaction" {
     if self.base_type != Identifier {
       raise InvalidItem(node.location(), "choice requires identifier base type")
@@ -122,6 +143,14 @@ fn CompositeBinding::response_value(
     }
   } else {
     composite_value(response, self.base_type)
+  }
+  if self.slider is Some(spec) && value is Number(number) {
+    spec.interaction.validate(number) catch {
+      error =>
+        raise InvalidResponse(
+          "response '\{self.identifier}': \{error.message()}",
+        )
+    }
   }
   if self.base_type == Identifier {
     let required = match (self.inline_choice, self.choice) {

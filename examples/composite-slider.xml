@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="lesson-allocation" title="教学时间与资源比例">
+  <qti-response-declaration identifier="TIME" cardinality="single" base-type="integer"><qti-correct-response><qti-value>40</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-response-declaration identifier="RATIO" cardinality="single" base-type="float"><qti-correct-response><qti-value>0.75</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-response-declaration identifier="ACTION" cardinality="single" base-type="identifier"><qti-correct-response><qti-value>Adapt</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>通过滑杆或数值框独立作答，最后选择反馈行动。滑杆起点不会自动成为答案；三项均可留空，最多 5 分。</p></qti-content-body></qti-rubric-block>
+    <qti-slider-interaction response-identifier="TIME" lower-bound="0" upper-bound="100" step="10" step-label="true"><qti-prompt>50 分钟课程中有 20 分钟用于讨论，占百分之几？</qti-prompt></qti-slider-interaction>
+    <qti-slider-interaction response-identifier="RATIO" lower-bound="0" upper-bound="1" step="0.05"><qti-prompt>20 份资源中 15 份通过复核，其比例是多少？</qti-prompt></qti-slider-interaction>
+    <p>根据学习证据，应 <qti-inline-choice-interaction response-identifier="ACTION"><qti-label>反馈行动</qti-label><qti-inline-choice identifier="Adapt">调整教学策略</qti-inline-choice><qti-inline-choice identifier="Ignore">忽略反馈</qti-inline-choice></qti-inline-choice-interaction>。</p>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">0</qti-base-value></qti-set-outcome-value>
+    <qti-response-condition><qti-response-if><qti-match><qti-variable identifier="TIME"/><qti-correct identifier="TIME"/></qti-match><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">2</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+    <qti-response-condition><qti-response-if><qti-equal><qti-variable identifier="RATIO"/><qti-correct identifier="RATIO"/></qti-equal><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">2</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if><qti-response-else-if><qti-equal tolerance-mode="absolute" tolerance="0.05"><qti-variable identifier="RATIO"/><qti-correct identifier="RATIO"/></qti-equal><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">1</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-else-if></qti-response-condition>
+    <qti-response-condition><qti-response-if><qti-match><qti-variable identifier="ACTION"/><qti-correct identifier="ACTION"/></qti-match><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">1</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+  </qti-response-processing>
+</qti-assessment-item>

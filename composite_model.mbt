@@ -9,7 +9,14 @@ priv struct CompositeBinding {
   choices : Array[Choice]
   inline_choice : InlineChoiceInteraction?
   choice : CompositeChoice?
+  slider : CompositeSlider?
   source : SourceLocation
+} derive(Debug)
+
+///|
+priv struct CompositeSlider {
+  interaction : SliderInteraction
+  prompt : String
 } derive(Debug)
 
 ///|
@@ -102,6 +109,13 @@ pub fn CompositeItem::describe(self : CompositeItem) -> Json {
           choice["min_choices"] = Json(spec.min_choices)
           choice["max_choices"] = Json(spec.max_choices)
         }
+      }
+      if b.slider is Some(spec) && response is Object(fields) {
+        let slider = spec.interaction.describe()
+        if slider is Object(details) {
+          details["prompt"] = Json(spec.prompt)
+        }
+        fields["slider"] = slider
       }
       response
     }),

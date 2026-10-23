@@ -68,7 +68,7 @@ fn compile_composite_root(root : Node) -> CompositeItem raise QtiError {
       _ =>
         raise Unsupported(
           declaration.location(),
-          "composite supports text/numeric entry, inline choice and block choice only",
+          "composite supports text/numeric entry, inline choice, block choice and sliders only",
         )
     }
     if cardinality == Multiple && base_type != Identifier {
@@ -93,6 +93,7 @@ fn compile_composite_root(root : Node) -> CompositeItem raise QtiError {
       choices: [],
       inline_choice: None,
       choice: None,
+      slider: None,
       source: declaration.source(),
     })
   }
@@ -153,7 +154,8 @@ fn composite_passage(
   }
   if node.name() == "qti-text-entry-interaction" ||
     node.name() == "qti-inline-choice-interaction" ||
-    node.name() == "qti-choice-interaction" {
+    node.name() == "qti-choice-interaction" ||
+    node.name() == "qti-slider-interaction" {
     let id = node.required("response-identifier")
     let mut found = false
     for i, binding in bindings {

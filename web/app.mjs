@@ -127,7 +127,7 @@ function renderQuestion() {
   legend.textContent = item.kind === 'composite' ? '填写多个答案' : item.slider ? '选择数值' : item.inline_choice ? '文中下拉选词' : item.hottext ? '选择原文片段' : item.gap_matching ? '在文段中选词' : item.base_type === 'directedPair' ? '添加配对' : item.cardinality === 'ordered' ? '排列答案' : item.base_type !== 'identifier' ? '填写答案' : '选择答案';
   fieldset.append(legend);
   if (item.kind === 'composite') {
-    compositeControl = createCompositeControl(fieldset, item);
+    compositeControl = createCompositeControl(fieldset, item, () => { updateResponse(); resetResult(); });
   } else if (item.slider) {
     sliderControl = createSliderControl(fieldset, item, () => { updateResponse(); resetResult(); });
   } else if (item.inline_choice) {
@@ -450,7 +450,7 @@ $('sample-package').addEventListener('click', () => {
 });
 
 try {
-  engine = await import('../sdk/index.mjs?v=0.18.0');
+  engine = await import('../sdk/index.mjs?v=0.19.0');
   await loadExample('single');
 } catch (error) {
   $('source-status').textContent = '内核未载入';

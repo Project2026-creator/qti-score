@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="zero-and-ratio" title="零值作答与连续比例">
+  <qti-response-declaration identifier="ZERO" cardinality="single" base-type="integer"><qti-correct-response><qti-value>0</qti-value></qti-correct-response><qti-mapping default-value="0"><qti-map-entry map-key="0" mapped-value="1"/></qti-mapping></qti-response-declaration>
+  <qti-response-declaration identifier="RATE" cardinality="single" base-type="float"><qti-correct-response><qti-value>0.5</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>第一项采用整数滑杆，作者边界 0.2–9.2 向外取整为 0–10；第二项为连续比例。主动选择 0 是有效答案，留空仍是未作答。两项独立评分，最多 3 分。</p></qti-content-body></qti-rubric-block>
+    <qti-slider-interaction response-identifier="ZERO" lower-bound="0.2" upper-bound="9.2" step="2" step-label="true"><qti-prompt>某次检查没有发现缺失资源，缺失数量是多少？</qti-prompt></qti-slider-interaction>
+    <qti-slider-interaction response-identifier="RATE" lower-bound="0" upper-bound="1" orientation="vertical" reverse="true"><qti-prompt>两组数量相等，第一组占全部学习者的比例是多少？</qti-prompt></qti-slider-interaction>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">0</qti-base-value></qti-set-outcome-value>
+    <qti-response-condition><qti-response-if><qti-not><qti-is-null><qti-variable identifier="ZERO"/></qti-is-null></qti-not><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-map-response identifier="ZERO"/></qti-sum></qti-set-outcome-value></qti-response-if></qti-response-condition>
+    <qti-response-condition><qti-response-if><qti-equal><qti-variable identifier="RATE"/><qti-correct identifier="RATE"/></qti-equal><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">2</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-if><qti-response-else-if><qti-equal tolerance-mode="absolute" tolerance="0.1"><qti-variable identifier="RATE"/><qti-correct identifier="RATE"/></qti-equal><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="SCORE"/><qti-base-value base-type="float">1</qti-base-value></qti-sum></qti-set-outcome-value></qti-response-else-if></qti-response-condition>
+  </qti-response-processing>
+</qti-assessment-item>

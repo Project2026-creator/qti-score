@@ -103,6 +103,9 @@ def build_sample_package():
     examples.append(("composite-multiple-package.zip", [("imsmanifest.xml", "composite-multiple-manifest.xml"),
                                                        ("items/composite-multiple.xml", "composite-multiple.xml"),
                                                        ("items/composite-multiple-required.xml", "composite-multiple-required.xml")]))
+    examples.append(("composite-slider-package.zip", [("imsmanifest.xml", "composite-slider-manifest.xml"),
+                                                     ("items/composite-slider.xml", "composite-slider.xml"),
+                                                     ("items/composite-slider-continuous.xml", "composite-slider-continuous.xml")]))
     for filename, files in examples:
         with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path, source in files:
@@ -181,7 +184,7 @@ def verify_item_statistics(report):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.18.0",
+        "module": "Project2026-creator/qti-score", "version": "0.19.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }
@@ -339,6 +342,17 @@ def verify(moon, env, output, offline=False):
                               ({"RATIO":75},2), ({"UNIT":"%"},1), ({"METHOD":"Summative"},0),
                               ({"RATIO":74},1), ({"RATIO":76},1), ({"RATIO":76.001},0),
                               ({},0), ({"METHOD":None},0), ({"METHOD":""},0)]),
+        ("composite-slider", [({"TIME":40,"RATIO":0.75,"ACTION":"Adapt"},5),
+                              ({"TIME":40,"RATIO":0.7,"ACTION":"Adapt"},4),
+                              ({"TIME":40,"RATIO":0.8,"ACTION":"Adapt"},4),
+                              ({"TIME":40},2), ({"RATIO":0.75},2), ({"ACTION":"Adapt"},1),
+                              ({"TIME":0},0), ({"RATIO":0},0), ({},0),
+                              ({"TIME":None,"RATIO":None},0), ({"TIME":"","RATIO":" "},0)]),
+        ("composite-slider-continuous", [({"ZERO":0,"RATE":0.5},3), ({"ZERO":0},1),
+                                         ({"RATE":0.5},2), ({"RATE":0.55},1), ({"RATE":0.625},0),
+                                         ({"RATE":0.333},0), ({"RATE":0},0), ({"ZERO":10},0),
+                                         ({"ZERO":2},0), ({},0), ({"ZERO":None,"RATE":None},0),
+                                         ({"ZERO":""},0)]),
         ("composite-multiple", [({"EVIDENCE":["Quiz","Feedback"],"ACTION":"Adapt","COUNT":4},4),
                                 ({"EVIDENCE":["Feedback","Quiz"]},2), ({"EVIDENCE":["Quiz"]},1),
                                 ({"EVIDENCE":["Quiz","Quiz"]},1), ({"EVIDENCE":["Quiz","Rank"]},0),
@@ -515,6 +529,7 @@ try {
     batch_scenarios.append(("composite-fallback-package", (ROOT / "examples/composite-fallback-attempts.jsonl").read_text(encoding="utf-8"), 8, 6, 2, 1))
     batch_scenarios.append(("composite-choice-package", (ROOT / "examples/composite-choice-attempts.jsonl").read_text(encoding="utf-8"), 8, 6, 2, 1))
     batch_scenarios.append(("composite-multiple-package", (ROOT / "examples/composite-multiple-attempts.jsonl").read_text(encoding="utf-8"), 10, 7, 3, 1))
+    batch_scenarios.append(("composite-slider-package", (ROOT / "examples/composite-slider-attempts.jsonl").read_text(encoding="utf-8"), 10, 7, 3, 1))
     batch_script = """
 import {readFileSync} from 'node:fs';
 const {importPackage}=await import(process.argv[1]);
@@ -547,6 +562,8 @@ finally {bundle.dispose();}
             batch_archive = ROOT / "web/composite-choice-package.zip"
         if name == "composite-multiple-package":
             batch_archive = ROOT / "web/composite-multiple-package.zip"
+        if name == "composite-slider-package":
+            batch_archive = ROOT / "web/composite-slider-package.zip"
         path = cache / ("batch-" + name + ".jsonl")
         path.write_text(source, encoding="utf-8")
         arguments = [moon, "run", "cmd/main", "--", "package-batch", str(batch_archive), str(path)]
@@ -619,6 +636,8 @@ finally {bundle.dispose();}
             raise AssertionError("Composite choice batch scores differ from authored expectations")
         if name == "composite-multiple-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [4, 4, 2, 1, 0, None, None, None, 1, 2]:
             raise AssertionError("Composite multiple batch scores differ from authored expectations")
+        if name == "composite-slider-package" and [row["result"]["score"] if row["ok"] else None for row in cli_report["rows"]] != [5, 3, 4, 0, 1, None, None, None, 1, 0]:
+            raise AssertionError("Composite slider batch scores differ from authored expectations")
         report["batch_cases"].append({"name": name, "expected_exit": expected_exit,
                                       "cli_report": cli_report, "sdk_report": sdk_evaluation["report"],
                                       "csv": exported, "csv_decoded": decoded, "items_csv": item_csv,

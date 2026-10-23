@@ -1,0 +1,10 @@
+{"attempt_id":"learner-a","resource_id":"mixed","response":{"TIME":40,"RATIO":0.75,"ACTION":"Adapt"}}
+{"attempt_id":"learner-a","resource_id":"continuous","response":{"ZERO":0,"RATE":0.5}}
+{"attempt_id":"learner-b","resource_id":"mixed","response":{"TIME":40,"RATIO":0.7,"ACTION":"Adapt"}}
+{"attempt_id":"learner-c","resource_id":"mixed","response":{}}
+{"attempt_id":"learner-d","resource_id":"continuous","response":{"ZERO":0}}
+{"attempt_id":"learner-e","resource_id":"mixed","response":{"TIME":35,"RATIO":0.75,"ACTION":"Adapt"}}
+{"attempt_id":"learner-f","resource_id":"mixed","response":{"TIME":40,"RATIO":0.73}}
+{"attempt_id":"learner-g","resource_id":"continuous","response":{"RATE":1.1}}
+{"attempt_id":"learner-h","resource_id":"continuous","response":{"RATE":0.55}}
+{"attempt_id":"learner-i","resource_id":"continuous","response":{"ZERO":null,"RATE":""}}

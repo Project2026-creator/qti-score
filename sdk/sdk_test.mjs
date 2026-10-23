@@ -14,6 +14,66 @@ const hasCode = code => cause => cause instanceof QtiScoreError && cause.code ==
 const packageBytes = () => readFileSync(new URL('../web/sample-package.zip', import.meta.url));
 const packageAttempts = () => readFileSync(new URL('../examples/package-attempts.jsonl', import.meta.url), 'utf8');
 
+test('composite sliders combine scalar fields and keep independent numeric metadata', () => {
+  const item = compileItem(fixture('composite-slider'));
+  try {
+    const answer = Object.freeze({ TIME: 40, RATIO: 0.75, ACTION: 'Adapt' });
+    assert.deepEqual(item.score(answer), { score: 5, status: 'answered', matches_correct: true });
+    assert.equal(item.explain({ TIME: 40, RATIO: 0.7, ACTION: 'Adapt' }).result.score, 4);
+    const metadata = item.describe();
+    assert.equal(metadata.responses[0].slider.step, 10);
+    assert.equal(metadata.responses[1].slider.step, 0.05);
+    assert.equal(metadata.responses[2].slider, undefined);
+    assert.equal(metadata.responses[2].inline_choice.choices.length, 2);
+    assert.ok(metadata.responses[0].slider.prompt.includes('50 分钟'));
+    assert.ok(!metadata.passage.some(p => p.text?.includes('50 分钟')));
+    metadata.responses[0].slider.step = 999;
+    assert.equal(item.describe().responses[0].slider.step, 10);
+    const invalid = [{ TIME: 35, RATIO: 0.75 }, { TIME: 40, RATIO: 0.73 }, { RATIO: 1.05 },
+      { TIME: ['40'] }, { RATIO: true }, { TIME: '4e1' }];
+    const rows = item.scoreBatch([...invalid, answer]);
+    assert.deepEqual(rows.map(r => r.ok ? r.result.score : r.error.code), [...invalid.map(() => 'invalid_response'), 5]);
+    assert.throws(() => item.score({ TIME: 35 }), error => hasCode('invalid_response')(error) && error.message.includes('TIME'));
+  } finally { item.dispose(); }
+});
+
+test('continuous composite sliders distinguish intentional zero from omissions', () => {
+  const item = compileItem(fixture('composite-slider-continuous'));
+  try {
+    for (const answer of [{}, { ZERO: null, RATE: null }, { ZERO: '', RATE: ' ' }]) {
+      assert.deepEqual(item.score(answer), { score: 0, status: 'unanswered', matches_correct: false });
+    }
+    assert.equal(item.score({ ZERO: 0 }).score, 1);
+    assert.equal(item.score({ ZERO: null, RATE: 0.5 }).score, 2);
+    assert.equal(item.score({ ZERO: 0, RATE: 0.5 }).matches_correct, true);
+    assert.equal(item.score({ RATE: 0.55 }).score, 1);
+    assert.equal(item.score({ RATE: 0.333 }).status, 'answered');
+    const fields = item.describe().responses;
+    assert.deepEqual([fields[0].slider.lower_bound, fields[0].slider.upper_bound], [0, 10]);
+    assert.equal(fields[1].slider.step, null);
+    assert.equal(fields[1].slider.orientation, 'vertical');
+    assert.equal(fields[1].slider.reverse, true);
+    assert.throws(() => item.score({ ZERO: 9 }), hasCode('invalid_response'));
+  } finally { item.dispose(); }
+});
+
+test('composite slider package exports preserve partial attempts and independent handles', () => {
+  const bundle = importPackage(readFileSync(new URL('../web/composite-slider-package.zip', import.meta.url)));
+  const item = bundle.getItem('mixed');
+  try {
+    assert.equal(bundle.describe().ready_count, 2);
+    const { report, csv, itemsCsv } = bundle.scoreAttempts(readFileSync(new URL('../examples/composite-slider-attempts.jsonl', import.meta.url), 'utf8'));
+    assert.deepEqual(report.rows.map(r => r.ok ? r.result.score : null), [5, 3, 4, 0, 1, null, null, null, 1, 0]);
+    assert.equal(report.attempts[0].score_sum, 8);
+    assert.equal(report.items[0].score_mean, 3);
+    assert.equal(report.items[1].score_mean, 1.25);
+    assert.ok(csv.includes('invalid_response'));
+    assert.ok(itemsCsv.includes('"mixed",5,3,2'));
+    bundle.dispose();
+    assert.equal(item.score({ TIME: 40 }).score, 2);
+  } finally { item.dispose(); bundle.dispose(); }
+});
+
 test('composite multiple arrays preserve partial credit, bag matching and caller inputs', () => {
   const item = compileItem(fixture('composite-multiple'));
   try {
