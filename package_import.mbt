@@ -144,7 +144,7 @@ pub fn ContentPackage::item(
 ) -> Item raise QtiError {
   match self.assessment_item(resource_id) {
     Single(item) => item
-    Composite(_) =>
+    Composite(_) | Processed(_) =>
       raise Unsupported(
         "resource", "use assessment_item for a composite resource",
       )

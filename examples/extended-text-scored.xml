@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="formative_summary" title="形成性评价要点复述" adaptive="false" time-dependent="false" xml:lang="zh-CN">
+  <qti-response-declaration identifier="NOTES" cardinality="single" base-type="string"><qti-correct-response><qti-value>形成性评价用于在教学过程中收集反馈并调整教学。</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="2"/>
+  <qti-outcome-declaration identifier="FEEDBACK" cardinality="single" base-type="identifier"/>
+  <qti-item-body>
+    <qti-extended-text-interaction response-identifier="NOTES" expected-lines="3" expected-length="40" format="plain" min-strings="1" placeholder-text="按题干给定句子复述要点">
+      <qti-prompt>请复述：“形成性评价用于在教学过程中收集反馈并调整教学。”本题按作者给定的精确文本规则评分，标点和内容一致得 2 分。</qti-prompt>
+    </qti-extended-text-interaction>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-response-condition>
+      <qti-response-if>
+        <qti-match><qti-variable identifier="NOTES"/><qti-correct identifier="NOTES"/></qti-match>
+        <qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">2</qti-base-value></qti-set-outcome-value>
+        <qti-set-outcome-value identifier="FEEDBACK"><qti-base-value base-type="identifier">matched</qti-base-value></qti-set-outcome-value>
+      </qti-response-if>
+      <qti-response-else>
+        <qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">0</qti-base-value></qti-set-outcome-value>
+        <qti-set-outcome-value identifier="FEEDBACK"><qti-base-value base-type="identifier">revise</qti-base-value></qti-set-outcome-value>
+      </qti-response-else>
+    </qti-response-condition>
+  </qti-response-processing>
+  <qti-modal-feedback outcome-identifier="FEEDBACK" show-hide="show" identifier="matched" title="要点复述正确"><qti-content-body><p>复述与作者给定的文本一致，得到 2 分。</p></qti-content-body></qti-modal-feedback>
+  <qti-modal-feedback outcome-identifier="FEEDBACK" show-hide="show" identifier="revise" title="检查复述内容"><qti-content-body><p>请核对题干给定句子的内容与标点。本题使用精确匹配规则。</p></qti-content-body></qti-modal-feedback>
+</qti-assessment-item>

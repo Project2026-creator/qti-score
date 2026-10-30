@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-test xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="assessment-practice" title="教育评价基础测验">
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"><qti-default-value><qti-value>0</qti-value></qti-default-value></qti-outcome-declaration>
+  <qti-test-part identifier="practice" navigation-mode="nonlinear" submission-mode="individual">
+    <qti-item-session-control max-attempts="2" allow-skipping="false" allow-review="true" show-feedback="true"/>
+    <qti-assessment-section identifier="principles" title="理解评价" visible="true">
+      <qti-assessment-item-ref identifier="formative-1" href="items/single.xml"/>
+      <qti-assessment-item-ref identifier="evidence" href="items/multiple.xml"/>
+    </qti-assessment-section>
+  </qti-test-part>
+  <qti-test-part identifier="assessment" navigation-mode="linear" submission-mode="simultaneous">
+    <qti-time-limits max-time="300"/>
+    <qti-assessment-section identifier="application" title="综合应用" visible="true">
+      <qti-assessment-item-ref identifier="formative-2" href="items/single.xml"/>
+      <qti-assessment-item-ref identifier="measurement" href="items/numeric.xml"/>
+    </qti-assessment-section>
+  </qti-test-part>
+  <qti-outcome-processing><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-test-variables variable-identifier="SCORE" base-type="float"/></qti-sum></qti-set-outcome-value></qti-outcome-processing>
+</qti-assessment-test>

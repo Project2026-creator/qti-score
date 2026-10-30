@@ -115,7 +115,7 @@ fn compile_single_root(root : Node) -> Item raise QtiError {
   }
   let processing = root.one("qti-response-processing").unwrap()
   let (template, numeric_rule) = if processing.attr("template") is Some(uri) {
-    processing.only_attributes(["template"])
+    processing.only_attributes(["template", "template-location"])
     processing.only_children([])
     (parse_template(uri), None)
   } else {
@@ -165,10 +165,13 @@ fn compile_single_root(root : Node) -> Item raise QtiError {
   let mut hottext_passage : Array[HottextPart]? = None
   let mut inline_choice : InlineChoiceInteraction? = None
   let mut slider : SliderInteraction? = None
+  let mut graphic : GraphicInteraction? = None
   let gap_match = interaction.name() == "qti-gap-match-interaction"
+  let graphic_gap = interaction.name() == "qti-graphic-gap-match-interaction"
+  let hotspot = interaction.name() == "qti-hotspot-interaction"
   let hottext = interaction.name() == "qti-hottext-interaction"
   if (base_type == DirectedPair) !=
-    (interaction.name() == "qti-match-interaction" || gap_match) {
+    (interaction.name() == "qti-match-interaction" || gap_match || graphic_gap) {
     raise InvalidItem(
       interaction.location(),
       "directedPair requires a match or gap-match interaction",
@@ -214,6 +217,22 @@ fn compile_single_root(root : Node) -> Item raise QtiError {
     min_choices = if spec.required { 1 } else { 0 }
     inline_choice = Some(spec)
     title
+  } else if hotspot {
+    if base_type != Identifier || cardinality == Ordered {
+      raise InvalidItem(
+        interaction.location(),
+        "hotspot requires single or multiple identifier responses",
+      )
+    }
+    let (spec, options) = parse_hotspot_interaction(interaction, cardinality)
+    graphic = Some(spec)
+    choices.append(options)
+    min_choices = spec.minimum
+    max_choices = spec.maximum
+    interaction
+    .one("qti-prompt", required=false)
+    .map(n => n.all_text.to_string().trim().to_owned())
+    .unwrap_or(title)
   } else if hottext {
     if base_type != Identifier || cardinality == Ordered {
       raise InvalidItem(
@@ -231,8 +250,16 @@ fn compile_single_root(root : Node) -> Item raise QtiError {
       Some(n) => n.all_text.to_string().trim().to_owned()
       None => title
     }
-  } else if interaction.name() == "qti-match-interaction" || gap_match {
-    let spec = if gap_match {
+  } else if interaction.name() == "qti-match-interaction" ||
+    gap_match ||
+    graphic_gap {
+    let spec = if graphic_gap {
+      let (visual, spec) = parse_graphic_gap_interaction(
+        interaction, cardinality,
+      )
+      graphic = Some(visual)
+      spec
+    } else if gap_match {
       let (spec, passage) = parse_gap_interaction(interaction, cardinality)
       gap_passage = Some(passage)
       spec
@@ -344,7 +371,7 @@ fn compile_single_root(root : Node) -> Item raise QtiError {
   }
   if !choices.is_empty() {
     if correct is Some(values) {
-      if ordered || hottext {
+      if ordered || hottext || hotspot {
         let seen : Map[String, Bool] = Map([])
         for value in values {
           if seen.contains(value) {
@@ -402,6 +429,7 @@ fn compile_single_root(root : Node) -> Item raise QtiError {
     hottext_passage,
     inline_choice,
     slider,
+    graphic,
     instructions,
     processing_source: processing.source(),
   }
@@ -572,6 +600,12 @@ fn collect_interactions(
       )
     }
     ignore(candidate_instructions(node))
+    return
+  }
+  if ["qti-hotspot-interaction", "qti-graphic-gap-match-interaction"].contains(
+      name,
+    ) {
+    found.push(node)
     return
   }
   if (name == "qti-simple-choice" || name == "qti-prompt") &&

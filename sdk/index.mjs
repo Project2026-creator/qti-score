@@ -35,7 +35,7 @@ function encodeResponse(response) {
     throw error('invalid_response', 'Expected a plain response object');
   }
   const keys = Reflect.ownKeys(response);
-  if (keys.length > 8) throw error('limit_exceeded', 'At most eight response variables');
+  if (keys.length > 32) throw error('limit_exceeded', 'At most 32 response variables');
   const encoded = Object.create(null);
   for (const key of keys) {
     if (typeof key !== 'string') throw error('invalid_response', 'Unknown response identifier');
@@ -142,6 +142,11 @@ class ContentPackage {
     const { handle } = unwrap(core.package_item(this.#handle, packageKey(resourceId)));
     return new CompiledItem(handle);
   }
+  getTest(resourceId) {
+    this.#assertLive();
+    const { handle } = unwrap(core.package_test(this.#handle, packageKey(resourceId)));
+    return new CompiledTest(handle);
+  }
   resourceFiles(resourceId) {
     this.#assertLive();
     return unwrap(core.package_files(this.#handle, packageKey(resourceId))).files;
@@ -170,4 +175,100 @@ export function importPackage(bytes) {
   if (bytes.byteLength > 8 * 1048576) throw error('limit_exceeded', 'ZIP input exceeds 8 MiB');
   const { handle } = unwrap(core.import_package(new Uint8Array(bytes)));
   return new ContentPackage(handle);
+}
+
+function clockValue(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw error('invalid_response', 'Session time must be a finite nonnegative number');
+  }
+  return value;
+}
+
+function encodeAction(action) {
+  if (!action || typeof action !== 'object' || Array.isArray(action) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(action))) {
+    throw error('invalid_response', 'Expected a plain session action object');
+  }
+  const result = Object.create(null);
+  for (const key of Reflect.ownKeys(action)) {
+    if (!['type', 'time', 'identifier', 'response'].includes(key)) {
+      throw error('invalid_response', 'Unknown session action field');
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(action, key);
+    if (!Object.hasOwn(descriptor, 'value')) throw error('invalid_response', 'Action must contain data, not an accessor');
+    const value = descriptor.value;
+    if (key === 'response') result[key] = JSON.parse(encodeResponse(value));
+    else if (key === 'time') result[key] = clockValue(value);
+    else {
+      if (typeof value !== 'string') throw error('invalid_response', `Action ${key} must be a string`);
+      result[key] = value;
+    }
+  }
+  return JSON.stringify(result);
+}
+
+class CompiledTest {
+  #handle;
+  #disposed = false;
+  constructor(handle) { this.#handle = handle; }
+  get disposed() { return this.#disposed; }
+  #assertLive() {
+    if (this.#disposed) throw error('disposed', 'Compiled test has been disposed');
+  }
+  describe() {
+    this.#assertLive();
+    return unwrap(core.describe_test(this.#handle)).test;
+  }
+  startSession(identifier, { now = 0 } = {}) {
+    this.#assertLive();
+    if (typeof identifier !== 'string') throw error('invalid_response', 'Session identifier must be a string');
+    const { handle } = unwrap(core.start_test_session(this.#handle, identifier, clockValue(now)));
+    return new TestSession(handle);
+  }
+  restoreSession(snapshot) {
+    this.#assertLive();
+    if (typeof snapshot !== 'string') throw error('invalid_response', 'Snapshot must be a JSON string');
+    const { handle } = unwrap(core.restore_test_session(this.#handle, snapshot));
+    return new TestSession(handle);
+  }
+  dispose() {
+    if (this.#disposed) return;
+    core.release_test(this.#handle);
+    this.#disposed = true;
+  }
+}
+
+class TestSession {
+  #handle;
+  #disposed = false;
+  constructor(handle) { this.#handle = handle; }
+  get disposed() { return this.#disposed; }
+  #assertLive() {
+    if (this.#disposed) throw error('disposed', 'Test session has been disposed');
+  }
+  act(action) {
+    this.#assertLive();
+    return unwrap(core.act_test_session(this.#handle, encodeAction(action))).session;
+  }
+  describe() {
+    this.#assertLive();
+    return unwrap(core.describe_test_session(this.#handle)).session;
+  }
+  snapshot() {
+    this.#assertLive();
+    return unwrap(core.snapshot_test_session(this.#handle)).snapshot;
+  }
+  exportResult(datestamp, { candidateIdentifier = 'anonymous' } = {}) {
+    this.#assertLive();
+    if (typeof datestamp !== 'string' || typeof candidateIdentifier !== 'string') {
+      throw error('invalid_response', 'Datestamp and candidate identifier must be strings');
+    }
+    const { report, xml } = unwrap(core.export_test_session(this.#handle, datestamp, candidateIdentifier));
+    return { report, xml };
+  }
+  dispose() {
+    if (this.#disposed) return;
+    core.release_test_session(this.#handle);
+    this.#disposed = true;
+  }
 }

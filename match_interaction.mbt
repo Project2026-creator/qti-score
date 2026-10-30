@@ -14,6 +14,7 @@ priv struct MatchInteraction {
   target_index : Map[String, MatchChoice]
   minimum : Int32
   maximum : Int32
+  allow_duplicates : Bool
 } derive(Debug)
 
 ///|
@@ -131,6 +132,7 @@ fn match_interaction(
   targets : Array[MatchChoice],
   minimum : Int32,
   maximum : Int32,
+  allow_duplicates~ : Bool = false,
 ) -> MatchInteraction {
   let source_index : Map[String, MatchChoice] = Map([])
   let target_index : Map[String, MatchChoice] = Map([])
@@ -140,7 +142,15 @@ fn match_interaction(
   for choice in targets {
     target_index[choice.identifier] = choice
   }
-  { sources, targets, source_index, target_index, minimum, maximum, }
+  {
+    sources,
+    targets,
+    source_index,
+    target_index,
+    minimum,
+    maximum,
+    allow_duplicates,
+  }
 }
 
 ///|
@@ -170,7 +180,7 @@ fn MatchInteraction::validate(
   let counts : Map[String, Int32] = Map([])
   for pair in pairs {
     let (source, target) = self.endpoints(pair)
-    if seen.contains(pair) {
+    if !self.allow_duplicates && seen.contains(pair) {
       raise InvalidResponse("duplicate association '\{pair}'")
     }
     seen[pair] = true

@@ -2,6 +2,36 @@
 
 ESM wrapper around the compiled MoonBit scorer. The package has no runtime dependencies and performs no network or file I/O. It supports Node.js 18+ and modern browsers with ES modules and private class fields.
 
+## Tests, sessions and standard results (0.20.0)
+
+`ContentPackage.getTest(resourceId)` compiles a test and its section/item references. A test offers `describe`, `startSession(identifier, {now})`, `restoreSession(snapshot)`, and `dispose`. Sessions offer `act`, `describe`, `snapshot`, `exportResult(datestamp, {candidateIdentifier})`, and `dispose`. There are separate limits of 16 live tests and 16 live sessions. Existing sessions remain usable after releasing their package/test.
+
+```js
+const bundle = importPackage(zipBytes);
+const test = bundle.getTest('runtime-test');
+const session = test.startSession('example-session', { now: 0 });
+try {
+  session.act({ type: 'save', time: 1, response: { RESPONSE: 'A' } });
+  session.act({ type: 'submit', time: 2 });
+  const snapshot = session.snapshot();
+  console.log(session.describe(), snapshot);
+  // After finishing every test part:
+  // const { report, xml } = session.exportResult(new Date().toISOString());
+} finally {
+  session.dispose();
+  test.dispose();
+  bundle.dispose();
+}
+```
+
+Actions are `save`, `submit`, `next`, `select`, `finish_part`, `pause`, `resume` and `tick`, each with a monotonic time in seconds. Save validates responses without scoring; individual submission scores on submit, simultaneous submission on finish_part. Repeated unchanged submissions do not consume attempts. The core enforces skip/review/attempt controls and part max-time. Feedback defaults to hidden. Snapshots replay validated actions against the same compiled content and core version, retaining independent item-reference instances.
+
+The new typed-rule path supports up to 32 response keys, cross-response expressions, additional typed outcomes, static modal feedback, and plain/preformatted extended text. `ItemDescription` includes a `template: 'typed_rules'` branch with declarations and optional interaction metadata; narrow by both `kind` and `template` before using fields specific to an older profile. Hotspot and graphic-gap descriptions add `graphic`, without author answers or mapping entries. `readFile` supplies package-local image bytes; the host resolves each image relative to its item path.
+
+SCORE marked `external-scored="human"` or `"externalMachine"` may remain NULL. Submitting it records the response and pending status. `exportResult` returns `pendingExternalScoring` in QTI XML and `all_items_scored: false`. Authored test outcome rules still run, preserving independent defaults and constants; the feedback example explicitly leaves its overall SCORE NULL while grades are pending. No grade is fabricated. In contrast, the numeric single-item `score` API requires an available numeric SCORE.
+
+See the [runtime guide](../docs/runtime.md) for the operator list, XML schema versions, CLI examples and precise unsupported structures. The older feature sections below describe the specialized scoring profiles; the typed-rule path accepts additional structures listed in that guide.
+
 From the repository root, run `python tools/project.py build-sdk`. The standalone package is written to `_build/sdk/qti-score/`, including the generated core, type declarations and licenses. That directory can be copied to another application or installed with `npm install /absolute/path/to/_build/sdk/qti-score`. The package is marked private and has not been published to npm.
 
 ```js
@@ -103,7 +133,7 @@ Responses use the existing string-pair API, e.g. `{RESPONSE:['Feedback G1','Adju
 
 ## Composite text/numeric items
 
-Version 0.11.0 extends the existing compileItem/getItem/score/explain/scoreBatch and package batch entry points to composite items. Responses are plain objects keyed by authored response identifiers, e.g. `{PLATFORM:'LMS',COUNT:4}`. Known omitted/null fields are unanswered; any invalid field rejects the entire attempt. JavaScript accessors, undefined/nonfinite values and unknown core identifiers are rejected, never silently omitted. At most eight fields are encoded. Existing single items still reject fields other than RESPONSE.
+Version 0.11.0 extends the existing compileItem/getItem/score/explain/scoreBatch and package batch entry points to composite items. Responses are plain objects keyed by authored response identifiers, e.g. `{PLATFORM:'LMS',COUNT:4}`. Known omitted/null fields are unanswered; any invalid field rejects the entire attempt. JavaScript accessors, undefined/nonfinite values and unknown core identifiers are rejected, never silently omitted. At most 32 fields are encoded. Existing single items still reject fields other than RESPONSE.
 
 The composite profile supports 2–8 responses: single string/integer/float text entries, single identifier inline choices, single/multiple identifier block choices, and single integer/float sliders. It uses one float SCORE and an explicit zero initialization followed by one response-condition per response. Non-NULL responses may add map-response; exact non-float matches may add a literal weight. The assignment is sum(SCORE, contribution), evaluated in authored order. Defaults, unsupported operators, other outcomes and unsupported composite/media interactions are explicitly rejected. NULL guards prevent accidental substitution of zero for the standard sum operator's NULL propagation. Integer lexical rules, numeric mapping equality, string case folding and mapping bounds reuse the existing core.
 

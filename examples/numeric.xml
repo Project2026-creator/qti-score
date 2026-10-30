@@ -6,7 +6,7 @@
   <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="2"/>
   <qti-item-body>
     <p>测量结果为多少？标准值为 100。完全相等得 2 分，绝对误差不超过 1 得 1 分，相对误差不超过 5% 得 0.5 分。</p>
-    <qti-text-entry-interaction response-identifier="RESPONSE" expected-length="8"/>
+    <p><qti-text-entry-interaction response-identifier="RESPONSE" expected-length="8"/></p>
   </qti-item-body>
   <qti-response-processing>
     <qti-response-condition>

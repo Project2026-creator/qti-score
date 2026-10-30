@@ -106,6 +106,21 @@ def build_sample_package():
     examples.append(("composite-slider-package.zip", [("imsmanifest.xml", "composite-slider-manifest.xml"),
                                                      ("items/composite-slider.xml", "composite-slider.xml"),
                                                      ("items/composite-slider-continuous.xml", "composite-slider-continuous.xml")]))
+    examples.append(("runtime-test-package.zip", [("imsmanifest.xml", "runtime-test-manifest.xml"),
+                                                ("test.xml", "runtime-test.xml"),
+                                                ("items/single.xml", "single.xml"),
+                                                ("items/multiple.xml", "multiple.xml"),
+                                                ("items/numeric.xml", "numeric.xml")]))
+    examples.append(("feedback-test-package.zip", [("imsmanifest.xml", "feedback-test-manifest.xml"),
+                                                 ("test.xml", "feedback-test.xml"),
+                                                 ("items/dependent-response.xml", "dependent-response.xml"),
+                                                 ("items/extended-text-scored.xml", "extended-text-scored.xml"),
+                                                 ("items/extended-text.xml", "extended-text.xml")]))
+    examples.append(("graphic-test-package.zip", [("imsmanifest.xml", "graphic-test-manifest.xml"),
+                                                ("test.xml", "graphic-test.xml"),
+                                                ("items/hotspot.xml", "hotspot.xml"),
+                                                ("items/graphic-gap.xml", "graphic-gap.xml"),
+                                                ("items/graphic-map.svg", "graphic-map.svg")]))
     for filename, files in examples:
         with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path, source in files:
@@ -184,7 +199,7 @@ def verify_item_statistics(report):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.19.0",
+        "module": "Project2026-creator/qti-score", "version": "0.20.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }
@@ -225,8 +240,8 @@ def verify(moon, env, output, offline=False):
     sdk = package_sdk(bridge)
     sdk_env = env.copy()
     sdk_env["QTI_SDK_URL"] = (sdk / "index.mjs").as_uri()
-    sdk_tests = command([node, "--test", str(ROOT / "sdk/sdk_test.mjs")], sdk_env)
-    report["checks"].append({"command": ["node", "--test", "sdk/sdk_test.mjs"],
+    sdk_tests = command([node, "--test", str(ROOT / "sdk/sdk_test.mjs"), str(ROOT / "sdk/session_test.mjs")], sdk_env)
+    report["checks"].append({"command": ["node", "--test", "sdk/sdk_test.mjs", "sdk/session_test.mjs"],
                              "sdk": str(sdk), "returncode": sdk_tests.returncode,
                              "output": (sdk_tests.stdout + sdk_tests.stderr).strip()})
     view_tests = command([node, "--test", "web/results_test.mjs"], env)

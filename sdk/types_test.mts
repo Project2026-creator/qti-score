@@ -7,7 +7,7 @@ const score: Score = item.score(response);
 const explanation: Explanation = item.explain({ RESPONSE: 100.5 });
 const batch: BatchResult[] = item.scoreBatch([response, {}, { RESPONSE: null }] as const);
 const metadata: ItemDescription = describeItem('<xml/>');
-if (metadata.kind === 'composite') {
+if (metadata.kind === 'composite' && metadata.template !== 'typed_rules') {
   const id: string = metadata.responses[0].identifier;
   const multi: ResponseObject = { PLATFORM: 'LMS', COUNT: 4 };
   for (const binding of metadata.responses) {

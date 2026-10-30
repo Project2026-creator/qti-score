@@ -1,7 +1,7 @@
 ///|
 fn main {
   let args = @env.args()
-  let version = "0.19.0"
+  let version = "0.20.0"
   // Node keeps both the runtime and script prefix; other targets keep argv[0].
   let offset = if args.length() > 1 && args[1].has_suffix(".js") {
     2
@@ -16,11 +16,78 @@ fn main {
     args[offset] == "--help" ||
     args[offset] == "help" {
     println(
-      "QTI Score \{version}\n  --version\n  describe ITEM.xml\n  score ITEM.xml RESPONSE.json\n  explain ITEM.xml RESPONSE.json\n  batch ITEM.xml RESPONSES.jsonl\n  inspect-package ARCHIVE.zip\n  package-score ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-explain ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-batch ARCHIVE.zip ATTEMPTS.jsonl [--csv | --items-csv]\n\nResponses: {\"RESPONSE\":\"A\"}, {\"RESPONSE\":[\"A\",\"B\"]}, {\"RESPONSE\":100.5}, {\"RESPONSE\":null}, or composite {\"ACTION\":\"Adapt\",\"RATIO\":75}\nBatch rows: {\"attempt_id\":\"a\",\"resource_id\":\"choice\",\"response\":{\"RESPONSE\":\"A\"}}\nExplain is an explicit developer diagnostic and may reveal scoring rules.",
+      "QTI Score \{version}\n  --version\n  describe ITEM.xml\n  score ITEM.xml RESPONSE.json\n  explain ITEM.xml RESPONSE.json\n  batch ITEM.xml RESPONSES.jsonl\n  inspect-package ARCHIVE.zip\n  test-describe ARCHIVE.zip TEST_RESOURCE_ID\n  test-run ARCHIVE.zip TEST_RESOURCE_ID ACTIONS.json\n  result-xml REPORT.json\n  package-score ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-explain ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-batch ARCHIVE.zip ATTEMPTS.jsonl [--csv | --items-csv]\n\nResponses: {\"RESPONSE\":\"A\"}, {\"RESPONSE\":[\"A\",\"B\"]}, {\"RESPONSE\":100.5}, {\"RESPONSE\":null}, or composite {\"ACTION\":\"Adapt\",\"RATIO\":75}\nBatch rows: {\"attempt_id\":\"a\",\"resource_id\":\"choice\",\"response\":{\"RESPONSE\":\"A\"}}\nExplain is an explicit developer diagnostic and may reveal scoring rules.",
     )
     return
   }
   let command = args[offset]
+  if command == "result-xml" ||
+    command == "test-describe" ||
+    command == "test-run" {
+    let count = if command == "result-xml" {
+      2
+    } else if command == "test-describe" {
+      3
+    } else {
+      4
+    }
+    if args.length() != offset + count {
+      println(
+        "{\"ok\":false,\"error\":{\"code\":\"usage\",\"message\":\"Use --help for command syntax\"}}",
+      )
+      @sys.exit(2)
+      return
+    }
+    try {
+      if command == "result-xml" {
+        let raw = @fs.read_file_to_string(args[offset + 1])
+        let report = @json.parse(
+          raw[:],
+          reject_duplicate_keys=true,
+          preserve_number_repr=true,
+        ) catch {
+          _ => raise @qti.InvalidResponse("malformed result report JSON")
+        }
+        println(@qti.assessment_result_xml(report))
+      } else {
+        let plan = @qti.read_content_package(
+          @fs.read_file_to_bytes(args[offset + 1]),
+        ).compile_test(args[offset + 2])
+        let output : Json = if command == "test-describe" {
+          { "ok": true, "test": plan.describe() }
+        } else {
+          {
+            "ok": true,
+            "run": plan.run_actions_json(
+              @fs.read_file_to_string(args[offset + 3]),
+            ),
+          }
+        }
+        println(output.stringify())
+        if output is { "run": { "report": { "has_errors": True, .. }, .. }, .. } {
+          @sys.exit(1)
+        }
+      }
+    } catch {
+      @qti.InvalidXml(_, _, _)
+      | @qti.InvalidItem(_, _)
+      | @qti.InvalidPackage(_, _)
+      | @qti.Unsupported(_, _)
+      | @qti.InvalidResponse(_)
+      | @qti.LimitExceeded(_) as error => {
+        let output : Json = { "ok": false, "error": error }
+        println(output.stringify())
+        @sys.exit(1)
+      }
+      _ => {
+        println(
+          "{\"ok\":false,\"error\":{\"code\":\"io_error\",\"message\":\"Could not read input file\"}}",
+        )
+        @sys.exit(1)
+      }
+    }
+    return
+  }
   let from_package = command == "package-score" || command == "package-explain"
   let batch_csv = command == "package-batch" &&
     args.length() == offset + 4 &&

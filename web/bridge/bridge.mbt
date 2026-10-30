@@ -211,3 +211,169 @@ pub fn score_package_attempts(handle : Int32, jsonl : String) -> String {
   }
   result.stringify()
 }
+
+///|
+priv struct TestPlans {
+  items : Map[Int32, @qti.AssessmentTest]
+  mut next_id : Int32
+}
+
+///|
+priv struct TestSessions {
+  items : Map[Int32, @qti.TestSession]
+  mut next_id : Int32
+}
+
+///|
+let tests : TestPlans = { items: Map([]), next_id: 1, }
+
+///|
+let sessions : TestSessions = { items: Map([]), next_id: 1, }
+
+///|
+pub fn package_test(handle : Int32, resource_id : String) -> String {
+  guard packages.items.get(handle) is Some(bundle) else {
+    return handle_error("invalid_handle", "package is unavailable or disposed")
+  }
+  if tests.items.length() >= 16 || tests.next_id == 2147483647 {
+    return handle_error(
+      "limit_exceeded", "at most 16 live compiled tests; dispose unused tests",
+    )
+  }
+  let result : Json = try {
+    let plan = bundle.compile_test(resource_id)
+    let handle = tests.next_id
+    tests.next_id += 1
+    tests.items[handle] = plan
+    { "ok": true, "handle": handle }
+  } catch {
+    error => { "ok": false, "error": error }
+  }
+  result.stringify()
+}
+
+///|
+pub fn describe_test(handle : Int32) -> String {
+  guard tests.items.get(handle) is Some(plan) else {
+    return handle_error("invalid_handle", "test is unavailable or disposed")
+  }
+  let result : Json = { "ok": true, "test": plan.describe() }
+  result.stringify()
+}
+
+///|
+pub fn release_test(handle : Int32) -> Bool {
+  let existed = tests.items.contains(handle)
+  tests.items.remove(handle)
+  existed
+}
+
+///|
+pub fn start_test_session(
+  handle : Int32,
+  identifier : String,
+  now : Double,
+) -> String {
+  guard tests.items.get(handle) is Some(plan) else {
+    return handle_error("invalid_handle", "test is unavailable or disposed")
+  }
+  if sessions.items.length() >= 16 || sessions.next_id == 2147483647 {
+    return handle_error(
+      "limit_exceeded", "at most 16 live test sessions; dispose unused sessions",
+    )
+  }
+  let result : Json = try {
+    let session = plan.new_session(identifier, now~)
+    let handle = sessions.next_id
+    sessions.next_id += 1
+    sessions.items[handle] = session
+    { "ok": true, "handle": handle }
+  } catch {
+    error => { "ok": false, "error": error }
+  }
+  result.stringify()
+}
+
+///|
+pub fn restore_test_session(handle : Int32, snapshot : String) -> String {
+  guard tests.items.get(handle) is Some(plan) else {
+    return handle_error("invalid_handle", "test is unavailable or disposed")
+  }
+  if sessions.items.length() >= 16 || sessions.next_id == 2147483647 {
+    return handle_error(
+      "limit_exceeded", "at most 16 live test sessions; dispose unused sessions",
+    )
+  }
+  let result : Json = try {
+    let session = plan.restore_session(snapshot)
+    let handle = sessions.next_id
+    sessions.next_id += 1
+    sessions.items[handle] = session
+    { "ok": true, "handle": handle }
+  } catch {
+    error => { "ok": false, "error": error }
+  }
+  result.stringify()
+}
+
+///|
+pub fn describe_test_session(handle : Int32) -> String {
+  guard sessions.items.get(handle) is Some(session) else {
+    return handle_error(
+      "invalid_handle", "test session is unavailable or disposed",
+    )
+  }
+  let result : Json = { "ok": true, "session": session.describe() }
+  result.stringify()
+}
+
+///|
+pub fn act_test_session(handle : Int32, action : String) -> String {
+  guard sessions.items.get(handle) is Some(session) else {
+    return handle_error(
+      "invalid_handle", "test session is unavailable or disposed",
+    )
+  }
+  let result : Json = { "ok": true, "session": session.act_json(action) } catch {
+    error => { "ok": false, "error": error }
+  }
+  result.stringify()
+}
+
+///|
+pub fn snapshot_test_session(handle : Int32) -> String {
+  guard sessions.items.get(handle) is Some(session) else {
+    return handle_error(
+      "invalid_handle", "test session is unavailable or disposed",
+    )
+  }
+  let result : Json = { "ok": true, "snapshot": session.snapshot() }
+  result.stringify()
+}
+
+///|
+pub fn export_test_session(
+  handle : Int32,
+  datestamp : String,
+  candidate : String,
+) -> String {
+  guard sessions.items.get(handle) is Some(session) else {
+    return handle_error(
+      "invalid_handle", "test session is unavailable or disposed",
+    )
+  }
+  let result : Json = try {
+    let report = session.report(datestamp, candidate_identifier=candidate)
+    { "ok": true, "report": report, "xml": @qti.assessment_result_xml(report) }
+  } catch {
+    error => { "ok": false, "error": error }
+  }
+  result.stringify()
+}
+
+///|
+pub fn release_test_session(handle : Int32) -> Bool {
+  let existed = sessions.items.contains(handle)
+  sessions.items.remove(handle)
+  existed
+}

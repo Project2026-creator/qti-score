@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="learning-space-labels" title="为学习活动匹配空间" adaptive="false" time-dependent="false">
+  <qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="directedPair">
+    <qti-correct-response><qti-value>Read Reading</qti-value><qti-value>Discuss Collaboration</qti-value><qti-value>Share Presentation</qti-value></qti-correct-response>
+    <qti-mapping default-value="0" lower-bound="0" upper-bound="3">
+      <qti-map-entry map-key="Read Reading" mapped-value="1"/>
+      <qti-map-entry map-key="Discuss Collaboration" mapped-value="1"/>
+      <qti-map-entry map-key="Share Presentation" mapped-value="1"/>
+    </qti-mapping>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="3"/>
+  <qti-item-body>
+    <qti-graphic-gap-match-interaction response-identifier="RESPONSE" max-associations="3">
+      <qti-prompt>把三种学习活动与图中的区域关联。每个区域最多安排一种活动，正确关联各得一分。</qti-prompt>
+      <object data="graphic-map.svg" type="image/svg+xml" width="640" height="360">包含阅读区、合作区和展示区的学习空间示意图。</object>
+      <qti-gap-text identifier="Read" match-max="1">独立阅读资料</qti-gap-text>
+      <qti-gap-text identifier="Discuss" match-max="1">小组讨论问题</qti-gap-text>
+      <qti-gap-text identifier="Share" match-max="1">展示学习成果</qti-gap-text>
+      <qti-associable-hotspot identifier="Reading" shape="rect" coords="40,60,280,220" hotspot-label="左侧区域" match-max="1"/>
+      <qti-associable-hotspot identifier="Collaboration" shape="rect" coords="360,60,600,220" hotspot-label="右侧区域" match-max="1"/>
+      <qti-associable-hotspot identifier="Presentation" shape="circle" coords="320,290,45" hotspot-label="下方区域" match-max="1"/>
+    </qti-graphic-gap-match-interaction>
+  </qti-item-body>
+  <qti-response-processing template="https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/map_response.xml"/>
+</qti-assessment-item>

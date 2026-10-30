@@ -121,6 +121,7 @@ pub struct Item {
   priv hottext_passage : Array[HottextPart]?
   priv inline_choice : InlineChoiceInteraction?
   priv slider : SliderInteraction?
+  priv graphic : GraphicInteraction?
   priv instructions : Array[String]
   priv processing_source : SourceLocation
 } derive(Debug)

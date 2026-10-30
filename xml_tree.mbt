@@ -243,6 +243,9 @@ fn optional_number(node : Node, attribute : String) -> Double? raise QtiError {
 ///|
 fn identifier(value : String, location : String) -> String raise QtiError {
   // This profile uses ASCII QTI identifiers. Text responses remain Unicode.
+  if value.length() > 256 {
+    raise LimitExceeded("identifier exceeds 256 code units")
+  }
   let mut i = 0
   for c in value.iter() {
     let valid = ('a' <= c && c <= 'z') ||

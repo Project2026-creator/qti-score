@@ -6,11 +6,19 @@ import {
 }
 
 // Values
+pub fn assessment_result_xml(Json) -> String raise QtiError
+
 pub fn compile_assessment_item(String, limits? : Limits) -> AssessmentItem raise QtiError
+
+pub fn compile_assessment_test(String, Map[String, AssessmentItem], limits? : Limits) -> AssessmentTest raise QtiError
 
 pub fn compile_composite_item(String, limits? : Limits) -> CompositeItem raise QtiError
 
 pub fn compile_item(String, limits? : Limits) -> Item raise QtiError
+
+pub fn compile_processed_item(String, limits? : Limits) -> ProcessedItem raise QtiError
+
+pub fn compile_processing_program(String, limits? : Limits) -> ProcessingProgram raise QtiError
 
 pub fn describe_json(String) -> String
 
@@ -44,12 +52,33 @@ pub impl ToJson for QtiError
 pub(all) enum AssessmentItem {
   Single(Item)
   Composite(CompositeItem)
+  Processed(ProcessedItem)
 } derive(@debug.Debug)
 pub fn AssessmentItem::describe(Self) -> Json
 pub fn AssessmentItem::explain_json(Self, String) -> Explanation raise QtiError
+pub fn AssessmentItem::feedback_json(Self, String) -> Json raise QtiError
 pub fn AssessmentItem::identifier(Self) -> String
+pub fn AssessmentItem::outcome_types_json(Self) -> Json
+pub fn AssessmentItem::outcomes_json(Self, String) -> Json raise QtiError
+pub fn AssessmentItem::response_types_json(Self) -> Json
 pub fn AssessmentItem::score_json(Self, String) -> Score raise QtiError
 pub fn AssessmentItem::to_repr(Self) -> @debug.Repr
+pub fn AssessmentItem::validate_json(Self, String) -> Unit raise QtiError
+
+pub struct AssessmentTest {
+  identifier : String
+  title : String
+  // private fields
+} derive(@debug.Debug)
+pub fn AssessmentTest::describe(Self) -> Json
+pub fn AssessmentTest::entries(Self) -> Array[TestEntry]
+pub fn AssessmentTest::identity(Self) -> String
+pub fn AssessmentTest::new_session(Self, String, now? : Double) -> TestSession raise QtiError
+pub fn AssessmentTest::outcome_types(Self) -> Json
+pub fn AssessmentTest::parts(Self) -> Array[TestPart]
+pub fn AssessmentTest::restore_session(Self, String) -> TestSession raise QtiError
+pub fn AssessmentTest::run_actions_json(Self, String) -> Json raise QtiError
+pub fn AssessmentTest::to_repr(Self) -> @debug.Repr
 
 pub struct AttemptSummary {
   attempt_id : String
@@ -137,12 +166,14 @@ pub fn CompositeItem::explain_responses(Self, Map[String, Response]) -> Explanat
 pub fn CompositeItem::score_json(Self, String) -> Score raise QtiError
 pub fn CompositeItem::score_responses(Self, Map[String, Response]) -> Score raise QtiError
 pub fn CompositeItem::to_repr(Self) -> @debug.Repr
+pub fn CompositeItem::validate_json(Self, String) -> Unit raise QtiError
 
 pub struct ContentPackage {
   identifier : String
   // private fields
 }
 pub fn ContentPackage::assessment_item(Self, String) -> AssessmentItem raise QtiError
+pub fn ContentPackage::compile_test(Self, String) -> AssessmentTest raise QtiError
 pub fn ContentPackage::describe(Self) -> Json
 pub fn ContentPackage::item(Self, String) -> Item raise QtiError
 pub fn ContentPackage::read_file(Self, String) -> Bytes raise QtiError
@@ -176,6 +207,19 @@ pub fn Item::explain_json(Self, String) -> Explanation raise QtiError
 pub fn Item::score(Self, Response) -> Score raise QtiError
 pub fn Item::score_json(Self, String) -> Score raise QtiError
 pub fn Item::to_repr(Self) -> @debug.Repr
+pub fn Item::validate_json(Self, String) -> Unit raise QtiError
+
+pub struct ItemSessionControl {
+  max_attempts : Int32
+  allow_review : Bool
+  show_feedback : Bool
+  allow_skipping : Bool
+  validate_responses : Bool
+} derive(Eq, @debug.Debug)
+pub fn ItemSessionControl::default() -> Self
+pub fn ItemSessionControl::equal(Self, Self) -> Bool
+pub fn ItemSessionControl::not_equal(Self, Self) -> Bool
+pub fn ItemSessionControl::to_repr(Self) -> @debug.Repr
 
 pub struct ItemSummary {
   resource_id : String
@@ -205,6 +249,14 @@ pub fn Limits::equal(Self, Self) -> Bool
 pub fn Limits::not_equal(Self, Self) -> Bool
 pub fn Limits::to_repr(Self) -> @debug.Repr
 
+pub(all) enum NavigationMode {
+  Linear
+  Nonlinear
+} derive(Eq, @debug.Debug)
+pub fn NavigationMode::equal(Self, Self) -> Bool
+pub fn NavigationMode::not_equal(Self, Self) -> Bool
+pub fn NavigationMode::to_repr(Self) -> @debug.Repr
+
 pub(all) struct PackageLimits {
   max_archive_bytes : Int32
   max_entries : Int32
@@ -215,6 +267,25 @@ pub fn PackageLimits::default() -> Self
 pub fn PackageLimits::equal(Self, Self) -> Bool
 pub fn PackageLimits::not_equal(Self, Self) -> Bool
 pub fn PackageLimits::to_repr(Self) -> @debug.Repr
+
+pub struct ProcessedItem {
+  // private fields
+} derive(@debug.Debug)
+pub fn ProcessedItem::describe(Self) -> Json
+pub fn ProcessedItem::explain_json(Self, String) -> Explanation raise QtiError
+pub fn ProcessedItem::feedback_json(Self, String) -> Json raise QtiError
+pub fn ProcessedItem::identifier(Self) -> String
+pub fn ProcessedItem::outcomes_json(Self, String) -> Json raise QtiError
+pub fn ProcessedItem::score_json(Self, String) -> Score raise QtiError
+pub fn ProcessedItem::to_repr(Self) -> @debug.Repr
+pub fn ProcessedItem::validate_json(Self, String) -> Unit raise QtiError
+
+pub struct ProcessingProgram {
+  // private fields
+} derive(@debug.Debug)
+pub fn ProcessingProgram::describe(Self) -> Json
+pub fn ProcessingProgram::evaluate_json(Self, Json) -> Json raise QtiError
+pub fn ProcessingProgram::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Response {
   Null
@@ -263,6 +334,14 @@ pub fn SourceLocation::not_equal(Self, Self) -> Bool
 pub fn SourceLocation::to_json(Self) -> Json
 pub fn SourceLocation::to_repr(Self) -> @debug.Repr
 
+pub(all) enum SubmissionMode {
+  Individual
+  Simultaneous
+} derive(Eq, @debug.Debug)
+pub fn SubmissionMode::equal(Self, Self) -> Bool
+pub fn SubmissionMode::not_equal(Self, Self) -> Bool
+pub fn SubmissionMode::to_repr(Self) -> @debug.Repr
+
 pub(all) enum Template {
   MatchCorrect
   MapResponse
@@ -271,6 +350,37 @@ pub(all) enum Template {
 pub fn Template::equal(Self, Self) -> Bool
 pub fn Template::not_equal(Self, Self) -> Bool
 pub fn Template::to_repr(Self) -> @debug.Repr
+
+pub struct TestEntry {
+  identifier : String
+  part_identifier : String
+  resource_id : String
+  path : String
+  control : ItemSessionControl
+  // private fields
+} derive(@debug.Debug)
+pub fn TestEntry::to_repr(Self) -> @debug.Repr
+
+pub struct TestPart {
+  identifier : String
+  navigation_mode : NavigationMode
+  submission_mode : SubmissionMode
+  max_time : Double?
+  control : ItemSessionControl
+  // private fields
+} derive(@debug.Debug)
+pub fn TestPart::entry_count(Self) -> Int32
+pub fn TestPart::to_repr(Self) -> @debug.Repr
+
+pub struct TestSession {
+  session_identifier : String
+  // private fields
+}
+pub fn TestSession::act_json(Self, String) -> Json raise QtiError
+pub fn TestSession::describe(Self) -> Json
+pub fn TestSession::report(Self, String, candidate_identifier? : String) -> Json raise QtiError
+pub fn TestSession::result_xml(Self, String, candidate_identifier? : String) -> String raise QtiError
+pub fn TestSession::snapshot(Self) -> String
 
 // Type aliases
 

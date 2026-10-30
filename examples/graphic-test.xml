@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-test xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="learning-spaces" title="图形交互：学习空间设计">
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-test-part identifier="spaces" navigation-mode="nonlinear" submission-mode="individual">
+    <qti-item-session-control max-attempts="2" allow-skipping="false" allow-review="true" show-feedback="true"/>
+    <qti-assessment-section identifier="space-activities" title="从空间到活动" visible="true">
+      <qti-assessment-item-ref identifier="choose-space" href="items/hotspot.xml"/>
+      <qti-assessment-item-ref identifier="label-spaces" href="items/graphic-gap.xml"/>
+    </qti-assessment-section>
+  </qti-test-part>
+  <qti-outcome-processing><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-test-variables variable-identifier="SCORE" base-type="float"/></qti-sum></qti-set-outcome-value></qti-outcome-processing>
+</qti-assessment-test>

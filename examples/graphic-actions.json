@@ -1,0 +1,14 @@
+{
+  "session_identifier": "demo-graphic-session",
+  "candidate_identifier": "demo-candidate",
+  "start_time": 0,
+  "datestamp": "2026-10-30T12:00:00Z",
+  "actions": [
+    {"type": "save", "time": 1, "response": {"RESPONSE": "Collaboration"}},
+    {"type": "submit", "time": 2},
+    {"type": "next", "time": 3},
+    {"type": "save", "time": 4, "response": {"RESPONSE": ["Read Reading", "Discuss Collaboration", "Share Presentation"]}},
+    {"type": "submit", "time": 5},
+    {"type": "finish_part", "time": 6}
+  ]
+}

@@ -1,8 +1,8 @@
 {
   "name": "@project2026-creator/qti-score",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "private": true,
-  "description": "QTI 3 scoring, ZIP packages, batch result exports and observed per-item statistics",
+  "description": "QTI 3 test compilation, sessions, typed scoring, authored feedback and standard result XML",
   "type": "module",
   "exports": {
     ".": {

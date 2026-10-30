@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1" identifier="feedback-workflow-package">
+  <metadata><schema>QTI Test</schema><schemaversion>3.0.0</schemaversion></metadata>
+  <organizations/>
+  <resources>
+    <resource identifier="feedback-workflow" type="imsqti_test_xmlv3p0" href="test.xml"><file href="test.xml"/><dependency identifierref="dependent"/><dependency identifierref="scored-text"/><dependency identifierref="reflection"/></resource>
+    <resource identifier="dependent" type="imsqti_item_xmlv3p0" href="items/dependent-response.xml"><file href="items/dependent-response.xml"/></resource>
+    <resource identifier="scored-text" type="imsqti_item_xmlv3p0" href="items/extended-text-scored.xml"><file href="items/extended-text-scored.xml"/></resource>
+    <resource identifier="reflection" type="imsqti_item_xmlv3p0" href="items/extended-text.xml"><file href="items/extended-text.xml"/></resource>
+  </resources>
+</manifest>

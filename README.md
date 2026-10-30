@@ -1,10 +1,14 @@
 # QTI Score
 
-A MoonBit library for importing QTI 3 ZIP content packages and scoring a focused subset of items. Supports choice, ordering, directed matching, gap filling, contextual hottext, inline choice, numeric sliders, composite items, text and numeric entry, batch result reports and CSV export, developer explanations, and an ESM JavaScript SDK backed by the same MoonBit core.
+A MoonBit library for importing QTI 3 content packages, compiling tests, running assessment sessions, processing typed response/outcome rules, and exporting QTI Result Reporting XML. Includes item scoring, authored feedback, graphical interactions, long-text responses, CLI tools, a browser player and an ESM JavaScript SDK backed by the same core.
 
-QTI Score 将 QTI 3 题目编译成可重复使用的评分对象。核心库负责 XML 命名空间、响应类型、标准答案、映射和数值比较；命令行、浏览器与 JS SDK 使用同一份实现。适用于测验平台接入、题目迁移验证和教育技术课程中的标准实验。
+QTI Score 将 QTI 3 题目与试卷编译成可复用对象，完成题包导入、作答会话、评分、反馈和结果交换。MoonBit 核心处理 XML、类型、表达式、生命周期与标准结果，命令行、浏览器与 JS SDK 共用实现。适用于测验平台接入、题目迁移验证和教育技术课程中的标准实验。
+
+**0.20.0：**新增试卷与分节引用、逐题／整部分提交、跳题和复核控制、限时与快照恢复；增加类型化表达式、跨响应计算、长文本与作者反馈，以及热点／图形匹配交互。结果可导出带类型的 QTI XML；人工待评保留 NULL 分值。接入步骤、示例和具体支持范围见 [试卷运行指南](docs/runtime.md)。
 
 ## 快速运行
+
+整卷作答请从 [试卷运行器](http://127.0.0.1:4173/web/test.html) 进入，提供分部分测验、反馈与长文本、图形交互三组示例。下文保留既有单题与题包分析接口的详细说明；更一般的表达式与运行时接口见 [运行指南](docs/runtime.md)。
 
 需要 **MoonBit 0.10.16 或更新的兼容版本**。本项目在 `moonc v0.10.16+b1a0e846e` 上验证。浏览器构建脚本使用 Python 3.8+；完整入口对照检查还需要 Node.js。
 
@@ -109,7 +113,7 @@ moon run cmd/main -- explain examples/match.xml examples/match-response.json
 
 `describe()` 的 `base_type` 增加 `directedPair`。配对题额外返回 `matching`，包含 `min_associations`、`max_associations` 和两组 `sets`；各选项含标识符、纯文本及 `match_min`/`match_max`，不含正确配对。原有 `choices` 保持为空，`min_choices`/`max_choices` 对应整体关联范围。其他题目的元信息形状保持原样。公开枚举 `BaseType` 新增 `DirectedPair`，穷尽匹配的调用者需处理新增分支。
 
-网页用原生下拉框和按钮添加/移除关联，可通过键盘操作；单组模式再次添加会替换原关联。初始不自动作答，修改后清除旧结果，次数与配对合法性在提交时由核心检查。演示按原文显示选项，不执行随机呈现。`match-group`、模板控制显示、无向关联及图形配对暂不支持，遇到相应结构明确报错。
+网页用原生下拉框和按钮添加/移除关联，可通过键盘操作；单组模式再次添加会替换原关联。初始不自动作答，修改后清除旧结果，次数与配对合法性在提交时由核心检查。演示按原文显示选项，不执行随机呈现。`match-group`、模板控制显示及无向关联暂不支持。图形配对通过新的 graphic-gap 交互实现，见运行指南。
 
 ```sh
 python tools/project.py build-web
@@ -196,6 +200,8 @@ moon run cmd/main -- package-batch web/slider-package.zip examples/slider-attemp
 依据见 [QTI 信息模型](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/index.html) 的 SliderInteraction（5.134）及 [实施指南的滑杆章节](https://www.imsglobal.org/spec/qti/v3p0/impl)。响应默认值、动态内容与富媒体上下文仍明确拒绝；复合滑杆见后文。独立题包含整数映射与浮点容差两个示例；批量作答共 7 行，5 成功、2 错误，成功行得分为 2、2、1、1、未作答 0，CLI 输出完整报告并退出 1。
 
 ## 多响应复合填空
+
+本节记录 `CompositeItem` 专用编译路径的结构。0.20.0 的 `compile_assessment_item` / SDK 会将其他已支持的类型化表达式交给 `ProcessedItem`，支持最多 32 个响应、跨响应计算和附加结果变量；其规则范围见 [类型化表达式](docs/runtime.md#类型化表达式与反馈)。下文提到的结构拒绝指专用路径，不能据此判断通用入口的支持状态。
 
 支持一道题包含 2–8 个独立响应：`single/string`、`single/integer`、`single/float` 使用 `qti-text-entry-interaction`，数值还可使用 `qti-slider-interaction`；`single/identifier` 使用 `qti-inline-choice-interaction` 或块级 `qti-choice-interaction`；`multiple/identifier` 使用块级 `qti-choice-interaction`。变量可以使用不同名称，声明、交互和评分规则须一一对应。单选、多选、下拉、文本、数值填空与滑杆可以混合，文段保留各交互的位置。已有单响应题目及其元信息保持原样。
 
@@ -328,7 +334,7 @@ moon run cmd/main -- package-batch web/composite-fallback-package.zip examples/c
 
 ## QTI ZIP 题包
 
-浏览器点击“载入示例题包”或“导入 ZIP”，可查看逐题兼容状态、清单资源与共享依赖，选取可评分题目后直接作答。示例包含单选、数值填空以及一份暂不支持的长文本题；长文本题的错误不会阻止前两题评分。演示仅读取本地内容，资源文件不自动执行或注入 HTML。
+浏览器点击“载入示例题包”或“导入 ZIP”，可查看逐题兼容状态、清单资源与共享依赖，选取可评分题目后直接作答。示例包含单选、数值填空以及一份暂不支持的 XHTML 富文本长答案题；该题的错误不会阻止前两题评分。plain/preformatted 长文本已由新的运行时支持。演示仅读取本地内容，资源文件不自动执行或注入 HTML。
 
 ```sh
 # 从 examples 中的源文件生成确定性的示例 ZIP，并构建网页与 SDK
@@ -351,11 +357,11 @@ let data = bundle.read_file("assets/note.txt") // 精确、区分大小写的 ZI
 
 `describe()` 返回文件列表、资源类型、依赖、资源诊断，以及每道题的 `ready` / `unsupported` / `invalid` 状态。单题失败保留其错误和可定位的 XML 行列；`item(resource_id)` 重抛该错误。报告不包含正确答案、映射规则或文件内容。文件缺失与循环依赖会影响其依赖者，独立题目仍可导入；清单格式、危险路径、重复 ZIP 成员和 ZIP 损坏导致整体失败。
 
-支持根目录 `imsmanifest.xml`，QTI 3 CP 命名空间 `http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1` 及通用 CP 命名空间 `http://www.imsglobal.org/xsd/imscp_v1p1`。自动编译 `imsqti_item_xmlv3p0` 资源；其他资源保留为文件与依赖元信息。`href` 按清单及继承的 `xml:base` 解析，UTF-8 百分号解码一次；ZIP 成员名保持原文。支持包内相对路径，拒绝外部 URL、查询、片段、编码分隔符和越过包根目录的路径。入口 `href` 必须包含在所属资源的 `file` 列表中。
+支持根目录 `imsmanifest.xml`，QTI 3 CP 命名空间 `http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1` 及通用 CP 命名空间 `http://www.imsglobal.org/xsd/imscp_v1p1`。自动编译 `imsqti_item_xmlv3p0` 资源；`imsqti_test_xmlv3p0` 可通过 `compile_test` / SDK `getTest` 编译，其他资源保留为文件与依赖元信息。`href` 按清单及继承的 `xml:base` 解析，UTF-8 百分号解码一次；ZIP 成员名保持原文。支持包内相对路径，拒绝外部 URL、查询、片段、编码分隔符和越过包根目录的路径。入口 `href` 必须包含在所属资源的 `file` 列表中。
 
 默认限额：**8 MiB ZIP、512 个条目、每文件 4 MiB、解压总量 16 MiB**；CRC 全量检查，所有内容只保存在内存中。MoonBit 可通过 `PackageLimits` 调整至最多 64 MiB / 4096 条目 / 16 MiB 每文件 / 128 MiB 总量。清单另限 512 个资源、4096 个资源子引用，每个资源最多报告 8 条诊断；所有 XML 仍受下文的独立限制。多资源引用同一题目文件时复用编译结果。
 
-此功能是题包读取与评分接入子集：metadata、organizations 保留在原始清单中但不执行，未实现完整 CP/XSD 校验、试卷编序或资源渲染。0.3.0 新增 `QtiError::InvalidPackage`；穷尽匹配该错误枚举的调用者需处理新增分支。
+metadata、organizations 保留在原始清单中但不执行。0.20.0 新增 `compile_test(resource_id)` 编译 `imsqti_test_xmlv3p0` 资源及分节／题目引用，按固定顺序运行；完整 CP 校验与随机编序仍待实现。官方 XSD 校验在独立开发工具中执行，不嵌入题包运行时。0.3.0 新增 `QtiError::InvalidPackage`；穷尽匹配该错误枚举的调用者需处理新增分支。
 
 ## 跨题批量评分与导出
 
@@ -487,6 +493,8 @@ try {
 
 ## 支持边界与评分语义
 
+以下是既有 `compile_item` 专用评分 API 的行为。`compile_assessment_item` 与 SDK 还支持 [0.20.0 运行时](docs/runtime.md) 的一般类型化规则、长文本、图形交互、附加结果变量与作者反馈。
+
 - QTI 3 命名空间必须是 `http://www.imsglobal.org/xsd/imsqtiasi_v3p0`；支持默认命名空间、前缀与 XHTML 题干元素。
 - 单响应 Item 包含一个 `RESPONSE`，一个 `single/float` 类型的 `SCORE`，以及一个选择、排序、配对、选词填空、文段选词、文中下拉、滑杆或文本填空交互。标识符采用 ASCII NCName 子集；题干与文本答案支持 Unicode。
 - 单选／多选使用 `identifier` 类型；文本填空使用 `single/string`。支持正确答案、映射、分值上下界和可选的初始 SCORE 值。
@@ -511,7 +519,7 @@ try {
 
 绝对容差以第一个操作数 x 为基准，比较第二个值 y 是否落在 `[x-t0, x+t1]`。相对容差按百分数计算为 `[x×(1-t0/100), x×(1+t1/100)]`；本库限定其第一个操作数为固定、非负的正确值或常量，负参考值可使用绝对容差。操作数顺序不会自动交换。比较使用 IEEE 754 双精度计算，不额外添加隐藏 epsilon。数值规则的 NULL 分支按作者赋值执行，未作答不强制归零。示例见 [numeric.xml](examples/numeric.xml)。
 
-当前不包含 QTI 2、上文子集以外的复合题、record 类型、通用评分表达式、模板变量、反馈执行、试卷编序和完整 XSD 校验。不支持的评分结构、属性、交互会明确返回错误。本库实现上述子集，未声称通过 1EdTech 产品认证。0.2.0 扩展了公开枚举 `BaseType`、`Response` 和 `Template`；0.5.0 为 `Cardinality` 与 `Response` 新增 `Ordered`，SDK 的元信息基数联合类型也增加 `ordered`。使用穷尽模式匹配的调用者需要处理新增分支。
+当前未实现 QTI 2、record、模板生成、全部表达式运算符、随机选题编序、自适应交付、完整 HTML5/MathML 与无障碍偏好适配。不支持的评分结构、属性、交互会明确返回错误。项目尚未通过 1EdTech 产品认证，逐项范围见运行指南。0.2.0 扩展了公开枚举 `BaseType`、`Response` 和 `Template`；0.5.0 为 `Cardinality` 与 `Response` 新增 `Ordered`，0.20.0 为 `AssessmentItem` 新增 `Processed`。使用穷尽模式匹配的调用者需要处理新增分支。
 
 默认 XML 上限为 **1,048,576 UTF-16 码元、128 层、30,000 个元素**；可传 `Limits` 调整，深度不允许超过 256。响应 JSON 上限为 1,048,576 码元、16 层；每次作答最多 4,096 个值，每个值最多 65,536 码元。DOCTYPE 和处理指令不在支持范围内。
 

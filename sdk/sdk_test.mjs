@@ -309,10 +309,16 @@ test('composite tolerance authoring errors fail compilation without changing exi
   const source = fixture('composite-tolerance');
   const item = compileItem(source);
   try {
-    for (const tolerance of ['0', '-1', 'NaN', '1 2 3']) {
+    for (const tolerance of ['-1', 'NaN', '1 2 3']) {
       assert.throws(() => compileItem(source.replace('tolerance="1"', `tolerance="${tolerance}"`)), hasCode('invalid_item'));
     }
-    assert.throws(() => compileItem(source.replaceAll('<qti-correct identifier="LENGTH"/>', '<qti-correct identifier="GROUPS"/>')), hasCode('invalid_item'));
+    const exactTolerance = compileItem(source.replace('tolerance="1"', 'tolerance="0"'));
+    const crossResponse = compileItem(source.replaceAll('<qti-correct identifier="LENGTH"/>', '<qti-correct identifier="GROUPS"/>'));
+    try {
+      assert.equal(exactTolerance.score({ LENGTH: 100 }).score, 3);
+      assert.equal(crossResponse.describe().template, 'typed_rules');
+      assert.equal(crossResponse.score({ LENGTH: 100, GROUPS: 4 }).score, 1);
+    } finally { exactTolerance.dispose(); crossResponse.dispose(); }
     assert.throws(() => compileItem(source.replaceAll('<qti-match>', '<qti-equal>').replaceAll('</qti-match>', '</qti-equal>')), hasCode('unsupported'));
     assert.equal(item.score({ LENGTH: 100 }).score, 3);
     assert.deepEqual(evaluateItem(source, { LENGTH: null }), item.score({}));
@@ -362,7 +368,7 @@ test('composite invalid fields and accessors cannot silently become missing resp
     assert.throws(()=>item.score({get PLATFORM(){accessed=true;return 'LMS';}}),hasCode('invalid_response'));
     assert.equal(accessed,false);
     for(const input of [{COUNT:undefined},{COUNT:Infinity},{COUNT:[4]},{COUNT:['4']},{PLATFORM:4}]) assert.throws(()=>item.score(input),hasCode('invalid_response'));
-    assert.throws(()=>item.score(Object.fromEntries(Array.from({length:9},(_,i)=>[`X${i}`,null]))),hasCode('limit_exceeded'));
+    assert.throws(()=>item.score(Object.fromEntries(Array.from({length:33},(_,i)=>[`X${i}`,null]))),hasCode('limit_exceeded'));
     assert.throws(()=>compileItem(fixture('composite').replace('identifier="COUNT" cardinality','identifier="PLATFORM" cardinality')),hasCode('invalid_item'));
   } finally {item.dispose();}
 });

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-test xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="feedback-workflow" title="评分、反馈与人工评阅示例测验">
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-outcome-declaration identifier="MAXSCORE" cardinality="single" base-type="float"/>
+  <qti-test-part identifier="feedback-practice" navigation-mode="nonlinear" submission-mode="individual">
+    <qti-item-session-control max-attempts="2" allow-skipping="false" allow-review="true" show-feedback="true"/>
+    <qti-assessment-section identifier="evidence-to-reflection" title="从学习证据到教学反思" visible="true">
+      <qti-assessment-item-ref identifier="evidence-combination" href="items/dependent-response.xml"/>
+      <qti-assessment-item-ref identifier="formative-summary" href="items/extended-text-scored.xml"/>
+      <qti-assessment-item-ref identifier="reflection-review" href="items/extended-text.xml"/>
+    </qti-assessment-section>
+  </qti-test-part>
+  <qti-outcome-processing>
+    <qti-set-outcome-value identifier="MAXSCORE"><qti-base-value base-type="float">7</qti-base-value></qti-set-outcome-value>
+    <qti-outcome-condition>
+      <qti-outcome-if>
+        <qti-equal><qti-container-size><qti-test-variables variable-identifier="SCORE" base-type="float"/></qti-container-size><qti-base-value base-type="integer">3</qti-base-value></qti-equal>
+        <qti-set-outcome-value identifier="SCORE"><qti-sum><qti-test-variables variable-identifier="SCORE" base-type="float"/></qti-sum></qti-set-outcome-value>
+      </qti-outcome-if>
+      <qti-outcome-else><qti-set-outcome-value identifier="SCORE"><qti-null/></qti-set-outcome-value></qti-outcome-else>
+    </qti-outcome-condition>
+  </qti-outcome-processing>
+</qti-assessment-test>

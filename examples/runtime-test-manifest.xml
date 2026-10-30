@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1" identifier="education-runtime">
+  <metadata><schema>QTI Test</schema><schemaversion>3.0.0</schemaversion></metadata>
+  <organizations/>
+  <resources>
+    <resource identifier="runtime-test" type="imsqti_test_xmlv3p0" href="test.xml"><file href="test.xml"/><dependency identifierref="choice"/><dependency identifierref="evidence"/><dependency identifierref="measurement"/></resource>
+    <resource identifier="choice" type="imsqti_item_xmlv3p0" href="items/single.xml"><file href="items/single.xml"/></resource>
+    <resource identifier="evidence" type="imsqti_item_xmlv3p0" href="items/multiple.xml"><file href="items/multiple.xml"/></resource>
+    <resource identifier="measurement" type="imsqti_item_xmlv3p0" href="items/numeric.xml"><file href="items/numeric.xml"/></resource>
+  </resources>
+</manifest>

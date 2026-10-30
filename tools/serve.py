@@ -9,6 +9,7 @@ WEB_FILES = frozenset([
     "index.html", "style.css", "app.mjs", "batch.mjs", "composite.mjs",
     "gap.mjs", "hottext.mjs", "inline-choice.mjs", "match.mjs", "order.mjs",
     "slider.mjs", "qti-score.mjs", "workspace.mjs", "results.mjs",
+    "test.html", "test-player.mjs", "test-player.css",
 ])
 PACKAGE_FILES = frozenset([
     "sample-package.zip", "order-package.zip", "match-package.zip", "gap-package.zip",
@@ -16,11 +17,12 @@ PACKAGE_FILES = frozenset([
     "composite-package.zip", "composite-tolerance-package.zip", "composite-inline-package.zip",
     "composite-fallback-package.zip", "composite-choice-package.zip", "composite-multiple-package.zip",
     "composite-slider-package.zip",
+    "runtime-test-package.zip", "feedback-test-package.zip", "graphic-test-package.zip",
 ])
 
 
 def public_asset(path):
-    if path in ("/README.md", "/LICENSE", "/NOTICE", "/web", "/web/"):
+    if path in ("/README.md", "/docs/runtime.md", "/LICENSE", "/NOTICE", "/web", "/web/"):
         return True
     parts = path.split("/")
     if len(parts) != 3 or parts[0] != "":

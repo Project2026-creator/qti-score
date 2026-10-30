@@ -1,0 +1,18 @@
+{
+  "description": "演示数据：虚构考生与会话，固定时间戳；两道自动评分题与一道人工待评题。",
+  "session_identifier": "demo-feedback-session",
+  "candidate_identifier": "demo-feedback-candidate",
+  "start_time": 0,
+  "datestamp": "2026-10-30T12:00:00Z",
+  "actions": [
+    {"type":"save","time":1,"response":{"LEFT":2,"RIGHT":3}},
+    {"type":"submit","time":2},
+    {"type":"next","time":3},
+    {"type":"save","time":4,"response":{"NOTES":"形成性评价用于在教学过程中收集反馈并调整教学。"}},
+    {"type":"submit","time":5},
+    {"type":"next","time":6},
+    {"type":"save","time":7,"response":{"REFLECTION":"演示作答：课堂小测显示部分学生混淆评价用途。教师根据错因调整讲解，并在下一次练习中再次收集学习反馈。"}},
+    {"type":"submit","time":8},
+    {"type":"finish_part","time":9}
+  ]
+}

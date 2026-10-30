@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="feedback_outline" title="教学反馈流程填空" adaptive="false" time-dependent="false" xml:lang="zh-CN">
+  <qti-response-declaration identifier="OUTLINE" cardinality="single" base-type="string">
+    <qti-correct-response><qti-value>收集反馈
+分析证据
+调整教学</qti-value></qti-correct-response>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body>
+    <qti-extended-text-interaction response-identifier="OUTLINE" expected-lines="3" expected-length="24" format="preformatted" min-strings="0">
+      <qti-prompt>按三行写出“收集反馈、分析证据、调整教学”的流程。本题使用作者给定的精确文本规则评分。</qti-prompt>
+    </qti-extended-text-interaction>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-response-condition>
+      <qti-response-if>
+        <qti-match><qti-variable identifier="OUTLINE"/><qti-correct identifier="OUTLINE"/></qti-match>
+        <qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">1</qti-base-value></qti-set-outcome-value>
+      </qti-response-if>
+      <qti-response-else><qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">0</qti-base-value></qti-set-outcome-value></qti-response-else>
+    </qti-response-condition>
+  </qti-response-processing>
+</qti-assessment-item>

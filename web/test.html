@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>QTI Score · 测验运行</title>
+  <link rel="stylesheet" href="test-player.css">
+</head>
+<body>
+  <a class="skip" href="#test-main">跳到测验内容</a>
+  <header class="top"><a class="brand" href="./"><span aria-hidden="true">q.</span> QTI Score</a><nav aria-label="页面导航"><a href="./">题目工作台</a><a aria-current="page" href="test.html">测验运行</a><a href="https://github.com/Project2026-creator/qti-score" target="_blank" rel="noreferrer">GitHub ↗</a></nav></header>
+  <main id="test-main" tabindex="-1">
+    <section class="intro"><div><p class="eyebrow">ASSESSMENT DELIVERY</p><h1>从一份试卷，到完整作答记录。</h1><p>导入 QTI 3 试卷包，按试卷规则完成作答、恢复会话并导出标准结果。</p></div><span class="local">● 在当前设备运行</span></section>
+    <div class="layout">
+      <aside class="panel setup" aria-labelledby="setup-title"><h2 id="setup-title">载入试卷</h2><p>使用演示包，或打开你自己的 ZIP 内容包。</p><button id="load-sample" class="primary" type="button">载入演示试卷</button><button id="load-feedback-sample" type="button">体验反馈与长文本</button><button id="load-graphic-sample" type="button">体验图形交互</button><label class="file-label" for="package-file">选择 ZIP 试卷包<input id="package-file" type="file" accept=".zip,application/zip"></label><label for="test-resource">试卷资源</label><select id="test-resource" disabled><option>先载入内容包</option></select><button id="open-test" type="button" disabled>打开所选试卷</button><div id="plan-summary" class="plan-summary">试卷结构和控制规则将在此显示。</div><label for="session-id">作答会话标识</label><input id="session-id" value="practice-1" autocomplete="off" spellcheck="false"><button id="start-test" class="primary" type="button" disabled>开始新会话</button><div class="divider"></div><h3>保存与恢复</h3><p>会话快照含作答记录，下载后可在同一份试卷上继续。</p><button id="download-snapshot" type="button" disabled>下载会话快照</button><label class="file-label" for="snapshot-file">读取会话快照<input id="snapshot-file" type="file" accept=".json,application/json" disabled></label><a href="../README.md">查看支持范围与接入方式 ↗</a></aside>
+      <section class="workspace" aria-label="测验会话">
+        <div id="status" class="notice" role="status" aria-live="polite">载入演示试卷即可开始。</div><div id="error" class="error" role="alert" hidden></div>
+        <div class="panel session-heading"><div><p id="part-label" class="eyebrow">准备开始</p><h2 id="test-title">测验工作区</h2><p id="session-info">导航、提交和时间限制由试卷控制。</p></div><button id="pause-test" type="button" disabled>暂停</button></div>
+        <nav id="item-nav" class="item-nav" aria-label="试卷题目"></nav>
+        <article class="panel question"><p id="item-position" class="eyebrow">QUESTION</p><h2 id="item-title">等待载入题目</h2><p id="item-prompt" class="prompt">开始会话后，题目内容将在这里显示。</p><div id="response-controls"></div><details id="json-details"><summary>编辑响应 JSON</summary><label for="response-json">当前题目响应对象</label><textarea id="response-json" rows="6" spellcheck="false">{}</textarea><p>配对、排序等结构化交互可通过 JSON 输入。保存后由内核检查响应类型与约束。</p><button id="save-json" type="button" disabled>保存 JSON 响应</button></details><div id="result" class="result" aria-live="polite" hidden></div><div id="feedback" class="feedback"></div></article>
+        <div class="panel actions"><div><button id="save-response" class="primary" type="button" disabled>保存作答</button><button id="submit-response" type="button" disabled>提交本题</button><button id="next-item" type="button" disabled>下一题 →</button></div><button id="finish-part" type="button" disabled>完成当前部分</button></div>
+        <section class="panel completion" id="completion" hidden><p class="eyebrow">ASSESSMENT COMPLETE</p><h2>测验已完成</h2><p>全部作答已由内核处理。可下载 QTI 结果 XML 与完整 JSON 记录。</p><div><button id="export-xml" class="primary" type="button">下载 QTI 结果 XML</button><button id="export-json" type="button">下载结果 JSON</button></div><pre id="outcome-summary"></pre></section>
+      </section>
+    </div>
+  </main>
+  <footer>QTI 3 试卷、会话控制与评分由 MoonBit 内核执行。</footer>
+  <script type="module" src="test-player.mjs"></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="dependent_measurements" title="联合分析两项学习证据" adaptive="false" time-dependent="false" xml:lang="zh-CN">
+  <qti-response-declaration identifier="LEFT" cardinality="single" base-type="float"><qti-correct-response><qti-value>2</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-response-declaration identifier="RIGHT" cardinality="single" base-type="float"><qti-correct-response><qti-value>3</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float" normal-maximum="5"/>
+  <qti-outcome-declaration identifier="COMPLETE" cardinality="single" base-type="boolean"/>
+  <qti-outcome-declaration identifier="FEEDBACK" cardinality="single" base-type="identifier"/>
+  <qti-item-body>
+    <p>某组学习证据中，观察记录得分为 2，课堂练习得分为 3。分别填写两项分值。两项都准确时，使用两项响应的和作为本题得分；只有第一项准确时得 1 分。</p>
+    <p>观察记录：<qti-text-entry-interaction response-identifier="LEFT" expected-length="4"/>；课堂练习：<qti-text-entry-interaction response-identifier="RIGHT" expected-length="4"/>。</p>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-set-outcome-value identifier="COMPLETE"><qti-and><qti-not><qti-is-null><qti-variable identifier="LEFT"/></qti-is-null></qti-not><qti-not><qti-is-null><qti-variable identifier="RIGHT"/></qti-is-null></qti-not></qti-and></qti-set-outcome-value>
+    <qti-response-condition>
+      <qti-response-if>
+        <qti-and><qti-equal><qti-variable identifier="LEFT"/><qti-correct identifier="LEFT"/></qti-equal><qti-equal><qti-variable identifier="RIGHT"/><qti-correct identifier="RIGHT"/></qti-equal></qti-and>
+        <qti-set-outcome-value identifier="SCORE"><qti-sum><qti-variable identifier="LEFT"/><qti-variable identifier="RIGHT"/></qti-sum></qti-set-outcome-value>
+        <qti-set-outcome-value identifier="FEEDBACK"><qti-base-value base-type="identifier">both</qti-base-value></qti-set-outcome-value>
+      </qti-response-if>
+      <qti-response-else-if>
+        <qti-equal><qti-variable identifier="LEFT"/><qti-correct identifier="LEFT"/></qti-equal>
+        <qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">1</qti-base-value></qti-set-outcome-value>
+        <qti-set-outcome-value identifier="FEEDBACK"><qti-base-value base-type="identifier">partial</qti-base-value></qti-set-outcome-value>
+      </qti-response-else-if>
+      <qti-response-else>
+        <qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">0</qti-base-value></qti-set-outcome-value>
+        <qti-set-outcome-value identifier="FEEDBACK"><qti-base-value base-type="identifier">retry</qti-base-value></qti-set-outcome-value>
+      </qti-response-else>
+    </qti-response-condition>
+  </qti-response-processing>
+  <qti-modal-feedback outcome-identifier="FEEDBACK" show-hide="show" identifier="both" title="两项证据均已核对"><qti-content-body><p>两项输入均与题目给定分值相符。本题通过跨响应运算得到 5 分。</p></qti-content-body></qti-modal-feedback>
+  <qti-modal-feedback outcome-identifier="FEEDBACK" show-hide="show" identifier="partial" title="请检查第二项证据"><qti-content-body><p>观察记录分值正确，课堂练习分值还需核对。本题得到部分分。</p></qti-content-body></qti-modal-feedback>
+  <qti-modal-feedback outcome-identifier="FEEDBACK" show-hide="show" identifier="retry" title="重新核对证据"><qti-content-body><p>请根据题干分别填写观察记录和课堂练习分值。</p></qti-content-body></qti-modal-feedback>
+</qti-assessment-item>

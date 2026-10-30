@@ -29,3 +29,10 @@ jobs:
         run: npm ci --prefix sdk --ignore-scripts
       - name: Check QTI library and host entry points
         run: python tools/project.py check
+      - name: Install XML schema validator
+        run: python -m pip install lxml==6.1.1
+      - name: Validate standard results and complete test execution
+        run: |
+          python tools/asi_schema_test.py --report _build/asi-schema-report.json
+          python tools/result_schema_test.py --report _build/result-schema-report.json
+          python tools/runtime_test.py --output _build/runtime-validation.json

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1" identifier="learning-spaces-package">
+  <metadata><schema>QTI Test</schema><schemaversion>3.0.0</schemaversion></metadata>
+  <organizations/>
+  <resources>
+    <resource identifier="graphic-test" type="imsqti_test_xmlv3p0" href="test.xml"><file href="test.xml"/><dependency identifierref="hotspot"/><dependency identifierref="graphic-gap"/></resource>
+    <resource identifier="hotspot" type="imsqti_item_xmlv3p0" href="items/hotspot.xml"><file href="items/hotspot.xml"/><dependency identifierref="space-map"/></resource>
+    <resource identifier="graphic-gap" type="imsqti_item_xmlv3p0" href="items/graphic-gap.xml"><file href="items/graphic-gap.xml"/><dependency identifierref="space-map"/></resource>
+    <resource identifier="space-map" type="webcontent" href="items/graphic-map.svg"><file href="items/graphic-map.svg"/></resource>
+  </resources>
+</manifest>

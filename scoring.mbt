@@ -34,64 +34,7 @@ fn Item::execute(
   response : Response,
   steps : Array[ScoringStep]?,
 ) -> Score raise QtiError {
-  let values : Array[String] = match response {
-    Null => []
-    Number(value) => {
-      if !self.base_type.is_numeric() {
-        raise InvalidResponse("numeric response requires a numeric item")
-      }
-      if value.is_inf() || value.is_nan() {
-        raise InvalidResponse("numeric response must be finite")
-      }
-      if self.base_type == Integer &&
-        (value.abs() > 9007199254740991.0 || value.trunc() != value) {
-        raise InvalidResponse("integer response must be a safe integer")
-      }
-      [value.to_string()]
-    }
-    Single(s) => {
-      if self.cardinality != Single {
-        raise InvalidResponse("string response requires single cardinality")
-      }
-      if s == "" || (self.base_type.is_numeric() && s.trim() == "") {
-        []
-      } else {
-        [s]
-      }
-    }
-    Multiple(xs) => {
-      if self.cardinality != Multiple {
-        raise InvalidResponse("multiple response requires multiple cardinality")
-      }
-      if xs.any(s => s == "") {
-        raise InvalidResponse(
-          "NULL members are not permitted in a multiple response",
-        )
-      }
-      xs.copy()
-    }
-    Ordered(xs) => {
-      if self.cardinality != Ordered {
-        raise InvalidResponse("ordered response requires ordered cardinality")
-      }
-      if xs.any(s => s == "") {
-        raise InvalidResponse(
-          "NULL members are not permitted in an ordered response",
-        )
-      }
-      xs.copy()
-    }
-  }
-  if values.length() > 4096 || values.any(v => v.length() > 65536) {
-    raise LimitExceeded(
-      "response exceeds 4096 values or 65536 UTF-16 code units per value",
-    )
-  }
-  if self.base_type == DirectedPair {
-    for i, value in values {
-      values[i] = directed_pair(value)
-    }
-  }
+  let values = self.validated_values(response)
   let empty = values.is_empty()
   record_step(steps, "response", self.processing_source, {
     "status": if empty {
@@ -166,34 +109,6 @@ fn Item::execute(
       status: Unanswered,
       matches_correct: self.correct.map(_ => false),
     }
-  }
-  // Selection limits count selections; mappings de-duplicate only for scoring.
-  if self.max_choices != 0 && values.length() > self.max_choices {
-    raise InvalidResponse("more responses than max-choices=\{self.max_choices}")
-  }
-  if values.length() < self.min_choices {
-    raise InvalidResponse(
-      "fewer responses than min-choices=\{self.min_choices}",
-    )
-  }
-  if !self.choices.is_empty() {
-    for value in values {
-      if !self.choices.any(c => c.identifier == value) {
-        raise InvalidResponse("unknown choice '\{value}'")
-      }
-    }
-  }
-  if self.cardinality == Ordered || self.hottext_passage is Some(_) {
-    let seen : Map[String, Bool] = Map([])
-    for value in values {
-      if seen.contains(value) {
-        raise InvalidResponse("duplicate ordered/hottext choice '\{value}'")
-      }
-      seen[value] = true
-    }
-  }
-  if self.matching is Some(spec) {
-    spec.validate(values)
   }
   let matches_correct = self.correct.map(correct => {
     if self.cardinality == Ordered {
