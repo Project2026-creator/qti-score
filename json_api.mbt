@@ -146,6 +146,9 @@ pub fn Item::describe(self : Item) -> Json {
     }
   }
   if description is Object(fields) {
+    if self.association is Some(spec) {
+      fields["association"] = spec.describe()
+    }
     if self.graphic is Some(spec) {
       fields["graphic"] = spec.describe()
     }

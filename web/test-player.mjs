@@ -433,6 +433,7 @@ $('load-interaction-sample').addEventListener('click', () => runAsync(() => load
 $('load-assembly-sample').addEventListener('click', () => runAsync(() => loadBuiltin('assembly-test-package.zip')));
 $('load-conditional-sample').addEventListener('click', () => runAsync(() => loadBuiltin('conditional-test-package.zip')));
 $('load-outcome-sample').addEventListener('click', () => runAsync(() => loadBuiltin('outcome-test-package.zip')));
+$('load-associate-sample').addEventListener('click', () => runAsync(() => loadBuiltin('associate-test-package.zip')));
 $('package-file').addEventListener('change', event => runAsync(async () => {
   const file = event.target.files[0]; if (!file) return;
   if (file.size > 8 * 1048576) throw new Error('ZIP 内容包超过 8 MiB。');

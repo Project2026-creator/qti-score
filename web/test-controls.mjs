@@ -1,3 +1,4 @@
+import { createAssociationControl } from './associate.mjs';
 /** Candidate inputs only. Response interpretation and scoring stay in MoonBit. */
 const element = (tag, text, className) => {
   const result = document.createElement(tag);
@@ -187,6 +188,7 @@ export function createNativeControl(parent, binding, current, changed, { inline 
   if (binding.graphic) return null;
   if (binding.gap_matching) return gapControl(parent, binding, current, changed);
   if (binding.matching) return matchControl(parent, binding, current, changed);
+  if (binding.association) return createAssociationControl(parent, binding, current, changed);
   if (binding.hottext) return hottextControl(parent, binding, current, changed);
   if (binding.cardinality === 'ordered') return orderControl(parent, binding, current, changed);
   if (binding.inline_choice) return inlineControl(parent, binding, current, changed, inline);

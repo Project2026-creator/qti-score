@@ -194,6 +194,40 @@ fn processing_validator(
     }
     mapping_key = "\{spec.sources[0].identifier} \{spec.targets[0].identifier}"
   }
+  if base == "pair" {
+    let spec = parse_associate_interaction(
+      interaction,
+      if cardinality == "single" {
+        Single
+      } else {
+        Multiple
+      },
+    )
+    let mut first_pair : String? = None
+    for a in spec.choices {
+      if first_pair is Some(_) {
+        break
+      }
+      for b in spec.choices {
+        let pair = "\{a.identifier} \{b.identifier}"
+        let valid = try {
+          ignore(spec.endpoints(pair))
+          true
+        } catch {
+          _ => false
+        }
+        if valid {
+          first_pair = Some(pair)
+          break
+        }
+      }
+    }
+    // A zero mapping is unnecessary when the author already supplies a mapping.
+    // With no possible endpoints the interaction cannot collect a non-NULL value.
+    mapping_key = first_pair.unwrap_or(
+      "\{spec.choices[0].identifier} \{spec.choices[1].identifier}",
+    )
+  }
   let synthetic = parse_document(
     "<qti-assessment-item xmlns=\"\{qti_namespace}\" identifier=\"validation\" title=\"validation\"><qti-response-declaration identifier=\"RESPONSE\" cardinality=\"single\" base-type=\"string\"><qti-mapping default-value=\"0\"><qti-map-entry map-key=\"\{processing_escape(mapping_key)}\" mapped-value=\"0\"/></qti-mapping></qti-response-declaration><qti-outcome-declaration identifier=\"SCORE\" cardinality=\"single\" base-type=\"float\"/><qti-item-body/><qti-response-processing template=\"https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/map_response\"/></qti-assessment-item>",
     Limits::default(),
@@ -467,7 +501,8 @@ pub fn ProcessedItem::describe(self : ProcessedItem) -> Json {
         }
         for
           key in [
-            "slider", "inline_choice", "matching", "gap_matching", "hottext", "graphic",
+            "slider", "inline_choice", "matching", "association", "gap_matching",
+            "hottext", "graphic",
           ] {
           if fields.get(key) is Some(value) {
             details[key] = value

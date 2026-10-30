@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="learning-associations" title="学习理论与关键词" adaptive="false" time-dependent="false">
+  <qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="pair">
+    <qti-correct-response><qti-value>Constructivism ActiveLearning</qti-value><qti-value>Behaviorism Reinforcement</qti-value><qti-value>Cognitivism Memory</qti-value></qti-correct-response>
+    <qti-mapping default-value="-0.5" lower-bound="0" upper-bound="3">
+      <qti-map-entry map-key="Constructivism ActiveLearning" mapped-value="1"/>
+      <qti-map-entry map-key="Behaviorism Reinforcement" mapped-value="1"/>
+      <qti-map-entry map-key="Cognitivism Memory" mapped-value="1"/>
+    </qti-mapping>
+  </qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-item-body><qti-associate-interaction response-identifier="RESPONSE" shuffle="true" max-associations="3">
+    <qti-prompt>把同一组中的学习理论与相应关键词连成三组。每项最多使用一次，配对两端的先后顺序不影响得分。</qti-prompt>
+    <qti-simple-associable-choice identifier="Constructivism" match-max="1">建构主义</qti-simple-associable-choice>
+    <qti-simple-associable-choice identifier="Reinforcement" match-max="1">强化</qti-simple-associable-choice>
+    <qti-simple-associable-choice identifier="Cognitivism" match-max="1">认知主义</qti-simple-associable-choice>
+    <qti-simple-associable-choice identifier="ActiveLearning" match-max="1">主动建构</qti-simple-associable-choice>
+    <qti-simple-associable-choice identifier="Behaviorism" match-max="1">行为主义</qti-simple-associable-choice>
+    <qti-simple-associable-choice identifier="Memory" match-max="1" fixed="true">记忆加工</qti-simple-associable-choice>
+  </qti-associate-interaction></qti-item-body>
+  <qti-response-processing template="https://purl.imsglobal.org/spec/qti/v3p0/rptemplates/map_response.xml"/>
+</qti-assessment-item>

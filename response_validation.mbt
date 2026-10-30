@@ -64,6 +64,11 @@ fn Item::validated_values(
       values[i] = directed_pair(value)
     }
   }
+  if self.base_type == Pair {
+    for i, value in values {
+      values[i] = undirected_pair(value)
+    }
+  }
   if self.base_type.is_numeric() {
     if !values.is_empty() {
       let value = match response {
@@ -112,6 +117,9 @@ fn Item::validated_values(
     }
   }
   if self.matching is Some(spec) {
+    spec.validate(values)
+  }
+  if self.association is Some(spec) {
     spec.validate(values)
   }
   values

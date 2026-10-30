@@ -73,6 +73,12 @@ fn processing_scalar(
         value
       }
     }
+    ("pair", String(text)) =>
+      if text == "" {
+        Json::null()
+      } else {
+        Json(undirected_pair(text))
+      }
     ("directedPair", String(text)) =>
       if text == "" {
         Json::null()
@@ -406,6 +412,7 @@ fn ProcessingExpression::evaluate(
             let base = match declaration.kind.base {
               "identifier" => Identifier
               "directedPair" => DirectedPair
+              "pair" => Pair
               _ => Text
             }
             Json(mapping.score_values(values, base, context.steps, self.source))

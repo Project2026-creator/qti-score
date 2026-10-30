@@ -84,6 +84,7 @@ fn processing_item_schemas(
         }
         if ![
             "boolean", "identifier", "string", "integer", "float", "directedPair",
+            "pair",
           ].contains(base) {
           raise Unsupported(
             "item declarations",

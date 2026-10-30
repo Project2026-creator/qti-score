@@ -2,6 +2,10 @@
 
 ESM wrapper around the compiled MoonBit scorer. The package has no runtime dependencies and performs no network or file I/O. It supports Node.js 18+ and modern browsers with ES modules and private class fields.
 
+## Undirected associations (0.24.0)
+
+`qti-associate-interaction` binds single/multiple `pair` responses. Use a string or string array, e.g. `{RESPONSE:['Memory Cognitivism']}`. Reversing a pair is equivalent; core values use lexical endpoint order. The core validates association counts, per-choice counts and both match groups. Self-associations, unknown endpoints and reverse duplicates fail. `describe().association` exposes a single choice pool with limits, shuffle/fixed flags and match groups, without scoring keys. Typed rules, composite bindings, test sessions, restoration and standard pair result variables use the same core. The browser controls shuffle free slots while preserving fixed positions; displayed order is not saved in snapshots. See [the association guide](https://github.com/Project2026-creator/qti-score/blob/master/docs/associate.md) for bounds and unsupported content.
+
 ## Outcome tables and test feedback (0.23.0)
 
 Authored `interpolation-table` declarations and `lookup-outcome-value` assignment rules convert numeric inputs into declared single outcomes. Rows match thresholds in document order; this is a step table, without linear interpolation. The core performs the conversion; the SDK and player return the author's result values.

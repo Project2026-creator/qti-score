@@ -27,7 +27,12 @@ else:
 ROOT = Path(__file__).resolve().parents[1]
 REVISION = "0a92fbbb6d2e620a1f7fad19977be4c418246bc0"
 OFFICIAL_BASE = "https://raw.githubusercontent.com/1EdTech/qti-examples/{}/qtiv3-examples/packaging/items/".format(REVISION)
+OFFICIAL_URLS = {
+    "QTI3-associate.xml": "https://raw.githubusercontent.com/1EdTech/qti-examples/{}/QTI3_BPIG_Examples/items/QTI3-associate.xml".format(REVISION),
+}
 OFFICIAL_HASHES = {
+    "QTI3-associate.xml": "72028c2c25411cd1f945cc64253f1135bba47c90e832a902e739dde30b2f3c88",
+    "associate.xml": "fe8738d1148f0361bb4aabe000153d9f1e45e7d40af5a41ca570cc7a6f358190",
     "slider.xml": "19979f616c9cce0667d1257adb7903456bd9e6d7ea912f0e42d0719e48a258d6",
     "inline_choice.xml": "38cc1aecf537f4ee1c463123a9a678ff7fcd8415f6d2f6747989a4e793064613",
     "hottext.xml": "7b701fa4f0b764664876eae80df74073878e28f7ef4354a3e60600ec116fb99a",
@@ -138,6 +143,9 @@ def build_sample_package():
                                                ("test.xml", "outcome-test.xml"),
                                                ("items/single.xml", "single.xml"),
                                                ("items/numeric.xml", "numeric.xml")]))
+    examples.append(("associate-test-package.zip", [("imsmanifest.xml", "associate-test-manifest.xml"),
+                                                 ("test.xml", "associate-test.xml"),
+                                                 ("items/associate.xml", "associate.xml")]))
     for filename, files in examples:
         with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path, source in files:
@@ -216,7 +224,7 @@ def verify_item_statistics(report):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.23.0",
+        "module": "Project2026-creator/qti-score", "version": "0.24.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }
@@ -296,6 +304,15 @@ def verify(moon, env, output, offline=False):
         (["C R", "D M", "L M", "P T"], 3), (["P T", "L M", "D M", "C R"], 3),
         (["C R"], 1), (["D M"], 0.5), (["C T"], 0), (["C R", "D M"], 1.5), (None, 0), ([], 0),
     ]))
+    sources.append(("associate.xml", [
+        (["A P", "C M", "D L"], 4), (["P A", "M C", "L D"], 4),
+        (["L D", "P A", "M C"], 4), (["P A"], 2), (["M C"], 1),
+        (["A C"], 0), ([" A\tP "], 2), (None, 0), ([], 0),
+    ]))
+    sources.append(("QTI3-associate.xml", [
+        (["A P", "C M", "D L"], 4), (["P A", "M C", "L D"], 4),
+        (["P A"], 2), (["M C"], 1), (["A C"], 0), (None, 0), ([], 0),
+    ]))
     sources.append(("gap_match.xml", [(["W G1", "Su G2"], 3), (["Su G2", "W G1"], 3),
                                       (["W G1"], 1), (["Su G2"], 2), (["Sp G1"], 0),
                                       (["W G1", "A G2"], 0), (None, 0), ([], 0)]))
@@ -307,7 +324,7 @@ def verify(moon, env, output, offline=False):
     bridge_records = []
     for filename, cases in sources:
         path = cache / filename
-        uri = OFFICIAL_BASE + filename
+        uri = OFFICIAL_URLS.get(filename, OFFICIAL_BASE + filename)
         if not path.is_file():
             if offline:
                 raise RuntimeError("Offline reference cache missing: {}".format(path))

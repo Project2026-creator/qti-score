@@ -1,4 +1,5 @@
 import { createSliderControl } from './slider.mjs';
+import { createAssociationControl } from './associate.mjs';
 
 /** Collect independent responses in their authored text positions. */
 export function createCompositeControl(fieldset, item, onChange = () => {}) {
@@ -8,6 +9,14 @@ export function createCompositeControl(fieldset, item, onChange = () => {}) {
   for (const part of item.passage) {
     if ('text' in part) { sliderGroup = null; passage.append(document.createTextNode(part.text)); continue; }
     const binding = item.responses.find(b => b.identifier === part.response);
+    if (binding.association) {
+      const block = document.createElement('fieldset'); block.className = 'composite-choice';
+      const legend = document.createElement('legend'); legend.textContent = binding.prompt || binding.identifier;
+      block.append(legend);
+      const control = createAssociationControl(block, binding, null, onChange);
+      controls.set(binding.identifier, { value: () => control.read(), reset: () => control.reset() });
+      passage.append(block); sliderGroup = null; continue;
+    }
     if (binding.slider) {
       const block = document.createElement('fieldset'); block.className = 'composite-slider';
       const legend = document.createElement('legend');

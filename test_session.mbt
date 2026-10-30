@@ -764,6 +764,7 @@ fn session_result_value(value : Json, base : String) -> Json raise QtiError {
       Json(number)
     }
     String(text) if base == "directedPair" => Json(directed_pair(text))
+    String(text) if base == "pair" => Json(undirected_pair(text))
     Array(values) if values.is_empty() => Json::null()
     Array(values) => Json::array(values.map(v => session_result_value(v, base)))
     _ => session_clone(value)

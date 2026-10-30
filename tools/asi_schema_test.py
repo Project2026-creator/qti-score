@@ -55,6 +55,7 @@ SCHEMAS = {
     "xlink.xsd": ("https://purl.imsglobal.org/spec/w3/1999/schema/xsd/xlink.xsd", "e49074eafa608cbf3bc01c2de3406781d466f6ae6adbb90f26cc450d5bf02a1c"),
 }
 DEFAULT_FILES = (
+    "associate.xml", "associate-test.xml", "associate-test-manifest.xml",
     "outcome-test.xml", "outcome-test-manifest.xml",
     "conditional-test.xml", "conditional-test-manifest.xml",
     "match.xml", "gap.xml", "hottext.xml", "order.xml", "inline-choice.xml", "composite-inline.xml", "hottext-single.xml", "order-subset.xml",

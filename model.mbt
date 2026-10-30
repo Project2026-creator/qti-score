@@ -24,6 +24,7 @@ pub(all) enum BaseType {
   Integer
   Float
   DirectedPair
+  Pair
 } derive(Debug, Eq)
 
 ///|
@@ -117,6 +118,7 @@ pub struct Item {
   priv mapping : Mapping?
   priv numeric_rule : NumericRule?
   priv matching : MatchInteraction?
+  priv association : AssociateInteraction?
   priv gap_passage : Array[GapPart]?
   priv hottext_passage : Array[HottextPart]?
   priv inline_choice : InlineChoiceInteraction?

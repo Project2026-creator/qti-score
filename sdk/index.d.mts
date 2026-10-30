@@ -14,6 +14,16 @@ export interface MatchDescription {
   readonly max_associations: number;
   readonly sets: readonly [readonly MatchChoice[], readonly MatchChoice[]];
 }
+export interface AssociateChoice extends MatchChoice {
+  readonly fixed: boolean;
+  readonly match_group: readonly string[];
+}
+export interface AssociateDescription {
+  readonly min_associations: number;
+  readonly max_associations: number;
+  readonly shuffle: boolean;
+  readonly choices: readonly AssociateChoice[];
+}
 export type GapPassagePart = { readonly text: string } | { readonly gap: string };
 export interface GapMatchDescription extends MatchDescription { readonly passage: readonly GapPassagePart[] }
 export type HottextPassagePart = { readonly text: string } | { readonly choice: string };
@@ -80,13 +90,14 @@ export interface SingleItemDescription extends AuthoredProcessingMetadata {
   readonly title: string;
   readonly response_identifier: string;
   readonly cardinality: 'single' | 'multiple' | 'ordered';
-  readonly base_type: 'identifier' | 'string' | 'integer' | 'float' | 'directedPair';
+  readonly base_type: 'identifier' | 'string' | 'integer' | 'float' | 'directedPair' | 'pair';
   readonly template: 'match_correct' | 'map_response' | 'numeric_rules' | 'typed_rules';
   readonly prompt: string;
   readonly min_choices: number;
   readonly max_choices: number;
   readonly choices: readonly Choice[];
   readonly matching?: MatchDescription;
+  readonly association?: AssociateDescription;
   readonly gap_matching?: GapMatchDescription;
   readonly hottext?: HottextDescription;
   readonly inline_choice?: InlineChoiceDescription;
@@ -181,6 +192,7 @@ export interface CompositeItemDescription extends AuthoredProcessingMetadata {
   readonly graphic?: never;
 }
 export interface ProcessedCompositeResponseDescription extends VariableTypeDescription {
+  readonly association?: AssociateDescription;
   readonly identifier: string;
   readonly prompt: string;
   readonly placeholder: string;

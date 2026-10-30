@@ -49,6 +49,7 @@ fn compile_single_root(root : Node) -> Item raise QtiError {
     "integer" => BaseType::Integer
     "float" => BaseType::Float
     "directedPair" => BaseType::DirectedPair
+    "pair" => BaseType::Pair
     other => raise Unsupported(declaration.location(), "base-type '\{other}'")
   }
   let correct = match declaration.one("qti-correct-response", required=false) {
@@ -165,6 +166,7 @@ fn compile_single_root(root : Node) -> Item raise QtiError {
   let interaction = interactions[0]
   let ordered = interaction.name() == "qti-order-interaction"
   let mut matching : MatchInteraction? = None
+  let mut association : AssociateInteraction? = None
   let mut gap_passage : Array[GapPart]? = None
   let mut hottext_passage : Array[HottextPart]? = None
   let mut inline_choice : InlineChoiceInteraction? = None
@@ -174,6 +176,13 @@ fn compile_single_root(root : Node) -> Item raise QtiError {
   let graphic_gap = interaction.name() == "qti-graphic-gap-match-interaction"
   let hotspot = interaction.name() == "qti-hotspot-interaction"
   let hottext = interaction.name() == "qti-hottext-interaction"
+  let associate = interaction.name() == "qti-associate-interaction"
+  if (base_type == Pair) != associate {
+    raise InvalidItem(
+      interaction.location(),
+      "pair requires an associate interaction",
+    )
+  }
   if (base_type == DirectedPair) !=
     (interaction.name() == "qti-match-interaction" || gap_match || graphic_gap) {
     raise InvalidItem(
@@ -190,7 +199,33 @@ fn compile_single_root(root : Node) -> Item raise QtiError {
   let choices : Array[Choice] = []
   let mut min_choices = 0
   let mut max_choices = 1
-  let prompt = if interaction.name() == "qti-slider-interaction" {
+  let prompt = if associate {
+    let spec = parse_associate_interaction(interaction, cardinality)
+    min_choices = spec.minimum
+    max_choices = spec.maximum
+    if correct is Some(values) {
+      spec.validate(values) catch {
+        error => raise InvalidItem(declaration.location(), error.message())
+      }
+    }
+    if mapping is Some(m) {
+      for entry in m.entries {
+        ignore(
+          spec.endpoints(entry.key) catch {
+            error => raise InvalidItem(declaration.location(), error.message())
+          },
+        )
+      }
+    }
+    association = Some(spec)
+    interaction
+    .one("qti-prompt", required=false)
+    .map(n => {
+      n.only_attributes(["class", "id", "dir"])
+      plain_static_text(n).trim().to_owned()
+    })
+    .unwrap_or(title)
+  } else if interaction.name() == "qti-slider-interaction" {
     if cardinality != Single || !base_type.is_numeric() {
       raise InvalidItem(
         interaction.location(),
@@ -429,6 +464,7 @@ fn compile_single_root(root : Node) -> Item raise QtiError {
     mapping,
     numeric_rule,
     matching,
+    association,
     gap_passage,
     hottext_passage,
     inline_choice,
@@ -483,6 +519,8 @@ fn parse_correct(
       values.push(identifier(value.trim().to_owned(), child.location()))
     } else if base_type == DirectedPair {
       values.push(authored_pair(value, child))
+    } else if base_type == Pair {
+      values.push(authored_undirected_pair(value, child))
     } else if base_type.is_numeric() {
       ignore(authored_number(value, base_type, child))
       values.push(value.trim().to_owned())
@@ -515,6 +553,8 @@ fn parse_mapping(node : Node, base_type : BaseType) -> Mapping raise QtiError {
     child.only_children([])
     let key = if base_type == DirectedPair {
       authored_pair(child.required("map-key"), child)
+    } else if base_type == Pair {
+      authored_undirected_pair(child.required("map-key"), child)
     } else {
       child.required("map-key")
     }
@@ -619,7 +659,7 @@ fn collect_interactions(
     !(name == "qti-prompt" &&
     [
       "qti-match-interaction", "qti-gap-match-interaction", "qti-hottext-interaction",
-      "qti-slider-interaction",
+      "qti-slider-interaction", "qti-associate-interaction",
     ].contains(parent)) {
     raise InvalidItem(
       node.location(),
@@ -649,7 +689,11 @@ fn collect_interactions(
     raise InvalidItem(node.location(), "misplaced inline choice element")
   }
   if (name == "qti-simple-match-set" && parent != "qti-match-interaction") ||
-    (name == "qti-simple-associable-choice" && parent != "qti-simple-match-set") {
+    (
+      name == "qti-simple-associable-choice" &&
+      parent != "qti-simple-match-set" &&
+      parent != "qti-associate-interaction"
+    ) {
     raise InvalidItem(node.location(), "misplaced match interaction element")
   }
   if name == "qti-item-body" && parent != "" {
@@ -659,6 +703,7 @@ fn collect_interactions(
     name == "qti-text-entry-interaction" ||
     name == "qti-order-interaction" ||
     name == "qti-match-interaction" ||
+    name == "qti-associate-interaction" ||
     name == "qti-gap-match-interaction" ||
     name == "qti-inline-choice-interaction" ||
     name == "qti-slider-interaction" ||

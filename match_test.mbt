@@ -208,7 +208,7 @@ test "authored pair keys are validated by direction and normalized uniqueness" {
   )
   rejected(
     source.swap("qti-match-interaction", "qti-associate-interaction"),
-    "unsupported",
+    "invalid_item",
   )
 }
 

@@ -1,6 +1,6 @@
 # 试卷运行、响应处理与标准结果
 
-QTI Score 0.23.0 可从 QTI 3 内容包编译试卷，运行分部分的作答会话，执行题目与试卷评分规则，并导出 QTI Result Reporting XML。MoonBit 核心承担编译、状态变更、评分和序列化；浏览器、命令行和 JavaScript SDK 共用这些逻辑。
+QTI Score 0.24.0 可从 QTI 3 内容包编译试卷，运行分部分的作答会话，执行题目与试卷评分规则，并导出 QTI Result Reporting XML。MoonBit 核心承担编译、状态变更、评分和序列化；浏览器、命令行和 JavaScript SDK 共用这些逻辑。
 
 ## 运行示例
 
@@ -84,7 +84,7 @@ MoonBit 可用 `ContentPackage::compile_test`、`AssessmentTest::new_session` / 
 
 `compile_assessment_item` 保留既有模板与专用数值规则的快速路径，并为更一般的规则编译 `ProcessedItem`。也可直接调用 `compile_processed_item` 或 `compile_processing_program`。新类型是 `AssessmentItem::Processed`；穷尽匹配该枚举的调用者需要增加分支。
 
-处理程序根据声明检查表达式类型、基数、变量引用和赋值目标；每次执行从作者声明的默认值重新开始。支持 `single`、`multiple`、`ordered`，基类型包括 boolean、identifier、string、integer、float、directedPair。交互绑定仍须符合其响应类型，布尔值可用于中间表达式和结果变量。
+处理程序根据声明检查表达式类型、基数、变量引用和赋值目标；每次执行从作者声明的默认值重新开始。支持 `single`、`multiple`、`ordered`，基类型包括 boolean、identifier、string、integer、float、directedPair、pair。交互绑定仍须符合其响应类型，布尔值可用于中间表达式和结果变量。
 
 | 类别 | 已实现的 QTI 元素（省略 `qti-` 前缀） |
 |---|---|
@@ -123,6 +123,7 @@ MoonBit 可用 `ContentPackage::compile_test`、`AssessmentTest::new_session` / 
 | Hottext | single/multiple identifier；静态文段、片段选项与重复选择校验 |
 | Inline Choice | single identifier；候选值、必填与文段位置 |
 | Match | single/multiple directedPair；方向、整体数量与端点次数 |
+| Associate | single/multiple pair；换端等价、整体与端点次数、match-group；[接入说明](associate.md) |
 | Text Entry | single string/integer/float；词法、范围、模板与类型化规则 |
 | Order / Slider | ordered identifier 的顺序比较；single integer/float 的范围与步长 |
 

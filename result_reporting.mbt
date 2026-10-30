@@ -162,11 +162,11 @@ fn rr_scalar(value : Json, base_type : String) -> String raise QtiError {
   match base_type {
     "string" => rr_escape(rr_string(value, "string value"))
     "identifier" => rr_escape(rr_id(value, "identifier value"))
-    "directedPair" => {
-      let pair = rr_string(value, "directedPair value").split(" ").to_array()
+    "directedPair" | "pair" => {
+      let pair = rr_string(value, "pair value").split(" ").to_array()
       if pair.length() != 2 {
         raise rr_error(
-          "directedPair must contain two identifiers separated by one space",
+          "pair must contain two identifiers separated by one space",
         )
       }
       rr_id(Json(pair[0]), "directedPair source") +
@@ -233,9 +233,9 @@ fn rr_variable(
   ignore(rr_id(Json(name), "variable identifier"))
   let definition = rr_object(declaration, "variable declaration")
   let base_type = rr_string(rr_field(definition, "base_type"), "base_type")
-  if !["identifier", "string", "integer", "float", "boolean", "directedPair"].contains(
-      base_type,
-    ) {
+  if ![
+      "identifier", "string", "integer", "float", "boolean", "directedPair", "pair",
+    ].contains(base_type) {
     raise Unsupported("result report", "base type '" + base_type + "'")
   }
   let cardinality = rr_string(

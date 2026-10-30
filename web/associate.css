@@ -1,0 +1,12 @@
+.associate-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+.associate-picker label { display: grid; gap: 6px; min-width: 0; font-size: .88rem; color: #516962; }
+.associate-picker select { width: 100%; min-width: 0; padding: 11px 12px; border: 1px solid #cddfd7; border-radius: 10px; background: #fff; color: #193b30; font: inherit; }
+.associate-list { padding: 0; margin: 16px 0; list-style: none; display: grid; gap: 8px; }
+.associate-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px; border: 1px solid #d7e7de; border-radius: 12px; background: #f5faf7; }
+.associate-list span { overflow-wrap: anywhere; }
+.associate-list button { flex-shrink: 0; border: 1px solid #cddfd7; border-radius: 8px; padding: 6px 12px; background: #fff; color: #315b49; font: inherit; }
+.associate-list button:hover { background: #e8f3ed; }
+.associate-picker + button { border: 0; border-radius: 9px; padding: 10px 18px; background: var(--green, #15736b); color: #fff; font: inherit; cursor: pointer; }
+.associate-picker + button:disabled { opacity: .45; cursor: not-allowed; }
+.associate-help { color: #5e746a; font-size: .85rem; line-height: 1.65; }
+@media (max-width: 480px) { .associate-picker { grid-template-columns: minmax(0, 1fr); } }

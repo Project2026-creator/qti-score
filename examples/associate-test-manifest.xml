@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1" identifier="learning-associations">
+  <metadata><schema>QTI Test</schema><schemaversion>3.0.0</schemaversion></metadata>
+  <organizations/>
+  <resources>
+    <resource identifier="associate-test" type="imsqti_test_xmlv3p0" href="test.xml"><file href="test.xml"/><dependency identifierref="associate"/></resource>
+    <resource identifier="associate" type="imsqti_item_xmlv3p0" href="items/associate.xml"><file href="items/associate.xml"/></resource>
+  </resources>
+</manifest>

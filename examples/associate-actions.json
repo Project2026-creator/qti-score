@@ -1,0 +1,11 @@
+{
+  "session_identifier": "learning-connections",
+  "candidate_identifier": "demo-candidate",
+  "start_time": 0,
+  "datestamp": "2026-10-30T12:00:00Z",
+  "actions": [
+    {"type":"save","time":1,"response":{"RESPONSE":["ActiveLearning Constructivism","Reinforcement Behaviorism","Memory Cognitivism"]}},
+    {"type":"submit","time":2},
+    {"type":"finish_part","time":3}
+  ]
+}

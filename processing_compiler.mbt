@@ -1,9 +1,9 @@
 ///|
 fn processing_base(node : Node) -> String raise QtiError {
   let base = node.required("base-type")
-  if !["boolean", "identifier", "string", "integer", "float", "directedPair"].contains(
-      base,
-    ) {
+  if ![
+      "boolean", "identifier", "string", "integer", "float", "directedPair", "pair",
+    ].contains(base) {
     raise Unsupported(node.location(), "processing base-type '\{base}'")
   }
   base
@@ -37,6 +37,7 @@ fn processing_literal(node : Node, base : String) -> Json raise QtiError {
     "float" => Json(authored_number(text, Float, node))
     "identifier" => Json(identifier(text.trim().to_owned(), node.location()))
     "directedPair" => Json(authored_pair(text, node))
+    "pair" => Json(authored_undirected_pair(text, node))
     _ => if text == "" { Json::null() } else { Json(text) }
   }
 }
@@ -143,6 +144,7 @@ fn processing_declarations(
           "integer" => Integer
           "float" => Float
           "directedPair" => DirectedPair
+          "pair" => Pair
           _ => Text
         }
         parse_mapping(n, base)

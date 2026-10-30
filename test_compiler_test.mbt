@@ -205,7 +205,7 @@ test "test identity binds rules and is stable with fresh compilations" {
   inspect(
     first.identity(),
     content=(
-      #|qti-test-v2-1596237734586485979
+      #|qti-test-v2-18291553031720596416
     ),
   )
 }

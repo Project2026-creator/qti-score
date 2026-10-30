@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="light">
   <title>QTI Score · 题目评分工作台</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="associate.css">
 </head>
 <body>
   <noscript><p class="error">请启用 JavaScript 后使用本地评分工作台；也可按照使用文档运行命令行工具。</p></noscript>
@@ -14,11 +15,11 @@
     <a class="brand" href="./"><span class="mark" aria-hidden="true">q.</span><span>QTI Score<small>ASSESSMENT WORKSPACE</small></span></a>
     <p class="nav-label">工作空间</p>
     <nav class="workspace-nav" aria-label="工作空间">
-      <button type="button" data-view="workbench" aria-current="page"><span aria-hidden="true">◫</span>题目工作台<span class="nav-count">28</span></button>
+      <button type="button" data-view="workbench" aria-current="page"><span aria-hidden="true">◫</span>题目工作台<span class="nav-count">29</span></button>
       <button type="button" data-view="package"><span aria-hidden="true">▣</span>题包资源</button>
       <button type="button" data-view="results"><span aria-hidden="true">▥</span>结果分析<span id="nav-result-count" class="nav-count">—</span></button>
     </nav>
-    <div class="sidebar-note"><span class="local-icon" aria-hidden="true">◎</span><strong>在你的设备上评分</strong><p>题目与作答留在当前浏览器。无需账号，即可开始验证。</p><span class="version-label">MoonBit · v0.23.0</span></div>
+    <div class="sidebar-note"><span class="local-icon" aria-hidden="true">◎</span><strong>在你的设备上评分</strong><p>题目与作答留在当前浏览器。无需账号，即可开始验证。</p><span class="version-label">MoonBit · v0.24.0</span></div>
     <a href="test.html" class="sidebar-doc">参加整卷测验 <span aria-hidden="true">↗</span></a>
     <a href="../README.md" class="sidebar-doc">使用文档 <span aria-hidden="true">↗</span></a>
   </aside>
@@ -29,10 +30,11 @@
     <section class="intro"><div><p class="eyebrow">BUILD CONFIDENCE IN EVERY SCORE</p><h1 id="workbench-title">每一次评分，都有据可循。</h1><p class="lead">从标准题目到可验证的结果，在一个工作台里完成。</p></div><div class="hero-note"><span class="hero-symbol" aria-hidden="true">✓</span><div><strong>QTI 3 评分内核</strong><small>预览、验证、解释，共用同一套规则</small></div></div></section>
     <div class="workspace-layout">
     <aside class="sample-library" aria-label="示例题库">
-      <div class="library-heading"><h2>示例题库</h2><span id="example-count">28 道</span></div>
+      <div class="library-heading"><h2>示例题库</h2><span id="example-count">29 道</span></div>
       <label class="search-field"><span aria-hidden="true">⌕</span><input id="example-search" type="search" placeholder="搜索题型或评分规则" aria-label="搜索示例"></label>
       <p class="library-help">选择示例，直接体验评分</p>
     <nav class="examples" aria-label="示例题目">
+      <button type="button" disabled data-example="associate" aria-pressed="false"><span class="example-number">29</span><span><strong>同组关联</strong><small>无向配对 · 交换两端等价</small></span><span class="example-arrow">↗</span></button>
       <button type="button" disabled data-example="single" aria-pressed="true"><span class="example-number">01</span><span><strong>单选题</strong><small>完全匹配 · match_correct</small></span><span class="example-arrow">↗</span></button>
       <button type="button" disabled data-example="multiple" aria-pressed="false"><span class="example-number">02</span><span><strong>多选题</strong><small>部分得分 · map_response</small></span><span class="example-arrow">↗</span></button>
       <button type="button" disabled data-example="text" aria-pressed="false"><span class="example-number">03</span><span><strong>文本填空</strong><small>大小写与 Unicode</small></span><span class="example-arrow">↗</span></button>

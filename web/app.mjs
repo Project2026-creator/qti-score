@@ -2,6 +2,7 @@ import { createBatchPanel } from './batch.mjs';
 import { createWorkspace } from './workspace.mjs';
 import { createOrderControl } from './order.mjs';
 import { createMatchControl } from './match.mjs';
+import { createAssociationControl } from './associate.mjs';
 import { createGapControl } from './gap.mjs';
 import { createHottextControl } from './hottext.mjs';
 import { createInlineChoiceControl } from './inline-choice.mjs';
@@ -41,6 +42,7 @@ function response() {
   if (item.slider) return sliderControl?.response() || { RESPONSE: null };
   if (item.inline_choice) return inlineChoiceControl?.response() || { RESPONSE: null };
   if (item.gap_matching) return gapControl?.response() || { RESPONSE: null };
+  if (item.association) return { [item.response_identifier]: matchControl?.read() ?? null };
   if (item.base_type === 'directedPair') return matchControl?.response() || { RESPONSE: null };
   if (item.cardinality === 'ordered') return orderControl?.response() || { RESPONSE: null };
   if (item.base_type !== 'identifier') return { RESPONSE: $('text-answer')?.value || '' };
@@ -124,7 +126,7 @@ function renderQuestion() {
   fieldset.replaceChildren();
   const legend = document.createElement('legend');
   legend.className = 'sr-only';
-  legend.textContent = item.kind === 'composite' ? '填写多个答案' : item.slider ? '选择数值' : item.inline_choice ? '文中下拉选词' : item.hottext ? '选择原文片段' : item.gap_matching ? '在文段中选词' : item.base_type === 'directedPair' ? '添加配对' : item.cardinality === 'ordered' ? '排列答案' : item.base_type !== 'identifier' ? '填写答案' : '选择答案';
+  legend.textContent = item.kind === 'composite' ? '填写多个答案' : item.slider ? '选择数值' : item.inline_choice ? '文中下拉选词' : item.hottext ? '选择原文片段' : item.gap_matching ? '在文段中选词' : (item.base_type === 'directedPair' || item.association) ? '添加配对' : item.cardinality === 'ordered' ? '排列答案' : item.base_type !== 'identifier' ? '填写答案' : '选择答案';
   fieldset.append(legend);
   if (item.kind === 'composite') {
     compositeControl = createCompositeControl(fieldset, item, () => { updateResponse(); resetResult(); });
@@ -136,6 +138,8 @@ function renderQuestion() {
     hottextControl = createHottextControl(fieldset, item);
   } else if (item.gap_matching) {
     gapControl = createGapControl(fieldset, item, () => { updateResponse(); resetResult(); });
+  } else if (item.association) {
+    matchControl = createAssociationControl(fieldset, item, null, () => { updateResponse(); resetResult(); });
   } else if (item.base_type === 'directedPair') {
     matchControl = createMatchControl(fieldset, item, () => { updateResponse(); resetResult(); });
   } else if (item.cardinality === 'ordered') {

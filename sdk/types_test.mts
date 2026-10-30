@@ -7,6 +7,14 @@ const score: Score = item.score(response);
 const explanation: Explanation = item.explain({ RESPONSE: 100.5 });
 const batch: BatchResult[] = item.scoreBatch([response, {}, { RESPONSE: null }] as const);
 const metadata: ItemDescription = describeItem('<xml/>');
+if (metadata.kind !== 'composite' && metadata.association) {
+  const pool: readonly string[] = metadata.association.choices.map(choice => choice.identifier);
+  const shuffled: boolean = metadata.association.shuffle;
+  const group: readonly string[] = metadata.association.choices[0].match_group;
+  // @ts-expect-error association metadata is immutable
+  metadata.association.choices[0].match_max = 99;
+  void [pool, shuffled, group];
+}
 if (metadata.kind === 'composite' && metadata.template !== 'typed_rules') {
   const id: string = metadata.responses[0].identifier;
   const multi: ResponseObject = { PLATFORM: 'LMS', COUNT: 4 };

@@ -91,11 +91,11 @@ def _check_values(variable):
                 raise AssertionError("Nonfinite float value")
         elif base_type == "boolean" and text not in {"true", "false"}:
             raise AssertionError("Invalid boolean value")
-        elif base_type == "directedPair":
+        elif base_type in {"directedPair", "pair"}:
             pair = text.split(" ")
             if len(pair) != 2 or not all(NCNAME.fullmatch(x) for x in pair):
                 raise AssertionError("Invalid directedPair value")
-        elif base_type not in {"identifier", "string", "integer", "float", "boolean", "directedPair"}:
+        elif base_type not in {"identifier", "string", "integer", "float", "boolean", "directedPair", "pair"}:
             raise AssertionError("Unsupported exporter base type")
 
 
@@ -155,7 +155,7 @@ def smoke_report():
             "identifier": "REF_1", "item_identifier": "ITEM_NOT_REF", "sequence_index": 1,
             "session_status": "final", "num_attempts": 1, "duration": 12.5,
             "response": {"CHOICE": ["B", "A", "B"], "TEXT": "中文 < & > \" '\n第二行\t😀", "EMPTY": None, "ZERO": 0},
-            "response_types": {"CHOICE": declaration("identifier", "ordered"), "TEXT": declaration("string"), "EMPTY": declaration("string"), "ZERO": declaration("integer")},
+            "response_types": {"CHOICE": declaration("identifier", "ordered"), "TEXT": declaration("string"), "EMPTY": declaration("string"), "ZERO": declaration("integer"), "LINKS": declaration("pair", "multiple")},
             "outcomes": {"SCORE": 2.5, "PASS": True, "completionStatus": "completed"},
             "outcome_types": {"SCORE": declaration("float"), "PASS": declaration("boolean"), "completionStatus": declaration("identifier")},
             "correct_response": "ANSWER_SENTINEL", "mapping": "MAPPING_SENTINEL", "trace": "TRACE_SENTINEL",
@@ -178,6 +178,7 @@ def run_smoke(schema, moon_path=None, target="native"):
     with tempfile.TemporaryDirectory(prefix="qti-result-schema-") as temporary:
         directory = Path(temporary)
         report = smoke_report()
+        report["items"][0]["response"]["LINKS"] = ["A B", "C D"]
         xml = export_report(report, moon, env, directory, target)
         document = validate_result_xml(xml, schema)
         checks.append("MoonBit output validates against pinned QTI 3 RR XSD")
@@ -186,6 +187,8 @@ def run_smoke(schema, moon_path=None, target="native"):
         checks.append("ItemRef identifier and one-based sequence index")
         assert [v.text for v in item.findall("r:responseVariable[@identifier='CHOICE']/r:candidateResponse/r:value", NS)] == ["B", "A", "B"]
         checks.append("Ordered response preserves sequence and duplicates")
+        assert [v.text for v in item.findall("r:responseVariable[@identifier='LINKS']/r:candidateResponse/r:value", NS)] == ["A B", "C D"]
+        checks.append("Undirected pair response retains its standard baseType and values")
         assert item.find("r:responseVariable[@identifier='TEXT']/r:candidateResponse/r:value", NS).text == report["items"][0]["response"]["TEXT"]
         checks.append("Independent XML reader preserves Unicode XML metacharacters and whitespace")
         assert not item.findall("r:responseVariable[@identifier='EMPTY']/r:candidateResponse/r:value", NS)

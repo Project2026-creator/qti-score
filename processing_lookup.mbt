@@ -31,6 +31,7 @@ fn processing_lookup_target(
     "float" => Json(authored_number(raw, Float, node))
     "identifier" => Json(identifier(raw.trim().to_owned(), node.location()))
     "directedPair" => Json(authored_pair(raw, node))
+    "pair" => Json(authored_undirected_pair(raw, node))
     "string" => if raw == "" { Json::null() } else { Json(raw) }
     _ => raise Unsupported(node.location(), "lookup target base-type '\{base}'")
   }

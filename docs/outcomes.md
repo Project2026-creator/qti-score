@@ -41,7 +41,7 @@ moon run cmd/main -- test-run web/outcome-test-package.zip outcome-test examples
 
 这个标准表执行阶梯阈值换算，不计算相邻两点之间的直线。输入高于所有阈值时仍按第一条满足的行取值；低于全部阈值则取表的 default-value，未设置时为 NULL。本实现把 NULL 输入视为没有匹配行，同样使用表的 fallback。表的 fallback 与结果变量声明的 `qti-default-value` 分开：每次 lookup 都覆盖目标当前值，不会因没有匹配而沿用旧分数。
 
-源表达式须为 single integer／float 或 NULL；目标是声明了阈值表的 single outcome。目标值支持当前标量子集：float、integer、identifier、string、boolean、directedPair，并按声明类型检查。结果为 integer 时仍执行安全整数范围检查。match-table、duration、record 和容器目标暂不支持。
+源表达式须为 single integer／float 或 NULL；目标是声明了阈值表的 single outcome。目标值支持当前标量子集：float、integer、identifier、string、boolean、directedPair、pair，并按声明类型检查。结果为 integer 时仍执行安全整数范围检查。match-table、duration、record 和容器目标暂不支持。
 
 每表最多 1024 行，每个处理程序总共最多 8192 行；查找消耗现有表达式执行预算。普通元信息不返回阈值、目标值和 fallback；显式开发者解释接口可记录命中行与赋值。
 

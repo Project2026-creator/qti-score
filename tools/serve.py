@@ -6,12 +6,14 @@ import urllib.parse
 
 
 WEB_FILES = frozenset([
+    "associate.mjs", "associate.css",
     "index.html", "style.css", "app.mjs", "batch.mjs", "composite.mjs",
     "gap.mjs", "hottext.mjs", "inline-choice.mjs", "match.mjs", "order.mjs",
     "slider.mjs", "qti-score.mjs", "workspace.mjs", "results.mjs",
     "test.html", "test-player.mjs", "test-player.css", "test-controls.mjs",
 ])
 PACKAGE_FILES = frozenset([
+    "associate-test-package.zip",
     "sample-package.zip", "order-package.zip", "match-package.zip", "gap-package.zip",
     "hottext-package.zip", "inline-choice-package.zip", "slider-package.zip",
     "composite-package.zip", "composite-tolerance-package.zip", "composite-inline-package.zip",
@@ -24,7 +26,7 @@ PACKAGE_FILES = frozenset([
 
 
 def public_asset(path):
-    if path in ("/README.md", "/docs/runtime.md", "/docs/assembly.md", "/docs/navigation.md", "/docs/outcomes.md", "/LICENSE", "/NOTICE", "/web", "/web/"):
+    if path in ("/README.md", "/docs/runtime.md", "/docs/assembly.md", "/docs/navigation.md", "/docs/outcomes.md", "/docs/associate.md", "/LICENSE", "/NOTICE", "/web", "/web/"):
         return True
     parts = path.split("/")
     if len(parts) != 3 or parts[0] != "":
