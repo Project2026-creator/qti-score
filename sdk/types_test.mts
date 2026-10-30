@@ -140,4 +140,20 @@ importPackage('archive.zip');
 // @ts-expect-error disposal state is read-only
 bundle.disposed = false;
 void bytes;
+const testPlan = bundle.getTest('test-resource', { seed: 0 });
+const conditional: boolean = testPlan.describe().conditional_navigation;
+const partConditional: boolean = testPlan.describe().parts[0].conditional_navigation;
+const instructionText: string | undefined = testPlan.describe().entries[0].instructions[0]?.text;
+const testSession = testPlan.startSession('type-check');
+const firstSummary = testSession.describe().items[0];
+const presented: boolean = firstSummary.presented;
+const skipped: boolean = firstSummary.skipped;
+const instructionScope: 'test' | 'part' | 'section' | undefined = testSession.describe().current.instructions[0]?.scope;
+// @ts-expect-error instructions returned by the core are read-only values
+testSession.describe().current.instructions[0].text = 'Changed';
+// @ts-expect-error skipped status is read-only
+firstSummary.skipped = false;
+void [conditional, partConditional, instructionText, instructionScope, presented, skipped];
+testSession.dispose();
+testPlan.dispose();
 bundle.dispose();

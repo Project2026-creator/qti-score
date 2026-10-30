@@ -339,6 +339,12 @@ export interface ItemSessionControl {
   readonly allow_skipping: boolean;
   readonly validate_responses: boolean;
 }
+export interface TestInstruction {
+  readonly scope: 'test' | 'part' | 'section';
+  readonly scope_identifier: string;
+  readonly title: string;
+  readonly text: string;
+}
 export interface TestPartDescription {
   readonly identifier: string;
   readonly navigation_mode: 'linear' | 'nonlinear';
@@ -346,6 +352,7 @@ export interface TestPartDescription {
   readonly max_time: number | null;
   readonly entry_count: number;
   readonly control: ItemSessionControl;
+  readonly conditional_navigation: boolean;
 }
 export interface TestEntryDescription {
   readonly identifier: string;
@@ -359,6 +366,7 @@ export interface TestEntryDescription {
   readonly section_identifiers: readonly string[];
   readonly categories: readonly string[];
   readonly weights: Readonly<Record<string, number>>;
+  readonly instructions: readonly TestInstruction[];
 }
 export interface VariableTypeDescription {
   readonly base_type: string;
@@ -373,6 +381,7 @@ export interface TestDescription {
   readonly outcome_types: Readonly<Record<string, VariableTypeDescription>>;
   readonly assembly_seed: number;
   readonly candidate_count: number;
+  readonly conditional_navigation: boolean;
 }
 export type SessionAction =
   | { readonly type: 'save'; readonly time: number; readonly response: ResponseObject }
@@ -385,6 +394,8 @@ export interface SessionItemSummary {
   readonly answered: boolean;
   readonly dirty: boolean;
   readonly num_attempts: number;
+  readonly presented: boolean;
+  readonly skipped: boolean;
 }
 export interface SessionDescription {
   readonly test_identifier: string;
@@ -403,6 +414,7 @@ export interface SessionDescription {
     readonly num_attempts: number;
     readonly result: Score | null;
     readonly feedback: readonly JsonValue[];
+    readonly instructions: readonly TestInstruction[];
   };
   readonly items: readonly SessionItemSummary[];
 }

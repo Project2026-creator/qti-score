@@ -159,11 +159,11 @@ test "test plan rejects missing duplicate IDs invalid modes controls and referen
 }
 
 ///|
-test "test plan explicitly rejects unsupported flow and session features" {
+test "test plan explicitly rejects unsupported session features" {
   for
     extra in [
-      "<qti-branch-rule target=\"EXIT_TEST\"/>", "<qti-pre-condition/>", "<qti-time-limits max-time=\"1\"/>",
-      "<qti-item-session-control show-solution=\"true\"/>", "<qti-item-session-control allow-comment=\"true\"/>",
+      "<qti-time-limits max-time=\"1\"/>", "<qti-item-session-control show-solution=\"true\"/>",
+      "<qti-item-session-control allow-comment=\"true\"/>",
     ] {
     reject_test_plan(
       test_plan_source(test_plan_part(test_plan_section(extra))),
@@ -205,7 +205,7 @@ test "test identity binds rules and is stable with fresh compilations" {
   inspect(
     first.identity(),
     content=(
-      #|qti-test-v2-10379208663322914227
+      #|qti-test-v2-1596237734586485979
     ),
   )
 }

@@ -1,6 +1,6 @@
 # 试卷运行、响应处理与标准结果
 
-QTI Score 0.21.0 可从 QTI 3 内容包编译试卷，运行分部分的作答会话，执行题目与试卷评分规则，并导出 QTI Result Reporting XML。MoonBit 核心承担编译、状态变更、评分和序列化；浏览器、命令行和 JavaScript SDK 共用这些逻辑。
+QTI Score 0.22.0 可从 QTI 3 内容包编译试卷，运行分部分的作答会话，执行题目与试卷评分规则，并导出 QTI Result Reporting XML。MoonBit 核心承担编译、状态变更、评分和序列化；浏览器、命令行和 JavaScript SDK 共用这些逻辑。
 
 ## 运行示例
 
@@ -43,7 +43,7 @@ python tools/project.py serve
 
 有效控制值按试卷部分、分节、题目引用继承。所有响应在保存时校验，`validate-responses=false` 也不会允许类型错误或未知选项进入评分。逐题提交部分结束前需提交已修改的草稿。到时的未答必答题保留未完成处理状态与空分值，不生成零分。
 
-固定顺序、分节抽题与编序已经实现，规则与种子接入见 [组卷指南](assembly.md)。分支跳转、前置条件、自适应题、测试整体与单题时间约束尚未实现，对相应结构返回 `unsupported`。宿主负责身份信息、持久存储和时钟来源。
+固定顺序、分节抽题与编序已经实现，规则与种子接入见 [组卷指南](assembly.md)。条件导航支持范围和实际示例见 [前置条件与分支](navigation.md)。自适应题、测试整体与单题时间约束尚未实现，对相应结构返回 `unsupported`。宿主负责身份信息、持久存储和时钟来源。
 
 QTI 标识符采用最多 256 个字符的 ASCII NCName 子集；外部分节展开后的标识符也受此限制，与结果 XML 导出的约束一致。普通资源路径和清单资源标识符使用各自的题包限制。
 
@@ -136,6 +136,8 @@ moon run cmd/main -- result-xml report.json
 ```
 
 `assessment_result_xml(report)` 也可序列化符合合同的报告。报告须带变量类型，数值响应转换为对应的 XML 数值，容器基数和 directedPair 方向保留。未完成评分的题目由外部评分声明标记为待评，整卷 `all_items_scored=false`；作者可将 SCORE 显式置为 NULL，缺省的数值 0 也不会被当作已完成的人工评分。试卷结果仍执行作者声明的处理规则，不抹掉默认值和独立结果；`test-variables` 按标准排除 NULL。反馈示例显式检查已评分的 SCORE 数量，尚有待评题时把试卷 SCORE 设为 NULL，同时保留 MAXSCORE=7。`has_errors=false` 不能代替全部评分完成的判断：人工待评是有效状态。
+
+条件排除且从未呈现的题以 `initial` 导出，尝试次数与时长为 0，响应为 NULL，结果变量保留声明初值；这些题不执行响应处理，不参加已提交题目的汇总，也不计为人工待评。JSON 的 `presented` 与 `skipped` 区分已呈现题和规则排除题。
 
 XML 针对 [QTI 3 Result Reporting Candidate Final Public](https://www.imsglobal.org/sites/default/files/spec/qti/v3/rr-bind/index.html) 及其 [Result XSD](https://purl.imsglobal.org/spec/qti/v3p0/schema/xsd/imsqti_resultv3p0_v1p0.xsd) 验证。该结果规范的发布状态与 [ASI 3.0.1 Final 信息模型](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/imsqti_asi_v3p0p1_infomodel_v1p0.html) 分别记录，不把两者版本混称。旧有批量 JSON/CSV 用于逐行分析，与此结果交换格式分别提供。
 

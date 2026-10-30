@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1" identifier="guided-learning-practice">
+  <metadata><schema>QTI Test</schema><schemaversion>3.0.0</schemaversion></metadata>
+  <organizations/>
+  <resources>
+    <resource identifier="conditional-test" type="imsqti_test_xmlv3p0" href="test.xml"><file href="test.xml"/><dependency identifierref="single"/><dependency identifierref="numeric"/></resource>
+    <resource identifier="single" type="imsqti_item_xmlv3p0" href="items/single.xml"><file href="items/single.xml"/></resource>
+    <resource identifier="numeric" type="imsqti_item_xmlv3p0" href="items/numeric.xml"><file href="items/numeric.xml"/></resource>
+  </resources>
+</manifest>

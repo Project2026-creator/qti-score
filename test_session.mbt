@@ -11,6 +11,8 @@ priv struct SessionEntry {
   mut grading_error : QtiError?
   mut submitted_response : Json
   mut submission_index : Int32
+  mut presented : Bool
+  mut skipped : Bool
 }
 
 ///|
@@ -32,6 +34,7 @@ pub struct TestSession {
   priv mut test_outcomes : Json
   priv mut test_processing_error : QtiError?
   priv mut submission_count : Int32
+  priv entered_scopes : Map[String, Bool]
 }
 
 ///|
@@ -77,7 +80,7 @@ pub fn AssessmentTest::new_session(
   if self.entries.is_empty() || self.parts.is_empty() {
     raise InvalidItem("test", "test has no items")
   }
-  {
+  let session : TestSession = {
     session_identifier,
     plan: self,
     states: self.entries.map(_ => {
@@ -92,6 +95,8 @@ pub fn AssessmentTest::new_session(
       grading_error: None,
       submitted_response: Json::object({}),
       submission_index: 0,
+      presented: false,
+      skipped: false,
     }),
     events: [],
     event_characters: 0,
@@ -103,10 +108,16 @@ pub fn AssessmentTest::new_session(
     paused: false,
     completed: false,
     timed_out: false,
-    test_outcomes: Json::object({}),
+    test_outcomes: match self.processing {
+      Some(program) => program.initial_outcomes()
+      None => Json::object({})
+    },
     test_processing_error: None,
     submission_count: 0,
+    entered_scopes: Map([]),
   }
+  session.enter_from(0, now)
+  session
 }
 
 ///|
@@ -164,11 +175,11 @@ fn TestSession::review_blocked(self : TestSession, index : Int32) -> Bool {
 }
 
 ///|
-fn TestSession::evaluate_test_outcomes(
+fn TestSession::processing_input(
   self : TestSession,
   overrides : Map[Int32, Json],
+  initial_outcomes~ : Bool = false,
 ) -> Json raise QtiError {
-  guard self.plan.processing is Some(program) else { return Json::object({}) }
   let items : Array[Json] = []
   let mut submission_index = self.submission_count
   for i, entry in self.plan.entries {
@@ -183,7 +194,11 @@ fn TestSession::evaluate_test_outcomes(
       "instance_identifier": entry.identifier,
       "instance_index": entry.instance_index,
       "sequence_index": i + 1,
-      "outcomes": overrides.get(i).unwrap_or(state.outcomes),
+      "outcomes": if initial_outcomes && !changed && !state.submitted {
+        session_initial_outcomes(entry.item)
+      } else {
+        overrides.get(i).unwrap_or(state.outcomes)
+      },
       "response": session_result_response(
         entry.item,
         if changed {
@@ -210,7 +225,18 @@ fn TestSession::evaluate_test_outcomes(
       "outcome_types": entry.item.outcome_types_json(),
     })
   }
-  program.evaluate_json({ "items": items })
+  { "items": items }
+}
+
+///|
+fn TestSession::evaluate_test_outcomes(
+  self : TestSession,
+  overrides : Map[Int32, Json],
+) -> Json raise QtiError {
+  match self.plan.processing {
+    Some(program) => program.evaluate_json(self.processing_input(overrides))
+    None => Json::object({})
+  }
 }
 
 ///|
@@ -263,15 +289,19 @@ fn TestSession::commit_current(self : TestSession) -> Unit raise QtiError {
 }
 
 ///|
-fn TestSession::finish_part(
+fn TestSession::submit_entries(
   self : TestSession,
-  now : Double,
+  start : Int32,
+  end : Int32,
   force~ : Bool = false,
 ) -> Unit raise QtiError {
   let part = self.plan.parts[self.part_index]
   // Prepare all results before changing any item state: a failure is atomic.
   let prepared : Array[(Int32, Score?, Json, Json, QtiError?)] = []
-  for i in part.start..<(part.start + part.count) {
+  for i in start..<end {
+    if self.states[i].skipped || (self.item_flow() && !self.states[i].presented) {
+      continue
+    }
     let entry = self.plan.entries[i]
     let state = self.states[i]
     if !force &&
@@ -343,16 +373,14 @@ fn TestSession::finish_part(
       self.null_test_outcomes()
     }
   }
-  self.touch(now)
   for (i, result, outcomes, feedback, error) in prepared {
     let state = self.states[i]
+    state.presented = true
     state.result = result
     state.outcomes = outcomes
     state.feedback = feedback
     state.grading_error = error
-    if session_answered(state.response) {
-      state.attempts += 1
-    }
+    state.attempts += 1
     state.submitted = true
     state.dirty = false
     state.submitted_response = session_clone(state.response)
@@ -361,19 +389,12 @@ fn TestSession::finish_part(
   }
   self.test_outcomes = test_outcomes
   self.test_processing_error = processing_error
-  if self.part_index + 1 >= self.plan.parts.length() {
-    self.completed = true
-  } else {
-    self.part_index += 1
-    self.current = self.plan.parts[self.part_index].start
-    self.part_elapsed = 0.0
-  }
 }
 
 ///|
 /// Apply a timestamped action. Saving never executes response processing.
 /// Supported types: save, submit, next, select, finish_part, pause, resume, tick.
-pub fn TestSession::act_json(
+fn TestSession::apply_json(
   self : TestSession,
   input : String,
 ) -> Json raise QtiError {
@@ -468,14 +489,19 @@ pub fn TestSession::act_json(
       if part.submission_mode == Individual && state.dirty {
         raise InvalidResponse("submit current response before moving")
       }
-      if self.current + 1 >= part.start + part.count {
-        raise InvalidResponse("last item in part; use finish_part")
+      if self.item_flow() {
+        self.advance_flow(now)
+      } else {
+        if self.current + 1 >= part.start + part.count {
+          raise InvalidResponse("last item in part; use finish_part")
+        }
+        if self.review_blocked(self.current + 1) {
+          raise InvalidResponse("item review is disabled")
+        }
+        self.touch(now)
+        self.current += 1
+        self.states[self.current].presented = true
       }
-      if self.review_blocked(self.current + 1) {
-        raise InvalidResponse("item review is disabled")
-      }
-      self.touch(now)
-      self.current += 1
     }
     "select" => {
       if part.navigation_mode != Nonlinear {
@@ -505,6 +531,7 @@ pub fn TestSession::act_json(
       }
       self.touch(now)
       self.current = found
+      self.states[found].presented = true
     }
     "finish_part" => self.finish_part(now)
     "pause" => {
@@ -551,6 +578,8 @@ pub fn TestSession::describe(self : TestSession) -> Json {
       "answered": session_answered(self.states[i].response),
       "dirty": self.states[i].dirty,
       "num_attempts": self.states[i].attempts,
+      "presented": self.states[i].presented,
+      "skipped": self.states[i].skipped,
     })
   }
   {
@@ -564,6 +593,7 @@ pub fn TestSession::describe(self : TestSession) -> Json {
     "current": {
       "identifier": entry.identifier,
       "item": entry.item.describe(),
+      "instructions": session_clone(Json(entry.instructions)),
       "response": session_clone(state.response),
       "submitted": state.submitted,
       "dirty": state.dirty,
@@ -652,7 +682,11 @@ pub fn TestSession::report(
       "instance_index": entry.instance_index,
       "item_identifier": entry.item.identifier(),
       "sequence_index": i + 1,
-      "session_status": if state.grading_error is Some(_) {
+      "presented": state.presented,
+      "skipped": state.skipped,
+      "session_status": if state.skipped {
+        "initial"
+      } else if state.grading_error is Some(_) {
         "pendingResponseProcessing"
       } else if state.result is None {
         "pendingExternalScoring"
@@ -666,14 +700,20 @@ pub fn TestSession::report(
         None => Json::null()
       },
       "response": session_result_response(entry.item, state.response),
-      "outcomes": session_clone(state.outcomes),
+      "outcomes": if state.skipped {
+        session_initial_outcomes(entry.item)
+      } else {
+        session_clone(state.outcomes)
+      },
       "response_types": entry.item.response_types_json(),
       "outcome_types": entry.item.outcome_types_json(),
     })
   }
   let has_errors = self.test_processing_error is Some(_) ||
     self.states.any(state => state.grading_error is Some(_))
-  let all_items_scored = !self.states.any(state => state.result is None)
+  let all_items_scored = !self.states.any(state => {
+    !state.skipped && state.result is None
+  })
   let outcomes = session_clone(self.test_outcomes)
   let types = match self.plan.processing {
     None => Json::object({})

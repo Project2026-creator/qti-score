@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-test xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="guided-practice" title="按学习情况安排练习">
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"><qti-default-value><qti-value>0</qti-value></qti-default-value></qti-outcome-declaration>
+  <qti-rubric-block view="candidate"><qti-content-body><p>本测验根据诊断作答安排后续练习。作答说明会随当前部分和分节更新；已进入部分的说明可再次查看。</p></qti-content-body></qti-rubric-block>
+  <qti-rubric-block view="scorer" use="scoring"><qti-content-body><p>评分者提示：诊断、补救与反思题各 1 分，测量题 2 分。只记录实际呈现的题目作答。</p></qti-content-body></qti-rubric-block>
+  <qti-test-part identifier="diagnosis" title="诊断与分流" navigation-mode="linear" submission-mode="individual">
+    <qti-item-session-control max-attempts="1" allow-skipping="true" allow-review="true" show-feedback="true"/>
+    <qti-rubric-block view="candidate" use="navigation"><qti-content-body><p>先完成诊断题。每题提交后点击“继续”，试卷会安排补救或迁移任务。诊断题选择“只在课程结束时给出总成绩”时，本次练习直接结束。</p></qti-content-body></qti-rubric-block>
+    <qti-assessment-section identifier="diagnostic-section" title="先判断评价目的" visible="true">
+      <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>请根据自己的理解选择。正确理解形成性评价后进入迁移任务，其他情况先阅读补救说明。</p></qti-content-body></qti-rubric-block>
+      <qti-assessment-item-ref identifier="diagnostic" href="items/single.xml">
+        <qti-branch-rule target="EXIT_TEST"><qti-match><qti-variable identifier="diagnostic.RESPONSE"/><qti-base-value base-type="identifier">B</qti-base-value></qti-match></qti-branch-rule>
+        <qti-branch-rule target="advanced-section"><qti-equal><qti-variable identifier="diagnostic.SCORE"/><qti-base-value base-type="float">1</qti-base-value></qti-equal></qti-branch-rule>
+      </qti-assessment-item-ref>
+    </qti-assessment-section>
+    <qti-assessment-section identifier="remedial-section" title="补救：依据反馈调整教学" visible="true">
+      <qti-branch-rule target="EXIT_TESTPART"><qti-base-value base-type="boolean">true</qti-base-value></qti-branch-rule>
+      <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>形成性评价关注学习过程中的证据与反馈。教师据此调整支持，学习者据此改进作业。阅读后重新判断评价做法。</p></qti-content-body></qti-rubric-block>
+      <qti-assessment-item-ref identifier="remedial" href="items/single.xml"/>
+    </qti-assessment-section>
+    <qti-assessment-section identifier="advanced-section" title="迁移：理解测量误差" visible="true">
+      <qti-branch-rule target="EXIT_TESTPART"><qti-base-value base-type="boolean">true</qti-base-value></qti-branch-rule>
+      <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>已进入迁移任务。请结合标准值与允许误差完成测量题，提交后继续到反思部分。</p></qti-content-body></qti-rubric-block>
+      <qti-assessment-item-ref identifier="advanced" href="items/numeric.xml"/>
+    </qti-assessment-section>
+  </qti-test-part>
+  <qti-test-part identifier="reflection" title="反思与巩固" navigation-mode="nonlinear" submission-mode="simultaneous">
+    <qti-pre-condition><qti-gte><qti-variable identifier="SCORE"/><qti-base-value base-type="float">1</qti-base-value></qti-gte></qti-pre-condition>
+    <qti-branch-rule target="EXIT_TEST"><qti-base-value base-type="boolean">true</qti-base-value></qti-branch-rule>
+    <qti-rubric-block view="candidate author" use="instructions"><qti-content-body><p>请再次判断形成性评价的做法。此部分统一提交：保存作答后点击“完成当前部分”。</p></qti-content-body></qti-rubric-block>
+    <qti-assessment-section identifier="reflection-section" title="把反馈用于学习改进" visible="true">
+      <qti-rubric-block view="candidate" use="scoring"><qti-content-body><p>本部分 1 分。提交前可以修改作答；完成后导出本次练习的结果。</p></qti-content-body></qti-rubric-block>
+      <qti-assessment-item-ref identifier="reflection-item" href="items/single.xml"/>
+    </qti-assessment-section>
+  </qti-test-part>
+  <qti-outcome-processing><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-test-variables variable-identifier="SCORE" base-type="float"/></qti-sum></qti-set-outcome-value></qti-outcome-processing>
+</qti-assessment-test>

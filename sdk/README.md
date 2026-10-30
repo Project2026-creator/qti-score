@@ -2,6 +2,12 @@
 
 ESM wrapper around the compiled MoonBit scorer. The package has no runtime dependencies and performs no network or file I/O. It supports Node.js 18+ and modern browsers with ES modules and private class fields.
 
+## Conditional navigation and instructions (0.22.0)
+
+Fixed-order linear/individual parts support item/section preconditions and forward branches. Part conditions also apply to nonlinear and simultaneous parts, after their normal submission point. Conditions read live test outcomes and submitted item variables; `next` applies item/section routing after processing, while `finish_part` ends the active part. See the [navigation guide](../docs/navigation.md) for target rules and combinations that return `unsupported`.
+
+`describe().entries[].instructions` and `session.describe().current.instructions` carry candidate-facing static test/part/section instructions. Summary and report items add `presented` and `skipped`. An excluded, never-presented item remains `initial` with zero attempts/duration and NULL responses; it is not pending manual scoring. Snapshots replay the same gates and branches. A rejected action rolls back prepared grades, clocks and route state together.
+
 ## Seeded assembly and weighted outcomes (0.21.0)
 
 `bundle.getTest(resourceId, { seed: 42 })` assembles section selection and ordering before returning a compiled plan. The seed defaults to zero and must be an integer in 0..2147483647. Required/fixed controls, with-replacement instances and section grouping apply. Each compiled plan has a fixed selected order; use a different seed to assemble another plan. Metadata includes assembly_seed, candidate_count and source/instance identifiers.

@@ -10,6 +10,8 @@ priv struct TestCompiler {
   section_stack : Array[String]
   limits : Limits
   mut expanded : Int32
+  sources : Array[TestFlowSource]
+  instructions : Map[String, Array[Json]]
 }
 
 ///|
@@ -52,6 +54,12 @@ fn test_register_id(
     raise LimitExceeded("expanded test exceeds max_elements")
   }
   let local_id = identifier(node.required("identifier"), node.location())
+  if ["EXIT_SECTION", "EXIT_TESTPART", "EXIT_TEST"].contains(local_id) {
+    raise InvalidItem(
+      node.location(),
+      "identifier is reserved for branch targets",
+    )
+  }
   let id = prefix + local_id
   if id.length() > 256 {
     raise LimitExceeded("expanded test identifier exceeds 256 code units")
@@ -275,9 +283,24 @@ fn test_build_section(
   )
   section.only_children([
     "qti-item-session-control", "qti-selection", "qti-ordering", "qti-assessment-section",
-    "qti-assessment-section-ref", "qti-assessment-item-ref",
+    "qti-assessment-section-ref", "qti-assessment-item-ref", "qti-pre-condition",
+    "qti-branch-rule", "qti-rubric-block",
   ])
-  ignore(section.required("title"))
+  let section_title = section.required("title")
+  compiler.instructions[section_id] = test_scope_instructions(
+    section,
+    section_id,
+    section_title,
+    scope="section",
+  )
+  compiler.sources.push({
+    node: section,
+    identifier: section_id,
+    kind: "section",
+    part_identifier: part_id,
+    prefix,
+    parent_section: ancestors.last(),
+  })
   ignore(section.required("visible"))
   let visible = xml_bool(section, "visible", default=true)
   let keep_together = xml_bool(section, "keep-together", default=true)
@@ -335,8 +358,18 @@ fn test_build_section(
           ["identifier", "href", "required", "fixed", "category", "class"],
           allow_base=true,
         )
-        child.only_children(["qti-item-session-control", "qti-weight"])
+        child.only_children([
+          "qti-item-session-control", "qti-weight", "qti-pre-condition", "qti-branch-rule",
+        ])
         let id = test_register_id(compiler, child, prefix)
+        compiler.sources.push({
+          node: child,
+          identifier: id,
+          kind: "item",
+          part_identifier: part_id,
+          prefix,
+          parent_section: Some(section_id),
+        })
         let path = resolve_package_uri(
           child.package_base(base),
           child.required("href"),
@@ -367,6 +400,7 @@ fn test_build_section(
           section_identifiers: ancestors.copy(),
           categories: test_categories(child),
           weights: test_weights(child),
+          instructions: [],
         })
         children.push({
           identifier: id,
@@ -408,9 +442,15 @@ fn compile_test_document(
   }
   root.only_attributes(["identifier", "title"], allow_base=true)
   root.only_children([
-    "qti-outcome-declaration", "qti-test-part", "qti-outcome-processing",
+    "qti-outcome-declaration", "qti-test-part", "qti-outcome-processing", "qti-rubric-block",
   ])
   let id = identifier(root.required("identifier"), root.location())
+  if ["EXIT_SECTION", "EXIT_TESTPART", "EXIT_TEST"].contains(id) {
+    raise InvalidItem(
+      root.location(),
+      "identifier is reserved for branch targets",
+    )
+  }
   let title = root.required("title")
   let base = root.package_base(base)
   let test_parts = root.children.filter(child => child.name() == "qti-test-part")
@@ -428,8 +468,11 @@ fn compile_test_document(
     section_stack: [],
     limits,
     expanded: 0,
+    sources: [],
+    instructions: Map([]),
   }
   compiler.ids[id] = true
+  let test_instructions = test_scope_instructions(root, id, title, scope="test")
   let parts : Array[TestPart] = []
   let entries : Array[TestEntry] = []
   for part in test_parts {
@@ -439,8 +482,23 @@ fn compile_test_document(
     )
     part.only_children([
       "qti-item-session-control", "qti-time-limits", "qti-assessment-section", "qti-assessment-section-ref",
+      "qti-pre-condition", "qti-branch-rule", "qti-rubric-block",
     ])
     let part_id = test_register_id(compiler, part, "")
+    compiler.sources.push({
+      node: part,
+      identifier: part_id,
+      kind: "part",
+      part_identifier: part_id,
+      prefix: "",
+      parent_section: None,
+    })
+    compiler.instructions[part_id] = test_scope_instructions(
+      part,
+      part_id,
+      part.attr("title").unwrap_or(part_id),
+      scope="part",
+    )
     let navigation_mode = match part.required("navigation-mode") {
       "linear" => NavigationMode::Linear
       "nonlinear" => NavigationMode::Nonlinear
@@ -482,6 +540,17 @@ fn compile_test_document(
           ),
         )
       }
+    }
+    if navigation_mode == Linear &&
+      compiler.sources.any(source => {
+        source.part_identifier == part_id &&
+        source.kind != "part" &&
+        source.node.children.any(child => {
+          child.name() == "qti-pre-condition" ||
+          child.name() == "qti-branch-rule"
+        })
+      }) {
+      test_flow_fixed(nodes)
     }
     let selected = assemble_test_nodes(nodes, test_part_seed(seed, part_id))
     let start = entries.length()
@@ -526,7 +595,14 @@ fn compile_test_document(
       generated
     }
     runtime_ids[id] = true
-    entries[i] = { ..entry, identifier: id, instance_index, }
+    let instructions = test_instructions.copy()
+    instructions.append(
+      compiler.instructions.get(entry.part_identifier).unwrap_or([]),
+    )
+    for section_id in entry.section_identifiers {
+      instructions.append(compiler.instructions.get(section_id).unwrap_or([]))
+    }
+    entries[i] = { ..entry, identifier: id, instance_index, instructions, }
   }
   let item_declarations : Json = Json(
     compiler.entries.map(entry => {
@@ -551,6 +627,13 @@ fn compile_test_document(
       Some(ProcessingProgram::{ declarations, rules: [], test_mode: true, })
     }
   }
+  let flow = test_compile_flow(
+    compiler.sources,
+    root,
+    entries,
+    parts,
+    item_declarations,
+  )
   let identity = test_identity(xml, compiler.entries, entries, seed)
   {
     identifier: id,
@@ -561,6 +644,7 @@ fn compile_test_document(
     processing,
     assembly_seed: seed,
     candidate_count: compiler.entries.length(),
+    flow,
   }
 }
 
@@ -594,6 +678,13 @@ fn test_identity(
       .join("\n"),
     ) {
     hash = (hash ^ byte.to_uint64()) * 1099511628211UL
+  }
+  for entry in entries {
+    if !entry.instructions.is_empty() {
+      for byte in @utf8.encode(Json(entry.instructions).stringify()) {
+        hash = (hash ^ byte.to_uint64()) * 1099511628211UL
+      }
+    }
   }
   "qti-test-v2-\{hash}"
 }

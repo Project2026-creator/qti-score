@@ -97,7 +97,7 @@ const session = plan.startSession(script.session_identifier, { now: script.start
 try {
   for (const action of script.actions) session.act(action);
   const output = session.exportResult(script.datestamp, { candidateIdentifier: script.candidate_identifier });
-  console.log(JSON.stringify({ ...output, reportJSON: JSON.stringify(output.report) }));
+  console.log(JSON.stringify({ ...output, state: session.describe(), reportJSON: JSON.stringify(output.report) }));
 } finally { session.dispose(); plan.dispose(); bundle.dispose(); }
 """
 
@@ -295,6 +295,47 @@ def verify(offline=False):
         check(name + " result XML passes the pinned schema and independent typed reader",
               xml_scores == expected_scores and statuses == expected_status,
               {"scores": expected_scores, "statuses": expected_status}, {"scores": xml_scores, "statuses": statuses})
+
+    conditional_package = ROOT / "web/conditional-test-package.zip"
+    for name, actions_name, expected_scores, expected_skipped, total in (
+            ("pass", "conditional-actions.json", [1, None, 2, 1], [False, True, False, False], 4),
+            ("catchup", "conditional-catchup-actions.json", [0, 1, None, 1], [False, False, True, False], 2),
+            ("exit", "conditional-exit-actions.json", [0, None, None, None], [False, True, True, True], 0)):
+        actions_path = ROOT / "examples" / actions_name
+        cli_process = run_process([moon, "run", "--target", "native", "cmd/main", "--", "test-run",
+                                   str(conditional_package), "conditional-test", str(actions_path)], env)
+        cli_value, raw_output = json_output(cli_process)
+        if cli_process.returncode or cli_value.get("ok") is not True:
+            raise AssertionError("Conditional " + name + " path failed through CLI")
+        actual = cli_value["run"]
+        sdk_process = run_process([node, "--input-type=module", "-e", ADDITIONAL_SDK_DRIVER,
+                                   (ROOT / "sdk/index.mjs").as_uri(), str(conditional_package),
+                                   str(actions_path), "conditional-test"], env)
+        if sdk_process.returncode:
+            raise AssertionError("Conditional " + name + " path failed through SDK: " + sdk_process.stderr[-1000:])
+        sdk_value, _ = json_output(sdk_process)
+        demo = actual["report"]
+        # Initial outcomes on skipped items are authored defaults, not grades.
+        grades = [None if item["skipped"] else item["outcomes"]["SCORE"] for item in demo["items"]]
+        expected_statuses = ["initial" if skipped else "final" for skipped in expected_skipped]
+        expected = {"scores": expected_scores, "skipped": expected_skipped,
+                    "presented": [not value for value in expected_skipped],
+                    "attempts": [0 if value else 1 for value in expected_skipped],
+                    "outcomes": {"SCORE": total}, "statuses": expected_statuses,
+                    "all_items_scored": True, "has_errors": False}
+        observed = {"scores": grades, "skipped": [item["skipped"] for item in demo["items"]],
+                    "presented": [item["presented"] for item in demo["items"]],
+                    "attempts": [item["num_attempts"] for item in demo["items"]],
+                    "outcomes": demo["outcomes"], "statuses": [item["session_status"] for item in demo["items"]],
+                    "all_items_scored": demo["all_items_scored"], "has_errors": demo["has_errors"]}
+        same_bytes = raw_member(raw_member(raw_output, "run"), "report").encode("utf-8") == sdk_value["reportJSON"].encode("utf-8")
+        same_bytes = same_bytes and actual["xml"] == sdk_value["xml"] and actual["state"] == sdk_value["state"]
+        check("Conditional " + name + " path matches CLI and SDK with skipped sessions ungraded",
+              observed == expected and same_bytes and actual["state"]["completed"], expected, observed)
+        document = validate_result_xml(actual["xml"], schema)
+        statuses = [item.get("sessionStatus") for item in document.findall("r:itemResult", ns)]
+        check("Conditional " + name + " XML validates final and initial session statuses",
+              statuses == expected_statuses, expected_statuses, statuses)
 
     assembly_package = ROOT / "web/assembly-test-package.zip"
     expected_seeds = {1: ["anchor", "review", "evidence", "repeat", "repeat"],

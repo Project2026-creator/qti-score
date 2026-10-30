@@ -6,6 +6,7 @@ let bundle, plan, session, planDescription, state;
 let readers = new Map(), clockBase = 0, clockOrigin = performance.now(), lastAction = 0;
 let inputDirty = false, jsonDirty = false;
 let imageURLs = [];
+let instructionKey = '';
 const clock = () => Math.max(lastAction, clockBase + (performance.now() - clockOrigin) / 1000);
 const node = (tag, text, className) => { const result = document.createElement(tag); if (text !== undefined) result.textContent = text; if (className) result.className = className; return result; };
 
@@ -54,6 +55,7 @@ async function loadPackage(bytes) {
 }
 function resetWorkspace() {
   clearImages();
+  instructionKey = ''; $('test-instructions').replaceChildren(); $('test-instructions').hidden = true;
   $('response-controls').replaceChildren(); $('item-nav').replaceChildren(); $('feedback').replaceChildren();
   $('result').hidden = true; $('completion').hidden = true;
   $('item-title').textContent = '等待开始会话'; $('item-prompt').textContent = '点击“开始新会话”，按照试卷顺序完成作答。';
@@ -263,6 +265,41 @@ function renderControls(item, current, itemPath) {
   parent.append(passage);
   for (const binding of bindings) if (!rendered.has(binding.identifier)) parent.append(createControl(binding, current.response[binding.identifier], true, itemPath));
 }
+function renderInstructions(instructions) {
+  const scopes = [], seen = new Set();
+  for (const instruction of Array.isArray(instructions) ? instructions : []) {
+    if (!instruction || typeof instruction.text !== 'string' || !instruction.text.trim()) continue;
+    const id = `${instruction.scope}:${instruction.scope_identifier}`;
+    if (seen.has(id)) continue;
+    seen.add(id); scopes.push(instruction);
+  }
+  const history = [], presented = new Set(state.items.filter(item => item.presented).map(item => item.identifier));
+  for (const entry of planDescription.entries) if (presented.has(entry.identifier)) {
+    for (const instruction of entry.instructions || []) {
+      const id = `${instruction.scope}:${instruction.scope_identifier}`;
+      if (instruction.scope !== 'part' || seen.has(id) || !instruction.text?.trim()) continue;
+      seen.add(id); history.push(instruction);
+    }
+  }
+  const key = JSON.stringify({ scopes, history });
+  if (key === instructionKey) return;
+  instructionKey = key;
+  const region = $('test-instructions'); region.hidden = !scopes.length && !history.length;
+  if (region.hidden) { region.replaceChildren(); return; }
+  region.replaceChildren(node('h2', '作答说明'));
+  function sectionFor(instruction, past = false) {
+    const section = node('section', undefined, 'test-instruction');
+    section.append(node('p', instruction.scope === 'test' ? '整份测验' : instruction.scope === 'part' ? (past ? '此前部分' : '当前部分') : '当前分节', 'eyebrow'));
+    section.append(node('h3', instruction.title || instruction.scope_identifier), node('p', instruction.text));
+    return section;
+  }
+  for (const instruction of scopes) region.append(sectionFor(instruction));
+  if (history.length) {
+    const details = node('details'); details.append(node('summary', '查看此前部分的说明'));
+    for (const instruction of history) details.append(sectionFor(instruction, true));
+    region.append(details);
+  }
+}
 function response() { return Object.fromEntries([...readers].map(([id, read]) => [id, read()])); }
 function action(type, extra = {}) {
   const time = clock(); const next = session.act({ type, time, ...extra }); lastAction = time;
@@ -273,16 +310,18 @@ function render() {
   const part = planDescription.parts.find(entry => entry.identifier === state.part_identifier);
   const entry = planDescription.entries.find(entry => entry.identifier === state.current.identifier);
   const current = state.current, item = current.item;
+  const nonePresented = state.completed && !state.items.some(summary => summary.presented);
+  renderInstructions(nonePresented ? (planDescription.entries[0]?.instructions || []).filter(instruction => instruction.scope === 'test') : current.instructions ?? entry.instructions ?? []);
   const currentIndex = state.items.findIndex(summary => summary.identifier === current.identifier);
   $('test-title').textContent = planDescription.title;
-  $('part-label').textContent = `${state.part_identifier} · ${part.submission_mode === 'simultaneous' ? '整部分提交' : '逐题提交'}`;
+  $('part-label').textContent = nonePresented ? '测验已结束' : `${state.part_identifier} · ${part.submission_mode === 'simultaneous' ? '整部分提交' : '逐题提交'}`;
   $('session-info').textContent = `${state.session_identifier} · ${state.completed ? '已完成' : state.paused ? '已暂停' : '进行中'} · 已用 ${Math.floor(state.part_elapsed)} 秒${part.max_time === null ? '' : ` / ${part.max_time} 秒`}`;
-  $('item-position').textContent = `QUESTION ${currentIndex + 1} / ${state.items.length} · ${current.identifier}`;
-  $('item-title').textContent = item.title;
-  $('item-prompt').textContent = (item.responses && item.passage?.length) || item.prompt === item.title ? '' : item.prompt || '';
-  $('response-json').value = JSON.stringify(current.response, null, 2);
+  $('item-position').textContent = nonePresented ? '未呈现题目' : `QUESTION ${currentIndex + 1} / ${state.items.length} · ${current.identifier}`;
+  $('item-title').textContent = nonePresented ? '本次没有呈现题目' : item.title;
+  $('item-prompt').textContent = nonePresented ? '测验已结束，可下载本次结果。' : (item.responses && item.passage?.length) || item.prompt === item.title ? '' : item.prompt || '';
+  $('response-json').value = nonePresented ? '{}' : JSON.stringify(current.response, null, 2);
   clearImages(); readers = new Map(); jsonDirty = false; $('response-controls').replaceChildren();
-  renderControls(item, current, entry.path);
+  if (!nonePresented) renderControls(item, current, entry.path);
   const locked = state.completed || state.paused || (current.submitted && entry.control.max_attempts !== 0 && current.num_attempts >= entry.control.max_attempts);
   for (const field of $('response-controls').querySelectorAll('fieldset')) field.disabled = locked;
   if (locked) for (const control of $('response-controls').querySelectorAll('input,select,textarea,button')) control.disabled = true;
@@ -290,32 +329,35 @@ function render() {
   $('response-json').disabled = locked;
   $('save-response').disabled = $('save-json').disabled = locked;
   $('submit-response').disabled = locked || part.submission_mode === 'simultaneous';
-  $('next-item').disabled = state.completed || state.paused || currentIndex + 1 >= state.items.length || state.items[currentIndex + 1].part_identifier !== state.part_identifier;
+  $('next-item').disabled = state.completed || state.paused || (!part.conditional_navigation && (currentIndex + 1 >= state.items.length || state.items[currentIndex + 1].part_identifier !== state.part_identifier));
+  $('next-item').textContent = part.conditional_navigation ? '继续 →' : '下一题 →';
   $('finish-part').disabled = state.completed || state.paused;
   $('pause-test').disabled = state.completed; $('pause-test').textContent = state.paused ? '继续作答' : '暂停';
   $('download-snapshot').disabled = false;
   $('item-nav').replaceChildren(...state.items.map((summary, index) => {
     const button = node('button', String(index + 1)); button.type = 'button';
-    button.title = `${summary.identifier}${summary.submitted ? ' · 已提交' : summary.answered ? ' · 已作答' : ' · 未作答'}`;
-    button.setAttribute('aria-label', `第 ${index + 1} 题，${summary.submitted ? '已提交' : summary.answered ? '已作答' : '未作答'}`);
+    const label = summary.skipped ? '已跳过' : summary.submitted ? '已提交' : summary.answered ? '已作答' : '未作答';
+    button.title = `${summary.identifier} · ${label}`;
+    button.setAttribute('aria-label', `第 ${index + 1} 题，${label}`);
     if (summary.identifier === current.identifier) button.setAttribute('aria-current', 'step');
     button.dataset.submitted = String(summary.submitted);
+    button.dataset.skipped = String(!!summary.skipped);
     const targetControl = planDescription.entries[index].control;
     const reviewBlocked = summary.submitted && !targetControl.allow_review && targetControl.max_attempts !== 0 && summary.num_attempts >= targetControl.max_attempts;
-    button.disabled = state.completed || state.paused || reviewBlocked || part.navigation_mode !== 'nonlinear' || summary.part_identifier !== state.part_identifier;
+    button.disabled = state.completed || state.paused || summary.skipped || reviewBlocked || part.navigation_mode !== 'nonlinear' || summary.part_identifier !== state.part_identifier;
     button.addEventListener('click', () => run(() => { if (inputDirty) save(); action('select', { identifier: summary.identifier }); status('已切换题目。'); })); return button;
   }));
-  $('result').hidden = !current.result || (part.submission_mode === 'simultaneous' && !state.completed);
+  $('result').hidden = nonePresented || !current.result || (part.submission_mode === 'simultaneous' && !state.completed);
   if (!$('result').hidden) $('result').textContent = `本题得分：${current.result.score}`;
   $('feedback').replaceChildren();
-  if (part.submission_mode !== 'simultaneous' || state.completed) {
+  if (!nonePresented && (part.submission_mode !== 'simultaneous' || state.completed)) {
     for (const feedback of current.feedback || []) $('feedback').append(node('p', typeof feedback === 'string' ? feedback : feedback.text || JSON.stringify(feedback)));
   }
   $('completion').hidden = !state.completed;
   if (state.completed) {
     const { report } = session.exportResult(new Date().toISOString());
-    $('completion').querySelector('h2').textContent = report.has_errors ? '已交卷，部分评分处理失败' : report.all_items_scored === false ? '已交卷，仍有待评项目' : '测验已完成';
-    $('completion').querySelectorAll('p')[1].textContent = report.has_errors ? '作答记录已保存。下载结果 JSON 可查看具体处理错误；分值按作者结果规则记录。' : report.all_items_scored === false ? '作答记录已保存，仍有待评项目。分值按作者结果规则记录，可下载标准结果继续处理。' : '全部评分已完成。可下载 QTI 结果 XML 与完整 JSON 记录。';
+    $('completion').querySelector('h2').textContent = nonePresented ? '测验已结束' : report.has_errors ? '已交卷，部分评分处理失败' : report.all_items_scored === false ? '已交卷，仍有待评项目' : '测验已完成';
+    $('completion').querySelectorAll('p')[1].textContent = nonePresented ? '本次没有呈现题目。可下载 QTI 结果 XML 与完整 JSON 记录。' : report.has_errors ? '作答记录已保存。下载结果 JSON 可查看具体处理错误；分值按作者结果规则记录。' : report.all_items_scored === false ? '作答记录已保存，仍有待评项目。分值按作者结果规则记录，可下载标准结果继续处理。' : '全部评分已完成。可下载 QTI 结果 XML 与完整 JSON 记录。';
     $('outcome-summary').textContent = JSON.stringify(report.outcomes, null, 2);
   }
 }
@@ -332,6 +374,7 @@ $('load-feedback-sample').addEventListener('click', () => runAsync(() => loadBui
 $('load-graphic-sample').addEventListener('click', () => runAsync(() => loadBuiltin('graphic-test-package.zip')));
 $('load-interaction-sample').addEventListener('click', () => runAsync(() => loadBuiltin('interaction-test-package.zip')));
 $('load-assembly-sample').addEventListener('click', () => runAsync(() => loadBuiltin('assembly-test-package.zip')));
+$('load-conditional-sample').addEventListener('click', () => runAsync(() => loadBuiltin('conditional-test-package.zip')));
 $('package-file').addEventListener('change', event => runAsync(async () => {
   const file = event.target.files[0]; if (!file) return;
   if (file.size > 8 * 1048576) throw new Error('ZIP 内容包超过 8 MiB。');
@@ -341,7 +384,7 @@ $('open-test').addEventListener('click', () => run(openPlan));
 $('start-test').addEventListener('click', () => run(() => {
   const next = plan.startSession($('session-id').value); disposeSession(); session = next;
   clockBase = lastAction = 0; clockOrigin = performance.now(); state = session.describe(); inputDirty = false;
-  render(); status('会话已开始。作答后先保存，再按照当前部分的模式提交。');
+  render(); status(state.completed ? '本次没有呈现题目，测验已结束，可以导出结果。' : '会话已开始。作答后先保存，再按照当前部分的模式提交。');
 }));
 $('save-response').addEventListener('click', () => run(save));
 $('save-json').addEventListener('click', () => run(() => { action('save', { response: JSON.parse($('response-json').value) }); status('JSON 响应已保存。'); }));
@@ -351,7 +394,11 @@ $('response-json').addEventListener('input', () => {
   $('status').textContent = 'JSON 已修改，点击“保存 JSON 响应”写入会话。';
 });
 $('submit-response').addEventListener('click', () => run(() => { if (inputDirty) save(); action('submit'); status('本题已提交。'); }));
-$('next-item').addEventListener('click', () => run(() => { if (inputDirty) save(); action('next'); status('已进入下一题。'); }));
+$('next-item').addEventListener('click', () => run(() => {
+  const previousPart = state.part_identifier;
+  if (inputDirty) save(); action('next');
+  status(state.completed ? '测验已完成，可以导出标准结果。' : state.part_identifier !== previousPart ? '已进入下一部分。' : '已进入下一题。');
+}));
 $('finish-part').addEventListener('click', () => run(() => { if (inputDirty) save(); action('finish_part'); status(state.completed ? '测验已完成，可以导出标准结果。' : '当前部分已完成，已进入下一部分。'); }));
 $('pause-test').addEventListener('click', () => run(() => { if (inputDirty) save(); action(state.paused ? 'resume' : 'pause'); status(state.paused ? '会话已暂停。可以下载快照，稍后恢复。' : '已继续作答。'); }));
 $('download-snapshot').addEventListener('click', () => run(() => { if (inputDirty) save(); download('qti-session.json', session.snapshot(), 'application/json'); status('会话快照已下载。'); }));

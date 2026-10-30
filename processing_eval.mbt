@@ -146,6 +146,49 @@ fn processing_value(
 }
 
 ///|
+fn processing_result_value(
+  value : Json,
+  kind : ProcessingType,
+) -> Json raise QtiError {
+  if kind.numeric() {
+    let values = match value {
+      Array(xs) => xs
+      _ => [value]
+    }
+    if values.any(v => v != Json::null() && !(v is Number(_))) {
+      raise InvalidResponse(
+        "numeric outcome variables must contain JSON numbers",
+      )
+    }
+  }
+  processing_value(value, kind, authored=true)
+}
+
+///|
+fn processing_default_outcome(declaration : ProcessingDeclaration) -> Json {
+  if declaration.default_value == Json::null() &&
+    declaration.kind.numeric() &&
+    declaration.kind.cardinality == Single {
+    Json(0.0)
+  } else {
+    processing_copy(declaration.default_value)
+  }
+}
+
+///|
+// Initial test outcomes are available to entry conditions before any submission.
+// Initializing them must not execute the author's outcome-processing rules.
+fn ProcessingProgram::initial_outcomes(self : ProcessingProgram) -> Json {
+  let outcomes : Map[String, Json] = Map([])
+  for declaration in self.declarations {
+    if !declaration.response {
+      outcomes[declaration.identifier] = processing_default_outcome(declaration)
+    }
+  }
+  Json::object(outcomes)
+}
+
+///|
 fn ProcessingContext::consume(self : ProcessingContext) -> Unit raise QtiError {
   self.remaining -= 1
   if self.remaining < 0 {
@@ -590,11 +633,12 @@ fn processing_execute(
 }
 
 ///|
-fn ProcessingProgram::evaluate(
+fn ProcessingProgram::context(
   self : ProcessingProgram,
   input : Json,
   steps : Array[ScoringStep]?,
-) -> Json raise QtiError {
+  current_outcomes~ : Json? = None,
+) -> ProcessingContext raise QtiError {
   guard input is Object(fields) else {
     raise InvalidResponse("processing environment must be an object")
   }
@@ -689,17 +733,25 @@ fn ProcessingProgram::evaluate(
         variables[declaration.identifier] = Json::null()
       }
     } else {
-      variables[declaration.identifier] = if declaration.default_value ==
-        Json::null() &&
-        declaration.kind.numeric() &&
-        declaration.kind.cardinality == Single {
-        Json(0.0)
+      variables[declaration.identifier] = if current_outcomes is Some(_) {
+        Json::null()
       } else {
-        processing_copy(declaration.default_value)
+        processing_default_outcome(declaration)
       }
     }
   }
-  let context : ProcessingContext = {
+  if current_outcomes is Some(outcomes) {
+    guard outcomes is Object(values) else {
+      raise InvalidResponse("current test outcomes must be an object")
+    }
+    for id, value in values {
+      guard self.declaration(id) is Some(declaration) && !declaration.response else {
+        raise InvalidResponse("unknown test outcome variable '\{id}'")
+      }
+      variables[id] = processing_result_value(value, declaration.kind)
+    }
+  }
+  {
     program: self,
     variables,
     items,
@@ -707,11 +759,20 @@ fn ProcessingProgram::evaluate(
     dynamic_bases: Map([]),
     remaining: 16384,
   }
+}
+
+///|
+fn ProcessingProgram::evaluate(
+  self : ProcessingProgram,
+  input : Json,
+  steps : Array[ScoringStep]?,
+) -> Json raise QtiError {
+  let context = self.context(input, steps)
   ignore(processing_execute(self.rules, context))
   let result : Map[String, Json] = Map([])
   for d in self.declarations {
     if !d.response {
-      result[d.identifier] = processing_copy(variables[d.identifier])
+      result[d.identifier] = processing_copy(context.variables[d.identifier])
     }
   }
   Json::object(result)

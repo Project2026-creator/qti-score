@@ -58,6 +58,7 @@ pub struct TestEntry {
   priv section_identifiers : Array[String]
   priv categories : Array[String]
   priv weights : Map[String, Double]
+  priv instructions : Array[Json]
 } derive(Debug)
 
 ///|
@@ -71,6 +72,7 @@ pub struct AssessmentTest {
   priv processing : ProcessingProgram?
   priv assembly_seed : Int32
   priv candidate_count : Int32
+  priv flow : Array[TestFlowScope]
 } derive(Debug)
 
 ///|
@@ -114,6 +116,11 @@ pub fn AssessmentTest::describe(self : AssessmentTest) -> Json {
       "max_time": max_time,
       "entry_count": part.count,
       "control": part.control.describe(),
+      "conditional_navigation": self.flow.any(scope => {
+        scope.part_identifier == part.identifier &&
+        scope.kind != "part" &&
+        (!scope.preconditions.is_empty() || !scope.branches.is_empty())
+      }),
     }
   })
   let entries : Array[Json] = self.entries.map(entry => {
@@ -128,6 +135,7 @@ pub fn AssessmentTest::describe(self : AssessmentTest) -> Json {
     "section_identifiers": entry.section_identifiers.copy(),
     "categories": entry.categories.copy(),
     "weights": Json(entry.weights),
+    "instructions": session_clone(Json(entry.instructions)),
   })
   {
     "identifier": self.identifier,
@@ -138,6 +146,10 @@ pub fn AssessmentTest::describe(self : AssessmentTest) -> Json {
     "outcome_types": self.outcome_types(),
     "assembly_seed": self.assembly_seed,
     "candidate_count": self.candidate_count,
+    "conditional_navigation": self.flow.any(scope => {
+      scope.kind != "part" &&
+      (!scope.preconditions.is_empty() || !scope.branches.is_empty())
+    }),
   }
 }
 

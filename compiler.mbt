@@ -94,7 +94,8 @@ fn compile_single_root(root : Node) -> Item raise QtiError {
   }
   ignore(optional_number(outcome, "normal-minimum"))
   ignore(optional_number(outcome, "normal-maximum"))
-  if outcome.one("qti-default-value", required=false) is Some(default_node) {
+  let score_default = if outcome.one("qti-default-value", required=false)
+    is Some(default_node) {
     default_node.only_attributes([])
     default_node.only_children(["qti-value"])
     let value = default_node.one("qti-value").unwrap()
@@ -112,6 +113,9 @@ fn compile_single_root(root : Node) -> Item raise QtiError {
     if text.contains("_") || parsed.is_nan() || parsed.is_inf() {
       raise InvalidItem(value.location(), "invalid SCORE default")
     }
+    parsed
+  } else {
+    0.0
   }
   let processing = root.one("qti-response-processing").unwrap()
   let (template, numeric_rule) = if processing.attr("template") is Some(uri) {
@@ -431,6 +435,7 @@ fn compile_single_root(root : Node) -> Item raise QtiError {
     slider,
     graphic,
     instructions,
+    score_default,
     processing_source: processing.source(),
   }
 }

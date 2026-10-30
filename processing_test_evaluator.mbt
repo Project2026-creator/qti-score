@@ -40,16 +40,11 @@ fn processing_typed_item_value(
       fields.get(variable.identifier).unwrap_or(Json::null())
     _ => Json::null()
   }
-  if variable.kind.numeric() && !variable.response {
-    let values = match value {
-      Array(xs) => xs
-      _ => [value]
-    }
-    if values.any(v => v != Json::null() && !(v is Number(_))) {
-      raise InvalidResponse("numeric item variables must contain JSON numbers")
-    }
+  if variable.response {
+    processing_value(value, variable.kind, authored=true)
+  } else {
+    processing_result_value(value, variable.kind)
   }
-  processing_value(value, variable.kind, authored=true)
 }
 
 ///|

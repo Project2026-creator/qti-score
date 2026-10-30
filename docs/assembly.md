@@ -46,7 +46,7 @@ MoonBit 对应入口为 `compile_assessment_test(xml, items, seed~)` 与 `Conten
 
 未乱序的选择结果保留来源顺序，所有 TestPart 仍按文档顺序执行。使用固定的整数随机算法、拒绝采样和 Fisher–Yates 编序；各部分从根种子与部分标识符派生独立流。四个后端使用同一算法。
 
-当前对固定且透明的子节进入乱序祖先这一组合明确返回 `unsupported`，即子节同时 `fixed=true`、`visible=false`、`keep-together=false` 时不推测其父级固定位置。自定义 selection/ordering 扩展、分支、前置条件及自适应交付仍未实现。
+当前对固定且透明的子节进入乱序祖先这一组合明确返回 `unsupported`，即子节同时 `fixed=true`、`visible=false`、`keep-together=false` 时不推测其父级固定位置。自定义 selection/ordering 扩展及自适应交付仍未实现。前置条件和分支支持固定顺序的独立导航流程，具体边界见 [条件导航](navigation.md)；本版本不组合活动题目／分节条件与抽题或乱序。
 
 最多编译 4096 个候选题目引用，组卷后最多 512 个作答实例。组卷树最多 8192 个来源节点、64 层、32768 个中间展开节点。所有候选内容都会先校验，未被选中不能隐藏无效引用或错误题目。
 

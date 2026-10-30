@@ -1,6 +1,6 @@
 {
   "name": "@project2026-creator/qti-score",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "private": true,
   "description": "QTI 3 test compilation, sessions, typed scoring, authored feedback and standard result XML",
   "type": "module",

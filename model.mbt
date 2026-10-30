@@ -123,6 +123,7 @@ pub struct Item {
   priv slider : SliderInteraction?
   priv graphic : GraphicInteraction?
   priv instructions : Array[String]
+  priv score_default : Double
   priv processing_source : SourceLocation
 } derive(Debug)
 

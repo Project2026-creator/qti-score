@@ -130,6 +130,10 @@ def build_sample_package():
                                                ("items/single.xml", "single.xml"),
                                                ("items/multiple.xml", "multiple.xml"),
                                                ("items/numeric.xml", "numeric.xml")]))
+    examples.append(("conditional-test-package.zip", [("imsmanifest.xml", "conditional-test-manifest.xml"),
+                                                   ("test.xml", "conditional-test.xml"),
+                                                   ("items/single.xml", "single.xml"),
+                                                   ("items/numeric.xml", "numeric.xml")]))
     for filename, files in examples:
         with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path, source in files:
@@ -208,7 +212,7 @@ def verify_item_statistics(report):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.21.0",
+        "module": "Project2026-creator/qti-score", "version": "0.22.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }
