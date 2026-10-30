@@ -365,6 +365,7 @@ pub fn TestEntry::to_repr(Self) -> @debug.Repr
 
 pub struct TestPart {
   identifier : String
+  title : String
   navigation_mode : NavigationMode
   submission_mode : SubmissionMode
   max_time : Double?

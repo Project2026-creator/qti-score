@@ -2,6 +2,14 @@
 
 ESM wrapper around the compiled MoonBit scorer. The package has no runtime dependencies and performs no network or file I/O. It supports Node.js 18+ and modern browsers with ES modules and private class fields.
 
+## Outcome tables and test feedback (0.23.0)
+
+Authored `interpolation-table` declarations and `lookup-outcome-value` assignment rules convert numeric inputs into declared single outcomes. Rows match thresholds in document order; this is a step table, without linear interpolation. The core performs the conversion; the SDK and player return the author's result values.
+
+`session.describe().test_feedback` and the exported report contain `during`, `completed_parts`, and `at_end`. During feedback starts after successful outcome processing; part feedback is frozen at the part's closing action, and test end feedback becomes available on completion. Saving simultaneous drafts does not update it. Snapshots replay these boundaries and rebuild history, while rejected actions roll back feedback together with grades and clocks.
+
+Compiled test metadata adds `has_feedback`; part metadata also includes its authored title. It does not disclose hidden feedback text or lookup rows. Feedback uses safe static content. See the [outcome and feedback guide](../docs/outcomes.md) for timing, NULL/fallback behavior, technical-error handling and content limits.
+
 ## Conditional navigation and instructions (0.22.0)
 
 Fixed-order linear/individual parts support item/section preconditions and forward branches. Part conditions also apply to nonlinear and simultaneous parts, after their normal submission point. Conditions read live test outcomes and submitted item variables; `next` applies item/section routing after processing, while `finish_part` ends the active part. See the [navigation guide](../docs/navigation.md) for target rules and combinations that return `unsupported`.

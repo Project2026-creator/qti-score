@@ -1,6 +1,6 @@
 name = "Project2026-creator/qti-score"
 
-version = "0.22.0"
+version = "0.23.0"
 
 readme = "README.md"
 

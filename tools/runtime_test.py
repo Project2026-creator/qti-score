@@ -255,23 +255,26 @@ def verify(offline=False):
         identity_rejected = code == 1 and failure.get("ok") is False and failure.get("error", {}).get("code") == "invalid_response" and sdk["failures"]["wrongIdentityCode"] == "invalid_response" and sdk["originalUnchanged"]
         check("Changed snapshot test identity is rejected without altering its source session", identity_rejected, True, identity_rejected)
 
-    for name, resource, expected_scores, expected_outcomes, all_scored in (
-            ("feedback", "feedback-workflow", [5, 2, None], {"SCORE": None, "MAXSCORE": 7}, False),
-            ("graphic", "graphic-test", [1, 3], {"SCORE": 4}, True),
-            ("interaction", "interaction-test", [3, 3, 2, 1, 1, 4, 1, 1], {"SCORE": 16}, True),
-            ("assembly", "assembly-test", [1, 2, 1, 0, 1], {"SCORE": 6.5, "CORE": 3, "ANCHOR": 2, "SECOND": 1}, True)):
+    for name, resource, expected_scores, expected_outcomes, all_scored, suffix in (
+            ("feedback", "feedback-workflow", [5, 2, None], {"SCORE": None, "MAXSCORE": 7}, False, ""),
+            ("graphic", "graphic-test", [1, 3], {"SCORE": 4}, True, ""),
+            ("interaction", "interaction-test", [3, 3, 2, 1, 1, 4, 1, 1], {"SCORE": 16}, True, ""),
+            ("assembly", "assembly-test", [1, 2, 1, 0, 1], {"SCORE": 6.5, "CORE": 3, "ANCHOR": 2, "SECOND": 1}, True, ""),
+            ("outcome", "outcome-test", [1, 1, 2], {"SCORE": 4, "PERCENT": 100, "LEVEL": "mastered"}, True, ""),
+            ("outcome", "outcome-test", [0, 0, 0], {"SCORE": 0, "PERCENT": 0, "LEVEL": "review"}, True, "-review")):
+        label = name + suffix
         archive_path = ROOT / ("web/" + name + "-test-package.zip")
-        actions_path = ROOT / ("examples/" + name + "-actions.json")
+        actions_path = ROOT / ("examples/" + name + suffix + "-actions.json")
         cli_process = run_process([moon, "run", "--target", "native", "cmd/main", "--", "test-run",
                                    str(archive_path), resource, str(actions_path)], env)
         cli_value, raw_output = json_output(cli_process)
         if cli_process.returncode or cli_value.get("ok") is not True:
-            raise AssertionError(name + " example failed through CLI")
+            raise AssertionError(label + " example failed through CLI")
         actual = cli_value["run"]
         sdk_process = run_process([node, "--input-type=module", "-e", ADDITIONAL_SDK_DRIVER,
                                    (ROOT / "sdk/index.mjs").as_uri(), str(archive_path), str(actions_path), resource], env)
         if sdk_process.returncode:
-            raise AssertionError(name + " example failed through SDK: " + sdk_process.stderr[-1000:])
+            raise AssertionError(label + " example failed through SDK: " + sdk_process.stderr[-1000:])
         sdk_value, _ = json_output(sdk_process)
         demo_report = actual["report"]
         demo_scores = [item["outcomes"]["SCORE"] for item in demo_report["items"]]
@@ -280,7 +283,7 @@ def verify(offline=False):
                     "all_items_scored": demo_report["all_items_scored"], "has_errors": demo_report["has_errors"]}
         same_bytes = raw_member(raw_member(raw_output, "run"), "report").encode("utf-8") == sdk_value["reportJSON"].encode("utf-8")
         same_bytes = same_bytes and actual["xml"] == sdk_value["xml"]
-        check(name + " workflow preserves authored grades and identical CLI/SDK results", observed == expected and same_bytes,
+        check(label + " workflow preserves authored grades and identical CLI/SDK results", observed == expected and same_bytes,
               expected, observed)
         document = validate_result_xml(actual["xml"], schema)
         xml_scores = []
@@ -292,9 +295,19 @@ def verify(offline=False):
         expected_status = ["final"] * len(expected_scores)
         if not all_scored:
             expected_status[-1] = "pendingExternalScoring"
-        check(name + " result XML passes the pinned schema and independent typed reader",
+        check(label + " result XML passes the pinned schema and independent typed reader",
               xml_scores == expected_scores and statuses == expected_status,
               {"scores": expected_scores, "statuses": expected_status}, {"scores": xml_scores, "statuses": statuses})
+        if name == "outcome":
+            feedback = demo_report["test_feedback"]
+            foundation = next(part for part in feedback["completed_parts"] if part["part_identifier"] == "foundation")
+            observed_feedback = {"during": feedback["during"],
+                                 "foundation": [entry["identifier"] for entry in foundation["feedback"]],
+                                 "overall": [entry["identifier"] for entry in feedback["at_end"]]}
+            expected_feedback = {"during": [], "foundation": ["review" if suffix else "developing"],
+                                 "overall": [expected_outcomes["LEVEL"]]}
+            check(label + " retains feedback selected when the foundation part ended",
+                  observed_feedback == expected_feedback, expected_feedback, observed_feedback)
 
     conditional_package = ROOT / "web/conditional-test-package.zip"
     for name, actions_name, expected_scores, expected_skipped, total in (

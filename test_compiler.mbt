@@ -443,6 +443,7 @@ fn compile_test_document(
   root.only_attributes(["identifier", "title"], allow_base=true)
   root.only_children([
     "qti-outcome-declaration", "qti-test-part", "qti-outcome-processing", "qti-rubric-block",
+    "qti-test-feedback",
   ])
   let id = identifier(root.required("identifier"), root.location())
   if ["EXIT_SECTION", "EXIT_TESTPART", "EXIT_TEST"].contains(id) {
@@ -482,7 +483,7 @@ fn compile_test_document(
     )
     part.only_children([
       "qti-item-session-control", "qti-time-limits", "qti-assessment-section", "qti-assessment-section-ref",
-      "qti-pre-condition", "qti-branch-rule", "qti-rubric-block",
+      "qti-pre-condition", "qti-branch-rule", "qti-rubric-block", "qti-test-feedback",
     ])
     let part_id = test_register_id(compiler, part, "")
     compiler.sources.push({
@@ -569,6 +570,7 @@ fn compile_test_document(
     }
     parts.push({
       identifier: part_id,
+      title: part.attr("title").unwrap_or(part_id),
       navigation_mode,
       submission_mode,
       max_time,
@@ -635,6 +637,7 @@ fn compile_test_document(
     item_declarations,
   )
   let identity = test_identity(xml, compiler.entries, entries, seed)
+  let feedback = compile_test_feedback(root, processing)
   {
     identifier: id,
     title,
@@ -645,6 +648,7 @@ fn compile_test_document(
     assembly_seed: seed,
     candidate_count: compiler.entries.length(),
     flow,
+    feedback,
   }
 }
 

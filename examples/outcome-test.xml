@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-test xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="learning-outcomes" title="从原始分到学习反馈">
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"><qti-default-value><qti-value>0</qti-value></qti-default-value></qti-outcome-declaration>
+  <qti-outcome-declaration identifier="PERCENT" cardinality="single" base-type="float">
+    <qti-interpolation-table default-value="0">
+      <qti-interpolation-table-entry source-value="4" target-value="100"/>
+      <qti-interpolation-table-entry source-value="3" target-value="75"/>
+      <qti-interpolation-table-entry source-value="2" target-value="50"/>
+      <qti-interpolation-table-entry source-value="1" target-value="25"/>
+      <qti-interpolation-table-entry source-value="0" target-value="0"/>
+    </qti-interpolation-table>
+  </qti-outcome-declaration>
+  <qti-outcome-declaration identifier="LEVEL" cardinality="single" base-type="identifier">
+    <qti-interpolation-table default-value="review">
+      <qti-interpolation-table-entry source-value="3" target-value="mastered"/>
+      <qti-interpolation-table-entry source-value="1" target-value="developing"/>
+      <qti-interpolation-table-entry source-value="0" target-value="review"/>
+    </qti-interpolation-table>
+  </qti-outcome-declaration>
+  <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>先完成基础题，再完成迁移题。测验按作者规则把原始分换算为百分制分值与学习水平，并在适当时机提供反馈。</p></qti-content-body></qti-rubric-block>
+  <qti-test-part identifier="foundation" title="基础理解" navigation-mode="linear" submission-mode="individual">
+    <qti-item-session-control max-attempts="1" show-feedback="true"/>
+    <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>两道题分别计分，每题 1 分。提交后查看当前反馈，完成此部分后可回看当时的学习建议。</p></qti-content-body></qti-rubric-block>
+    <qti-assessment-section identifier="foundations" title="评价目的" visible="true">
+      <qti-assessment-item-ref identifier="foundation-one" href="items/single.xml"/>
+      <qti-assessment-item-ref identifier="foundation-two" href="items/single.xml"/>
+    </qti-assessment-section>
+    <qti-test-feedback identifier="developing" outcome-identifier="LEVEL" show-hide="show" access="during" title="基础部分进行中"><qti-content-body><p>当前的基础作答已表现出部分理解，请继续完成本部分。</p></qti-content-body></qti-test-feedback>
+    <qti-test-feedback identifier="review" outcome-identifier="LEVEL" show-hide="show" access="during" title="基础部分进行中"><qti-content-body><p>可以结合题目中的评价情境，再思考反馈如何支持学习。</p></qti-content-body></qti-test-feedback>
+    <qti-test-feedback identifier="developing" outcome-identifier="LEVEL" show-hide="show" access="atEnd" title="基础部分结束时的建议"><qti-content-body><p>基础部分结束时，学习水平为 developing。已有基础理解，请继续完成迁移任务。</p></qti-content-body></qti-test-feedback>
+    <qti-test-feedback identifier="review" outcome-identifier="LEVEL" show-hide="show" access="atEnd" title="基础部分结束时的建议"><qti-content-body><p>基础部分结束时，学习水平为 review。建议复习利用过程反馈调整教学的做法。</p></qti-content-body></qti-test-feedback>
+  </qti-test-part>
+  <qti-test-part identifier="transfer" title="测量与迁移" navigation-mode="nonlinear" submission-mode="simultaneous">
+    <qti-rubric-block view="candidate" use="instructions"><qti-content-body><p>本题最多 2 分，整个部分统一提交。保存草稿不会更新成绩与反馈，完成部分后再查看结果。</p></qti-content-body></qti-rubric-block>
+    <qti-assessment-section identifier="measurement" title="测量误差" visible="true"><qti-assessment-item-ref identifier="transfer-item" href="items/numeric.xml"/></qti-assessment-section>
+    <qti-test-feedback identifier="mastered" outcome-identifier="LEVEL" show-hide="show" access="atEnd" title="迁移部分已完成"><qti-content-body><p>迁移部分完成后，已提交作答达到本测验设定的掌握水平。</p></qti-content-body></qti-test-feedback>
+    <qti-test-feedback identifier="review" outcome-identifier="LEVEL" show-hide="show" access="atEnd" title="迁移部分已完成"><qti-content-body><p>迁移部分已完成，建议对照标准值复习误差的判断方法。</p></qti-content-body></qti-test-feedback>
+  </qti-test-part>
+  <qti-outcome-processing>
+    <qti-set-outcome-value identifier="SCORE"><qti-sum><qti-test-variables variable-identifier="SCORE" base-type="float"/></qti-sum></qti-set-outcome-value>
+    <qti-lookup-outcome-value identifier="PERCENT"><qti-variable identifier="SCORE"/></qti-lookup-outcome-value>
+    <qti-lookup-outcome-value identifier="LEVEL"><qti-variable identifier="SCORE"/></qti-lookup-outcome-value>
+  </qti-outcome-processing>
+  <qti-test-feedback identifier="review" outcome-identifier="LEVEL" show-hide="show" access="during" title="当前学习建议"><qti-content-body><p>根据已提交的作答，目前仍需复习评价与测量的基础概念。</p></qti-content-body></qti-test-feedback>
+  <qti-test-feedback identifier="developing" outcome-identifier="LEVEL" show-hide="show" access="during" title="当前学习建议"><qti-content-body><p>根据已提交的作答，已经表现出部分理解。继续完成后续任务。</p></qti-content-body></qti-test-feedback>
+  <qti-test-feedback identifier="mastered" outcome-identifier="LEVEL" show-hide="show" access="during" title="当前学习建议"><qti-content-body><p>根据已提交的作答，已达到本测验设定的掌握水平。</p></qti-content-body></qti-test-feedback>
+  <qti-test-feedback identifier="mastered" outcome-identifier="LEVEL" show-hide="show" access="atEnd" title="测验反馈：达到掌握水平"><qti-content-body><p>本次作答达到 mastered 水平。可以回看各部分结束时的建议，了解学习过程中的变化。</p></qti-content-body></qti-test-feedback>
+  <qti-test-feedback identifier="developing" outcome-identifier="LEVEL" show-hide="show" access="atEnd" title="测验反馈：继续巩固"><qti-content-body><p>本次作答达到 developing 水平。建议结合反馈继续巩固概念与应用。</p></qti-content-body></qti-test-feedback>
+  <qti-test-feedback identifier="review" outcome-identifier="LEVEL" show-hide="show" access="atEnd" title="测验反馈：建议复习"><qti-content-body><p>本次作答处于 review 水平。建议先复习评价目的与测量误差，再尝试练习。</p></qti-content-body></qti-test-feedback>
+</qti-assessment-test>

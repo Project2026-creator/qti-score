@@ -7,6 +7,7 @@ let readers = new Map(), clockBase = 0, clockOrigin = performance.now(), lastAct
 let inputDirty = false, jsonDirty = false;
 let imageURLs = [];
 let instructionKey = '';
+let feedbackKeys = new Map();
 const clock = () => Math.max(lastAction, clockBase + (performance.now() - clockOrigin) / 1000);
 const node = (tag, text, className) => { const result = document.createElement(tag); if (text !== undefined) result.textContent = text; if (className) result.className = className; return result; };
 
@@ -56,6 +57,8 @@ async function loadPackage(bytes) {
 function resetWorkspace() {
   clearImages();
   instructionKey = ''; $('test-instructions').replaceChildren(); $('test-instructions').hidden = true;
+  feedbackKeys.clear();
+  for (const id of ['test-feedback-during', 'test-feedback-history', 'test-feedback-final', 'outcome-cards']) { $(id).replaceChildren(); $(id).hidden = true; }
   $('response-controls').replaceChildren(); $('item-nav').replaceChildren(); $('feedback').replaceChildren();
   $('result').hidden = true; $('completion').hidden = true;
   $('item-title').textContent = '等待开始会话'; $('item-prompt').textContent = '点击“开始新会话”，按照试卷顺序完成作答。';
@@ -300,6 +303,58 @@ function renderInstructions(instructions) {
     region.append(details);
   }
 }
+function feedbackMessage(message, showScope = false) {
+  const article = node('article', undefined, 'test-feedback-message');
+  if (showScope) article.append(node('p', message.scope === 'test' ? '整份测验' : '当前部分', 'eyebrow'));
+  if (message.title) article.append(node('h3', message.title));
+  if (message.text) article.append(node('p', message.text));
+  return article;
+}
+function renderTestFeedback(feedback = {}) {
+  for (const [id, messages, heading, help] of [
+    ['test-feedback-during', feedback.during || [], '当前测验反馈', '依据最近一次已提交的作答。保存草稿不会更新这些反馈。'],
+    ['test-feedback-final', feedback.at_end || [], '测验反馈', ''],
+  ]) {
+    const key = JSON.stringify(messages), region = $(id);
+    if (feedbackKeys.get(id) === key) continue;
+    feedbackKeys.set(id, key); region.hidden = !messages.length;
+    region.replaceChildren();
+    if (!messages.length) continue;
+    region.append(node('h2', heading));
+    if (help) region.append(node('p', help, 'test-feedback-help'));
+    for (const message of messages) region.append(feedbackMessage(message, id === 'test-feedback-during'));
+  }
+  const records = (feedback.completed_parts || []).filter(part => part.feedback?.length);
+  const id = 'test-feedback-history', key = JSON.stringify(records), region = $(id);
+  if (feedbackKeys.get(id) === key) return;
+  const opened = new Set([...region.querySelectorAll('details[open]')].map(details => details.dataset.feedbackKey));
+  const known = new Set([...region.querySelectorAll('details')].map(details => details.dataset.feedbackKey));
+  feedbackKeys.set(id, key); region.hidden = !records.length; region.replaceChildren();
+  if (!records.length) return;
+  region.append(node('h2', '已完成部分的反馈'));
+  region.append(node('p', '保留各部分结束时的反馈，可随时回看。', 'test-feedback-help'));
+  for (const [index, record] of records.entries()) {
+    const details = node('details', undefined, 'part-feedback-record');
+    const recordKey = `${record.part_identifier}:${record.completed_at}`;
+    details.dataset.feedbackKey = recordKey;
+    details.open = opened.has(recordKey) || (!known.has(recordKey) && index === records.length - 1);
+    details.append(node('summary', record.title || record.part_identifier));
+    for (const message of record.feedback) details.append(feedbackMessage(message));
+    region.append(details);
+  }
+}
+function renderOutcomeCards(outcomes) {
+  const region = $('outcome-cards'); region.replaceChildren();
+  const entries = outcomes && typeof outcomes === 'object' && !Array.isArray(outcomes) ? Object.entries(outcomes) : [];
+  region.hidden = !entries.length;
+  const labels = { SCORE: '得分', PERCENT: '换算值', LEVEL: '等级' };
+  for (const [identifier, value] of entries) {
+    const card = node('div', undefined, 'outcome-card');
+    card.append(node('dt', labels[identifier] ? `${labels[identifier]} · ${identifier}` : identifier));
+    card.append(node('dd', value === null ? 'NULL' : typeof value === 'object' ? JSON.stringify(value) : String(value)));
+    region.append(card);
+  }
+}
 function response() { return Object.fromEntries([...readers].map(([id, read]) => [id, read()])); }
 function action(type, extra = {}) {
   const time = clock(); const next = session.act({ type, time, ...extra }); lastAction = time;
@@ -311,10 +366,11 @@ function render() {
   const entry = planDescription.entries.find(entry => entry.identifier === state.current.identifier);
   const current = state.current, item = current.item;
   const nonePresented = state.completed && !state.items.some(summary => summary.presented);
+  renderTestFeedback(state.test_feedback);
   renderInstructions(nonePresented ? (planDescription.entries[0]?.instructions || []).filter(instruction => instruction.scope === 'test') : current.instructions ?? entry.instructions ?? []);
   const currentIndex = state.items.findIndex(summary => summary.identifier === current.identifier);
   $('test-title').textContent = planDescription.title;
-  $('part-label').textContent = nonePresented ? '测验已结束' : `${state.part_identifier} · ${part.submission_mode === 'simultaneous' ? '整部分提交' : '逐题提交'}`;
+  $('part-label').textContent = nonePresented ? '测验已结束' : `${part.title || state.part_identifier} · ${part.submission_mode === 'simultaneous' ? '整部分提交' : '逐题提交'}`;
   $('session-info').textContent = `${state.session_identifier} · ${state.completed ? '已完成' : state.paused ? '已暂停' : '进行中'} · 已用 ${Math.floor(state.part_elapsed)} 秒${part.max_time === null ? '' : ` / ${part.max_time} 秒`}`;
   $('item-position').textContent = nonePresented ? '未呈现题目' : `QUESTION ${currentIndex + 1} / ${state.items.length} · ${current.identifier}`;
   $('item-title').textContent = nonePresented ? '本次没有呈现题目' : item.title;
@@ -359,6 +415,7 @@ function render() {
     $('completion').querySelector('h2').textContent = nonePresented ? '测验已结束' : report.has_errors ? '已交卷，部分评分处理失败' : report.all_items_scored === false ? '已交卷，仍有待评项目' : '测验已完成';
     $('completion').querySelectorAll('p')[1].textContent = nonePresented ? '本次没有呈现题目。可下载 QTI 结果 XML 与完整 JSON 记录。' : report.has_errors ? '作答记录已保存。下载结果 JSON 可查看具体处理错误；分值按作者结果规则记录。' : report.all_items_scored === false ? '作答记录已保存，仍有待评项目。分值按作者结果规则记录，可下载标准结果继续处理。' : '全部评分已完成。可下载 QTI 结果 XML 与完整 JSON 记录。';
     $('outcome-summary').textContent = JSON.stringify(report.outcomes, null, 2);
+    renderOutcomeCards(report.outcomes);
   }
 }
 
@@ -375,6 +432,7 @@ $('load-graphic-sample').addEventListener('click', () => runAsync(() => loadBuil
 $('load-interaction-sample').addEventListener('click', () => runAsync(() => loadBuiltin('interaction-test-package.zip')));
 $('load-assembly-sample').addEventListener('click', () => runAsync(() => loadBuiltin('assembly-test-package.zip')));
 $('load-conditional-sample').addEventListener('click', () => runAsync(() => loadBuiltin('conditional-test-package.zip')));
+$('load-outcome-sample').addEventListener('click', () => runAsync(() => loadBuiltin('outcome-test-package.zip')));
 $('package-file').addEventListener('change', event => runAsync(async () => {
   const file = event.target.files[0]; if (!file) return;
   if (file.size > 8 * 1048576) throw new Error('ZIP 内容包超过 8 MiB。');

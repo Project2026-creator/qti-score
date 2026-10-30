@@ -19,11 +19,12 @@ PACKAGE_FILES = frozenset([
     "composite-slider-package.zip",
     "runtime-test-package.zip", "feedback-test-package.zip", "graphic-test-package.zip", "interaction-test-package.zip", "assembly-test-package.zip",
     "conditional-test-package.zip",
+    "outcome-test-package.zip",
 ])
 
 
 def public_asset(path):
-    if path in ("/README.md", "/docs/runtime.md", "/docs/assembly.md", "/docs/navigation.md", "/LICENSE", "/NOTICE", "/web", "/web/"):
+    if path in ("/README.md", "/docs/runtime.md", "/docs/assembly.md", "/docs/navigation.md", "/docs/outcomes.md", "/LICENSE", "/NOTICE", "/web", "/web/"):
         return True
     parts = path.split("/")
     if len(parts) != 3 or parts[0] != "":

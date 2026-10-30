@@ -76,6 +76,7 @@ fn processing_declarations(
   root : Node,
 ) -> Array[ProcessingDeclaration] raise QtiError {
   let result : Array[ProcessingDeclaration] = []
+  let mut lookup_entries = 0
   for node in root.children {
     let response = node.name() == "qti-response-declaration"
     if !response && node.name() != "qti-outcome-declaration" {
@@ -85,11 +86,20 @@ fn processing_declarations(
       "identifier", "cardinality", "base-type", "normal-minimum", "normal-maximum",
       "interpretation", "long-interpretation", "view", "mastery-value", "external-scored",
     ])
+    if response &&
+      node.children.any(child => {
+        ["qti-interpolation-table", "qti-match-table"].contains(child.name())
+      }) {
+      raise InvalidItem(
+        node.location(),
+        "lookup tables require an outcome declaration",
+      )
+    }
     node.only_children(
       if response {
         ["qti-correct-response", "qti-default-value", "qti-mapping"]
       } else {
-        ["qti-default-value"]
+        ["qti-default-value", "qti-interpolation-table", "qti-match-table"]
       },
     )
     let id = identifier(node.required("identifier"), node.location())
@@ -107,6 +117,13 @@ fn processing_declarations(
       processing_base(node),
       processing_cardinality(node),
     )
+    let lookup_table = processing_lookup_declaration(node, kind)
+    if lookup_table is Some(table) {
+      lookup_entries += table.entries.length()
+      if lookup_entries > 8192 {
+        raise LimitExceeded("processing lookup tables exceed 8192 entries")
+      }
+    }
     ignore(optional_number(node, "normal-minimum"))
     ignore(optional_number(node, "normal-maximum"))
     let default_node = node.one("qti-default-value", required=false)
@@ -145,6 +162,7 @@ fn processing_declarations(
       default_value,
       correct,
       mapping,
+      lookup_table,
       external_scored,
       source: node.source(),
     })
@@ -529,6 +547,10 @@ fn processing_rules(
       )
       processing_expect(node, expression, declaration.kind)
       rules.push(Assign(declaration.identifier, expression, node.source()))
+    } else if node.name() == "qti-lookup-outcome-value" {
+      rules.push(
+        processing_lookup_rule(node, declarations, test_mode~, item_schemas~),
+      )
     } else if node.name() ==
       (if test_mode {
         "qti-outcome-condition"

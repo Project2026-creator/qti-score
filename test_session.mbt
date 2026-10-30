@@ -35,6 +35,8 @@ pub struct TestSession {
   priv mut test_processing_error : QtiError?
   priv mut submission_count : Int32
   priv entered_scopes : Map[String, Bool]
+  priv mut feedback_part_identifier : String?
+  priv part_feedback : Array[Json]
 }
 
 ///|
@@ -115,6 +117,8 @@ pub fn AssessmentTest::new_session(
     test_processing_error: None,
     submission_count: 0,
     entered_scopes: Map([]),
+    feedback_part_identifier: None,
+    part_feedback: [],
   }
   session.enter_from(0, now)
   session
@@ -286,6 +290,7 @@ fn TestSession::commit_current(self : TestSession) -> Unit raise QtiError {
   state.submission_index = self.submission_count
   self.test_outcomes = test_outcomes
   self.test_processing_error = None
+  self.feedback_processed()
 }
 
 ///|
@@ -389,6 +394,7 @@ fn TestSession::submit_entries(
   }
   self.test_outcomes = test_outcomes
   self.test_processing_error = processing_error
+  self.feedback_processed()
 }
 
 ///|
@@ -606,6 +612,7 @@ pub fn TestSession::describe(self : TestSession) -> Json {
       },
     },
     "items": summaries,
+    "test_feedback": self.feedback_description(),
   }
 }
 
@@ -731,6 +738,7 @@ pub fn TestSession::report(
       None => Json::null()
     },
     "all_items_scored": all_items_scored,
+    "test_feedback": self.feedback_description(),
     "items": items,
     "outcomes": outcomes,
     "test_outcome_types": types,

@@ -149,11 +149,24 @@ const firstSummary = testSession.describe().items[0];
 const presented: boolean = firstSummary.presented;
 const skipped: boolean = firstSummary.skipped;
 const instructionScope: 'test' | 'part' | 'section' | undefined = testSession.describe().current.instructions[0]?.scope;
+const partTitle: string = testPlan.describe().parts[0].title;
+const hasTestFeedback: boolean = testPlan.describe().has_feedback;
+const hasPartFeedback: boolean = testPlan.describe().parts[0].has_feedback;
+const feedbackText: string | undefined = testSession.describe().test_feedback.during[0]?.text;
+const partCompletedAt: number | undefined = testSession.describe().test_feedback.completed_parts[0]?.completed_at;
+const testFeedbackReport = testSession.exportResult('2026-10-30T12:00:00Z').report;
+const finalFeedbackText: string | undefined = testFeedbackReport.test_feedback.at_end[0]?.text;
+const compatibleJSON: import('./index.mjs').JsonValue = testFeedbackReport;
 // @ts-expect-error instructions returned by the core are read-only values
 testSession.describe().current.instructions[0].text = 'Changed';
 // @ts-expect-error skipped status is read-only
 firstSummary.skipped = false;
+// @ts-expect-error feedback history is read-only
+testSession.describe().test_feedback.completed_parts[0].feedback.push({});
+// @ts-expect-error feedback text is read-only
+testFeedbackReport.test_feedback.at_end[0].text = 'Changed';
 void [conditional, partConditional, instructionText, instructionScope, presented, skipped];
+void [partTitle, hasTestFeedback, hasPartFeedback, feedbackText, partCompletedAt, finalFeedbackText, compatibleJSON];
 testSession.dispose();
 testPlan.dispose();
 bundle.dispose();

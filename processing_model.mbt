@@ -12,6 +12,7 @@ priv struct ProcessingDeclaration {
   default_value : Json
   correct : Json
   mapping : Mapping?
+  lookup_table : ProcessingLookup?
   external_scored : String?
   source : SourceLocation
 } derive(Debug)
@@ -69,6 +70,7 @@ priv struct ProcessingExpression {
 ///|
 priv enum ProcessingRule {
   Assign(String, ProcessingExpression, SourceLocation)
+  Lookup(String, ProcessingExpression, SourceLocation)
   Condition(Array[ProcessingBranch])
   Exit(SourceLocation)
 } derive(Debug)

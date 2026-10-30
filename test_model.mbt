@@ -37,6 +37,7 @@ pub fn ItemSessionControl::default() -> ItemSessionControl {
 ///|
 pub struct TestPart {
   identifier : String
+  title : String
   navigation_mode : NavigationMode
   submission_mode : SubmissionMode
   max_time : Double?
@@ -73,6 +74,7 @@ pub struct AssessmentTest {
   priv assembly_seed : Int32
   priv candidate_count : Int32
   priv flow : Array[TestFlowScope]
+  priv feedback : Array[TestFeedback]
 } derive(Debug)
 
 ///|
@@ -105,6 +107,7 @@ pub fn AssessmentTest::describe(self : AssessmentTest) -> Json {
     }
     {
       "identifier": part.identifier,
+      "title": part.title,
       "navigation_mode": match part.navigation_mode {
         Linear => "linear"
         Nonlinear => "nonlinear"
@@ -116,6 +119,9 @@ pub fn AssessmentTest::describe(self : AssessmentTest) -> Json {
       "max_time": max_time,
       "entry_count": part.count,
       "control": part.control.describe(),
+      "has_feedback": self.feedback.any(block => {
+        block.scope == "part" && block.scope_identifier == part.identifier
+      }),
       "conditional_navigation": self.flow.any(scope => {
         scope.part_identifier == part.identifier &&
         scope.kind != "part" &&
@@ -146,6 +152,7 @@ pub fn AssessmentTest::describe(self : AssessmentTest) -> Json {
     "outcome_types": self.outcome_types(),
     "assembly_seed": self.assembly_seed,
     "candidate_count": self.candidate_count,
+    "has_feedback": !self.feedback.is_empty(),
     "conditional_navigation": self.flow.any(scope => {
       scope.kind != "part" &&
       (!scope.preconditions.is_empty() || !scope.branches.is_empty())

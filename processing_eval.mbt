@@ -607,6 +607,13 @@ fn processing_execute(
           "value": value,
         })
       }
+      Lookup(id, expression, source) => {
+        let input = expression.evaluate(context)
+        let declaration = context.program.declaration(id).unwrap()
+        let table = declaration.lookup_table.unwrap()
+        let value = table.lookup(input, context, id, source)
+        context.variables[id] = processing_copy(value)
+      }
       Condition(branches) =>
         for index, branch in branches {
           let selected = branch.predicate

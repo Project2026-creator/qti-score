@@ -134,6 +134,10 @@ def build_sample_package():
                                                    ("test.xml", "conditional-test.xml"),
                                                    ("items/single.xml", "single.xml"),
                                                    ("items/numeric.xml", "numeric.xml")]))
+    examples.append(("outcome-test-package.zip", [("imsmanifest.xml", "outcome-test-manifest.xml"),
+                                               ("test.xml", "outcome-test.xml"),
+                                               ("items/single.xml", "single.xml"),
+                                               ("items/numeric.xml", "numeric.xml")]))
     for filename, files in examples:
         with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path, source in files:
@@ -212,7 +216,7 @@ def verify_item_statistics(report):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.22.0",
+        "module": "Project2026-creator/qti-score", "version": "0.23.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }
@@ -253,8 +257,9 @@ def verify(moon, env, output, offline=False):
     sdk = package_sdk(bridge)
     sdk_env = env.copy()
     sdk_env["QTI_SDK_URL"] = (sdk / "index.mjs").as_uri()
-    sdk_tests = command([node, "--test", str(ROOT / "sdk/sdk_test.mjs"), str(ROOT / "sdk/session_test.mjs"), str(ROOT / "sdk/assembly_test.mjs")], sdk_env)
-    report["checks"].append({"command": ["node", "--test", "sdk/sdk_test.mjs", "sdk/session_test.mjs", "sdk/assembly_test.mjs"],
+    sdk_test_files = sorted((ROOT / "sdk").glob("*_test.mjs"))
+    sdk_tests = command([node, "--test"] + [str(path) for path in sdk_test_files], sdk_env)
+    report["checks"].append({"command": ["node", "--test"] + [path.relative_to(ROOT).as_posix() for path in sdk_test_files],
                              "sdk": str(sdk), "returncode": sdk_tests.returncode,
                              "output": (sdk_tests.stdout + sdk_tests.stderr).strip()})
     view_tests = command([node, "--test", "web/results_test.mjs"], env)

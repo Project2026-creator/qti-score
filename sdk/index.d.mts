@@ -345,14 +345,39 @@ export interface TestInstruction {
   readonly title: string;
   readonly text: string;
 }
+export type TestFeedbackView = {
+  readonly identifier: string;
+  readonly outcome_identifier: string;
+  readonly scope: 'test' | 'part';
+  readonly scope_identifier: string;
+  readonly title: string;
+  readonly access: 'during' | 'atEnd';
+  readonly text: string;
+};
+export type PartFeedbackHistory = {
+  readonly part_identifier: string;
+  readonly title: string;
+  readonly completed_at: number;
+  readonly feedback: readonly TestFeedbackView[];
+};
+export type TestFeedbackState = {
+  readonly during: readonly TestFeedbackView[];
+  readonly completed_parts: readonly PartFeedbackHistory[];
+  readonly at_end: readonly TestFeedbackView[];
+};
+export type TestResultReport = Readonly<Record<string, JsonValue>> & {
+  readonly test_feedback: TestFeedbackState;
+};
 export interface TestPartDescription {
   readonly identifier: string;
+  readonly title: string;
   readonly navigation_mode: 'linear' | 'nonlinear';
   readonly submission_mode: 'individual' | 'simultaneous';
   readonly max_time: number | null;
   readonly entry_count: number;
   readonly control: ItemSessionControl;
   readonly conditional_navigation: boolean;
+  readonly has_feedback: boolean;
 }
 export interface TestEntryDescription {
   readonly identifier: string;
@@ -382,6 +407,7 @@ export interface TestDescription {
   readonly assembly_seed: number;
   readonly candidate_count: number;
   readonly conditional_navigation: boolean;
+  readonly has_feedback: boolean;
 }
 export type SessionAction =
   | { readonly type: 'save'; readonly time: number; readonly response: ResponseObject }
@@ -417,6 +443,7 @@ export interface SessionDescription {
     readonly instructions: readonly TestInstruction[];
   };
   readonly items: readonly SessionItemSummary[];
+  readonly test_feedback: TestFeedbackState;
 }
 export interface CompiledTest {
   readonly disposed: boolean;
@@ -430,6 +457,6 @@ export interface TestSession {
   act(action: SessionAction): SessionDescription;
   describe(): SessionDescription;
   snapshot(): string;
-  exportResult(datestamp: string, options?: { readonly candidateIdentifier?: string }): { readonly report: JsonValue; readonly xml: string };
+  exportResult(datestamp: string, options?: { readonly candidateIdentifier?: string }): { readonly report: TestResultReport; readonly xml: string };
   dispose(): void;
 }

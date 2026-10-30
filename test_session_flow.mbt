@@ -159,6 +159,7 @@ fn TestSession::enter_from(
         self.exclude(index, target)
         self.close_sections(target)
         if branch == "EXIT_TEST" {
+          self.close_part_feedback(now)
           self.completed = true
           return
         }
@@ -186,6 +187,7 @@ fn TestSession::finish_part(
   let part = self.plan.parts[self.part_index]
   self.submit_entries(part.start, part.start + part.count, force~)
   self.touch(now)
+  self.close_part_feedback(now)
   if self.item_flow() {
     self.exclude(part.start, part.start + part.count)
   }
@@ -237,6 +239,7 @@ fn TestSession::advance_flow(
   if chosen == Some("EXIT_TEST") {
     self.submit_entries(part.start, part.start + part.count)
     self.touch(now)
+    self.close_part_feedback(now)
     self.exclude(current + 1, self.plan.entries.length())
     self.completed = true
   } else if target >= part.start + part.count {
@@ -280,6 +283,8 @@ pub fn TestSession::act_json(
   let test_outcomes = self.test_outcomes
   let test_processing_error = self.test_processing_error
   let submission_count = self.submission_count
+  let feedback_part_identifier = self.feedback_part_identifier
+  let part_feedback = self.part_feedback.copy()
   errdefer {
     for i, state in states {
       self.states[i] = state
@@ -298,6 +303,9 @@ pub fn TestSession::act_json(
     self.test_outcomes = test_outcomes
     self.test_processing_error = test_processing_error
     self.submission_count = submission_count
+    self.feedback_part_identifier = feedback_part_identifier
+    self.part_feedback.clear()
+    self.part_feedback.append(part_feedback)
   }
   self.apply_json(input)
 }
