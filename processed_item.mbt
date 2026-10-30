@@ -477,6 +477,11 @@ pub fn ProcessedItem::describe(self : ProcessedItem) -> Json {
             if key == "slider" && value is Object(slider_fields) {
               slider_fields["prompt"] = fields["prompt"]
             }
+            if key == "hottext" {
+              details["choices"] = fields["choices"]
+              details["min_choices"] = fields["min_choices"]
+              details["max_choices"] = fields["max_choices"]
+            }
           }
         }
         if fields["choices"] is Array(choices) &&

@@ -114,12 +114,11 @@ def validate_result_xml(data, schema):
         raise AssertionError("This export profile requires testResult")
     if document.findall(".//r:correctResponse", NS):
         raise AssertionError("Learner export must omit authored correct responses")
-    identifiers, positions = set(), set()
+    positions = set()
     for item in document.findall("r:itemResult", NS):
         identifier, position = item.get("identifier"), int(item.get("sequenceIndex", "0"))
-        if identifier in identifiers or position in positions or position < 1:
-            raise AssertionError("Repeated ItemRef or invalid sequence index")
-        identifiers.add(identifier)
+        if position in positions or position < 1:
+            raise AssertionError("Repeated or invalid sequence index")
         positions.add(position)
         variable_ids = [node.get("identifier") for node in item if etree.QName(node).localname in {"responseVariable", "outcomeVariable"}]
         if len(variable_ids) != len(set(variable_ids)):
@@ -164,22 +163,22 @@ def smoke_report():
     }
 
 
-def export_report(report, moon, env, directory):
+def export_report(report, moon, env, directory, target="native"):
     source = directory / "report.json"
     source.write_text(json.dumps(report, ensure_ascii=False, allow_nan=False), encoding="utf-8")
-    result = subprocess.run([moon, "run", "--target", "native", "cmd/main", "--", "result-xml", str(source)], cwd=ROOT, env=env, capture_output=True, encoding="utf-8", timeout=120)
+    result = subprocess.run([moon, "run", "--target", target, "cmd/main", "--", "result-xml", str(source)], cwd=ROOT, env=env, capture_output=True, encoding="utf-8", timeout=120)
     if result.returncode:
         raise RuntimeError("MoonBit result-xml failed:\n" + result.stderr[-4000:] + result.stdout[-4000:])
     return result.stdout
 
 
-def run_smoke(schema, moon_path=None):
+def run_smoke(schema, moon_path=None, target="native"):
     moon, env = moon_environment(moon_path)
     checks = []
     with tempfile.TemporaryDirectory(prefix="qti-result-schema-") as temporary:
         directory = Path(temporary)
         report = smoke_report()
-        xml = export_report(report, moon, env, directory)
+        xml = export_report(report, moon, env, directory, target)
         document = validate_result_xml(xml, schema)
         checks.append("MoonBit output validates against pinned QTI 3 RR XSD")
         item = document.find("r:itemResult", NS)
@@ -194,16 +193,37 @@ def run_smoke(schema, moon_path=None):
         checks.append("NULL remains distinct from numeric zero")
         assert all(sentinel not in xml for sentinel in ("ANSWER_SENTINEL", "MAPPING_SENTINEL", "TRACE_SENTINEL"))
         checks.append("Learner export omits authored answers mappings and trace")
-        assert export_report(report, moon, env, directory) == xml
+        assert export_report(report, moon, env, directory, target) == xml
         checks.append("Repeated export is deterministic")
         partial = copy.deepcopy(report)
         partial["candidate_identifier"] = None
         partial["items"][0].update(session_status="initial", num_attempts=0, duration=0)
         partial["items"][0]["response"] = {key: None for key in partial["items"][0]["response"]}
-        partial_xml = export_report(partial, moon, env, directory)
+        partial_xml = export_report(partial, moon, env, directory, target)
         partial_doc = validate_result_xml(partial_xml, schema)
         assert partial_doc.find("r:context", NS).get("sourcedId") is None
         checks.append("Anonymous initial report with NULL responses validates")
+        repeated = copy.deepcopy(report)
+        second = copy.deepcopy(repeated["items"][0])
+        second.update(sequence_index=2, instance_identifier="runtime_instance_two")
+        second["response"]["CHOICE"] = ["A"]
+        second["outcomes"]["SCORE"] = 0
+        repeated["items"].append(second)
+        repeated_xml = export_report(repeated, moon, env, directory, target)
+        repeated_doc = validate_result_xml(repeated_xml, schema)
+        repeated_items = repeated_doc.findall("r:itemResult", NS)
+        assert [node.get("identifier") for node in repeated_items] == ["REF_1", "REF_1"]
+        assert [node.get("sequenceIndex") for node in repeated_items] == ["1", "2"]
+        assert "runtime_instance_two" not in repeated_xml
+        assert repeated_items[0].find("r:outcomeVariable[@identifier='SCORE']/r:value", NS).text == "2.5"
+        assert repeated_items[1].find("r:outcomeVariable[@identifier='SCORE']/r:value", NS).text == "0"
+        checks.append("Repeated source ItemRef instances validate with distinct sequence indices and independent scores")
+        try:
+            validate_result_xml(repeated_xml.replace('sequenceIndex="2"', 'sequenceIndex="1"'), schema)
+        except AssertionError:
+            pass
+        else:
+            raise AssertionError("Duplicate instance sequence index accepted")
         # Prove the independent schema check rejects malformed external documents.
         for broken in (
             xml.replace(NAMESPACE, "urn:wrong-result-namespace"),
@@ -225,6 +245,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--offline", action="store_true")
     parser.add_argument("--moon")
+    parser.add_argument("--target", choices=("native", "js"), default="native")
     parser.add_argument("--xml", action="append", type=Path, default=[])
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
@@ -235,7 +256,7 @@ def main():
             validate_result_xml(path.read_bytes(), schema)
             checks.append("Input result XML {} validates".format(index))
     else:
-        checks = run_smoke(schema, args.moon)
+        checks = run_smoke(schema, args.moon, args.target)
     result = {"ok": True, "profile": "QTI 3 Results Reporting Candidate Final 2022-11-01 scalar/container export subset", "schema": SCHEMA_URL,
               "schema_hashes": {name: digest for name, (_, digest) in SCHEMAS.items()},
               "checks_passed": len(checks), "checks": checks}

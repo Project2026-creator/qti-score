@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-test xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="interaction-practice" title="在文段、配对与排序中作答">
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"><qti-default-value><qti-value>0</qti-value></qti-default-value></qti-outcome-declaration>
+  <qti-test-part identifier="practice" navigation-mode="nonlinear" submission-mode="individual">
+    <qti-item-session-control max-attempts="2" allow-skipping="true" allow-review="true" show-feedback="true"/>
+    <qti-assessment-section identifier="context" title="教育评价与教学设计" visible="true">
+      <qti-assessment-item-ref identifier="methods" href="items/match.xml"/>
+      <qti-assessment-item-ref identifier="feedback-cycle" href="items/gap.xml"/>
+      <qti-assessment-item-ref identifier="evidence" href="items/hottext.xml"/>
+      <qti-assessment-item-ref identifier="addie" href="items/order.xml"/>
+      <qti-assessment-item-ref identifier="purpose" href="items/inline-choice.xml"/>
+      <qti-assessment-item-ref identifier="action-and-ratio" href="items/composite-inline.xml"/>
+      <qti-assessment-item-ref identifier="feedback-source" href="items/hottext-single.xml"/>
+      <qti-assessment-item-ref identifier="remediation" href="items/order-subset.xml"/>
+    </qti-assessment-section>
+  </qti-test-part>
+  <qti-outcome-processing><qti-set-outcome-value identifier="SCORE"><qti-sum><qti-test-variables variable-identifier="SCORE" base-type="float"/></qti-sum></qti-set-outcome-value></qti-outcome-processing>
+</qti-assessment-test>

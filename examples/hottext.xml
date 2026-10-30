@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="evidence-in-context" title="找出支持学习改进的做法">
+<qti-assessment-item time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="evidence-in-context" title="找出支持学习改进的做法">
   <qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="identifier">
     <qti-correct-response><qti-value>Evidence</qti-value><qti-value>Support</qti-value></qti-correct-response>
     <qti-mapping default-value="-1" lower-bound="0" upper-bound="2">

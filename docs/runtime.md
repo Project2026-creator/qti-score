@@ -1,6 +1,6 @@
 # 试卷运行、响应处理与标准结果
 
-QTI Score 0.20.0 可从 QTI 3 内容包编译试卷，运行分部分的作答会话，执行题目与试卷评分规则，并导出 QTI Result Reporting XML。MoonBit 核心承担编译、状态变更、评分和序列化；浏览器、命令行和 JavaScript SDK 共用这些逻辑。
+QTI Score 0.21.0 可从 QTI 3 内容包编译试卷，运行分部分的作答会话，执行题目与试卷评分规则，并导出 QTI Result Reporting XML。MoonBit 核心承担编译、状态变更、评分和序列化；浏览器、命令行和 JavaScript SDK 共用这些逻辑。
 
 ## 运行示例
 
@@ -15,7 +15,7 @@ python tools/project.py serve
 
 在本机打开 [试卷运行器](http://127.0.0.1:4173/web/test.html)，可载入示例或自己的 ZIP，选择试卷资源、作答、保存、提交、暂停、恢复快照并导出结果。原有 [题目工作台](http://127.0.0.1:4173/web/) 保留单题编辑与批量分析功能。
 
-三个示例分别展示：
+基础示例分别展示下列流程；另有八题原生控件示例与 [组卷加权示例](assembly.md)。
 
 | 内容包 | 流程 | 固定作答的预期结果 |
 |---|---|---|
@@ -27,7 +27,7 @@ python tools/project.py serve
 
 ## 试卷结构与会话
 
-支持 `qti-assessment-test`、多个 `qti-test-part`、嵌套 `qti-assessment-section`、包内 `qti-assessment-section-ref` 和 `qti-assessment-item-ref`。引用按文档顺序展开，最多 512 个作答位置；同一题目文件的多个引用共享编译对象，各自保留响应、尝试次数和时长。清单依赖、相对路径和 `xml:base` 参与资源解析，未知引用、重复标识符、循环与越过包根目录的路径会报错。
+支持 `qti-assessment-test`、多个 `qti-test-part`、嵌套 `qti-assessment-section`、包内 `qti-assessment-section-ref` 和 `qti-assessment-item-ref`。引用按分节的选择和编序规则展开，最多 4096 个候选引用与 512 个作答位置；同一题目文件的多个引用共享编译对象，各自保留响应、尝试次数和时长。清单依赖、相对路径和 `xml:base` 参与资源解析，未知引用、重复标识符、循环与越过包根目录的路径会报错。
 
 | 能力 | 行为 |
 |---|---|
@@ -43,7 +43,7 @@ python tools/project.py serve
 
 有效控制值按试卷部分、分节、题目引用继承。所有响应在保存时校验，`validate-responses=false` 也不会允许类型错误或未知选项进入评分。逐题提交部分结束前需提交已修改的草稿。到时的未答必答题保留未完成处理状态与空分值，不生成零分。
 
-固定顺序交付已经实现；分节随机选题与随机编序、分支跳转、前置条件、自适应题、测试整体与单题时间约束尚未实现，对相应结构返回 `unsupported`。宿主负责身份信息、持久存储和时钟来源。
+固定顺序、分节抽题与编序已经实现，规则与种子接入见 [组卷指南](assembly.md)。分支跳转、前置条件、自适应题、测试整体与单题时间约束尚未实现，对相应结构返回 `unsupported`。宿主负责身份信息、持久存储和时钟来源。
 
 QTI 标识符采用最多 256 个字符的 ASCII NCName 子集；外部分节展开后的标识符也受此限制，与结果 XML 导出的约束一致。普通资源路径和清单资源标识符使用各自的题包限制。
 
@@ -76,7 +76,7 @@ try {
 
 同一模块最多保留 16 个活动试卷和 16 个活动会话。试卷与会话独立持有编译内容，题包或试卷释放后，已有会话仍可运行。图片资源需要在题包仍有效时通过 `readFile` 读取。
 
-快照包含测试身份标识、会话标识、起始时钟与已接受的动作。恢复时重新运行校验和评分，不采用快照中的外部得分；题目规则、控制或引用发生变化时拒绝恢复。快照用于相同核心版本与相同编译内容，包含作答正文，宿主决定保存位置。最多记录 10,000 次动作，总长度受 8 Mi UTF-16 码元的快照读取限制约束。
+v2 快照包含测试身份标识、组卷种子、会话标识、起始时钟与已接受的动作；v1 快照保留在原核心版本恢复。恢复时重新运行校验和评分，不采用快照中的外部得分；题目规则、控制或引用发生变化时拒绝恢复。快照用于相同核心版本与相同编译内容，包含作答正文，宿主决定保存位置。最多记录 10,000 次动作，总长度受 8 Mi UTF-16 码元的快照读取限制约束。
 
 MoonBit 可用 `ContentPackage::compile_test`、`AssessmentTest::new_session` / `restore_session`、`TestSession::act_json` / `describe` / `snapshot` / `report` / `result_xml`。`AssessmentTest::run_actions_json` 是 CLI 使用的完整动作重放入口。
 
@@ -93,10 +93,10 @@ MoonBit 可用 `ContentPackage::compile_test`、`AssessmentTest::new_session` / 
 | 比较 | `match`、`equal`、`lt`、`lte`、`gt`、`gte`、`string-match` |
 | 运算 | `sum`、`product`、`subtract`、`divide`、`integer-divide`、`integer-modulus`、`min`、`max`、`integer-to-float` |
 | 容器 | `multiple`、`ordered`、`member`、`container-size`、`index` |
-| 试卷汇总 | `test-variables`，收集所有题目对应结果变量 |
+| 试卷汇总 | `test-variables`，按分节、类别、类型与权重收集题目变量；支持 ItemRef 变量引用及实例序号 |
 | 控制 | `set-outcome-value`、response/outcome 的 if/else-if/else 条件、`exit-response`、`exit-test` |
 
-条件只执行首个为真的分支，NULL 与 false 区分；计算保持 QTI NULL 传播规则并拒绝非有限结果、类型不匹配与超出执行限额的程序。题目逐次提交与部分集中提交都会重新执行试卷结果处理，计算成功后才提交状态；普通提交失败不改变作答状态。到时强制结束时的试卷处理失败记录在报告的 `test_processing_error`，结果保留 NULL。`test-variables` 的分节、类别与权重过滤未实现。record、模板生成、随机表达式、全部数学与统计运算符仍待补充，未识别的结构明确报错。
+条件只执行首个为真的分支，NULL 与 false 区分；计算保持 QTI NULL 传播规则并拒绝非有限结果、类型不匹配与超出执行限额的程序。题目逐次提交与部分集中提交都会重新执行试卷结果处理，计算成功后才提交状态；普通提交失败不改变作答状态。到时强制结束时的试卷处理失败记录在报告的 `test_processing_error`，结果保留 NULL。分节、类别、权重与 ItemRef 变量语义见 [组卷指南](assembly.md#题目变量权重与过滤)。record、模板生成、随机表达式、全部数学与统计运算符仍待补充，未识别的结构明确报错。
 
 `qti-modal-feedback` 根据结果变量与 `show-hide` 选择静态文字反馈。普通元信息只列变量类型、反馈是否存在与交互描述，不返回正确答案、映射或处理规则；`explain` 是显式的开发者接口。HTML 反馈布局、内联动态反馈与模板反馈尚未实现。
 
@@ -110,7 +110,7 @@ MoonBit 可用 `ContentPackage::compile_test`、`AssessmentTest::new_session` / 
 
 ## 交互兼容范围
 
-题目工作台继续提供选择、排序、普通匹配、文本选词、Hottext、Inline Choice、Text Entry 和 Slider 的专用控件。试卷运行器已提供选择、文本／数值输入、长文本、滑杆、热点与图形匹配控件；其他结构化交互可通过响应 JSON 作答，输入同样交由 MoonBit 校验和评分。它的全部题型专用呈现仍需继续补齐。
+题目工作台继续提供选择、排序、普通匹配、文本选词、Hottext、Inline Choice、Text Entry 和 Slider 的专用控件。试卷运行器已提供选择、文本／数值输入、长文本、滑杆、热点、图形匹配、普通配对、Gap Match、Hottext、排序与原位下拉控件；响应 JSON 仍作为开发者编辑入口，输入同样交由 MoonBit 校验和评分。
 
 | 交互 | 已实现的响应与核心约束 |
 |---|---|

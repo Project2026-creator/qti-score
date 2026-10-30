@@ -20,7 +20,43 @@ priv struct ProcessingDeclaration {
 priv enum ProcessingExpressionKind {
   Literal(Json)
   Reference(String, String)
+  ItemReference(ProcessingItemReference)
+  TestVariables(ProcessingTestVariables)
   Operator(String, Array[ProcessingExpression], NumericTolerance?)
+} derive(Debug)
+
+///|
+priv struct ProcessingItemVariable {
+  identifier : String
+  kind : ProcessingType
+  response : Bool
+} derive(Debug, Eq)
+
+///|
+priv struct ProcessingItemSchema {
+  identifier : String
+  variables : Array[ProcessingItemVariable]
+  categories : Array[String]
+  section_identifiers : Array[String]
+} derive(Debug)
+
+///|
+priv struct ProcessingItemReference {
+  identifier : String
+  instance_index : Int32?
+  variable : ProcessingItemVariable
+  weight_identifier : String?
+} derive(Debug)
+
+///|
+priv struct ProcessingTestVariables {
+  variable_identifier : String
+  base_filter : String?
+  section_identifier : String?
+  include_categories : Array[String]
+  exclude_categories : Array[String]
+  weight_identifier : String?
+  schemas : Array[ProcessingItemSchema]?
 } derive(Debug)
 
 ///|

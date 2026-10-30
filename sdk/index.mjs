@@ -142,9 +142,12 @@ class ContentPackage {
     const { handle } = unwrap(core.package_item(this.#handle, packageKey(resourceId)));
     return new CompiledItem(handle);
   }
-  getTest(resourceId) {
+  getTest(resourceId, { seed = 0 } = {}) {
     this.#assertLive();
-    const { handle } = unwrap(core.package_test(this.#handle, packageKey(resourceId)));
+    if (!Number.isInteger(seed) || seed < 0 || seed > 2147483647) {
+      throw error('invalid_response', 'Assembly seed must be an integer from 0 to 2147483647');
+    }
+    const { handle } = unwrap(core.package_test_seeded(this.#handle, packageKey(resourceId), seed));
     return new CompiledTest(handle);
   }
   resourceFiles(resourceId) {

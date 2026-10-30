@@ -232,6 +232,15 @@ let sessions : TestSessions = { items: Map([]), next_id: 1, }
 
 ///|
 pub fn package_test(handle : Int32, resource_id : String) -> String {
+  package_test_seeded(handle, resource_id, 0)
+}
+
+///|
+pub fn package_test_seeded(
+  handle : Int32,
+  resource_id : String,
+  seed : Int32,
+) -> String {
   guard packages.items.get(handle) is Some(bundle) else {
     return handle_error("invalid_handle", "package is unavailable or disposed")
   }
@@ -241,7 +250,7 @@ pub fn package_test(handle : Int32, resource_id : String) -> String {
     )
   }
   let result : Json = try {
-    let plan = bundle.compile_test(resource_id)
+    let plan = bundle.compile_test(resource_id, seed~)
     let handle = tests.next_id
     tests.next_id += 1
     tests.items[handle] = plan

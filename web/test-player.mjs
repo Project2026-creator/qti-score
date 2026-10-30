@@ -1,4 +1,5 @@
 import { importPackage } from '../sdk/index.mjs';
+import { createNativeControl } from './test-controls.mjs';
 
 const $ = id => document.getElementById(id);
 let bundle, plan, session, planDescription, state;
@@ -31,11 +32,13 @@ function syncClock(snapshot) {
 }
 
 function openPlan() {
-  const next = bundle.getTest($('test-resource').value);
+  const seed = Number($('assembly-seed').value);
+  if ($('assembly-seed').value.trim() === '' || !Number.isInteger(seed) || seed < 0 || seed > 2147483647) throw new Error('组卷种子须为 0 至 2147483647 的整数。');
+  const next = bundle.getTest($('test-resource').value, { seed });
   disposePlan(); plan = next; planDescription = plan.describe();
   $('test-title').textContent = planDescription.title;
-  $('plan-summary').textContent = `${planDescription.parts.length} 个部分 · ${planDescription.item_count} 道题\n` + planDescription.parts.map(part => `${part.identifier}：${part.navigation_mode === 'linear' ? '顺序作答' : '自由导航'} / ${part.submission_mode === 'individual' ? '逐题提交' : '整部分提交'}${part.max_time === null ? '' : ` / ${part.max_time} 秒`}`).join('\n');
-  $('start-test').disabled = false; $('snapshot-file').disabled = false;
+  $('plan-summary').textContent = `${planDescription.parts.length} 个部分 · 已选 ${planDescription.item_count} / ${planDescription.candidate_count ?? planDescription.item_count} 道题 · 种子 ${planDescription.assembly_seed ?? seed}\n` + planDescription.parts.map(part => `${part.identifier}：${part.navigation_mode === 'linear' ? '顺序作答' : '自由导航'} / ${part.submission_mode === 'individual' ? '逐题提交' : '整部分提交'}${part.max_time === null ? '' : ` / ${part.max_time} 秒`}`).join('\n');
+  $('start-test').disabled = false; $('snapshot-file').disabled = false; $('restore-pasted').disabled = false;
   resetWorkspace(); status('试卷已就绪，可以开始新会话或恢复快照。');
 }
 async function loadPackage(bytes) {
@@ -43,7 +46,7 @@ async function loadPackage(bytes) {
   const resources = next.describe().resources.filter(resource => resource.type === 'imsqti_test_xmlv3p0');
   if (!resources.length) { next.dispose(); throw new Error('内容包中没有 QTI 3 试卷资源。'); }
   disposePlan(); bundle?.dispose(); bundle = next;
-  resetWorkspace(); $('start-test').disabled = true; $('snapshot-file').disabled = true;
+  resetWorkspace(); $('start-test').disabled = true; $('snapshot-file').disabled = true; $('restore-pasted').disabled = true;
   $('plan-summary').textContent = '选择试卷后打开，编译通过后即可开始。';
   $('test-resource').replaceChildren(...resources.map(resource => { const option = node('option', resource.identifier); option.value = resource.identifier; return option; }));
   $('test-resource').disabled = false; $('open-test').disabled = false;
@@ -187,6 +190,8 @@ function createControl(binding, current, multipleBindings, itemPath) {
   const field = node('fieldset', undefined, 'response-field');
   field.append(node('legend', binding.choice?.prompt || binding.slider?.prompt || binding.inline_choice?.label || (binding.extended_text ? (multipleBindings ? binding.extended_text.prompt : '你的作答') : id)));
   if (binding.graphic) { graphicControl(field,binding,current,itemPath); return field; }
+  const native = createNativeControl(field, binding, current, changed);
+  if (native) { readers.set(id, native.read); return field; }
   const choiceList = binding.choice?.choices || binding.inline_choice?.choices || binding.choices;
   if (choiceList?.length && binding.cardinality !== 'ordered' && binding.base_type !== 'directedPair') {
     const multiple = binding.cardinality === 'multiple';
@@ -227,6 +232,37 @@ function createControl(binding, current, multipleBindings, itemPath) {
   }
   return field;
 }
+function renderControls(item, current, itemPath) {
+  const parent = $('response-controls');
+  const bindings = item.responses || [{ ...item, identifier: item.response_identifier }];
+  for (const instruction of item.instructions || []) parent.append(node('p', instruction, 'item-instructions'));
+  if (!item.responses || !item.passage?.length) {
+    for (const binding of bindings) parent.append(createControl(binding, current.response[binding.identifier], bindings.length > 1, itemPath));
+    return;
+  }
+  const passage = node('div', undefined, 'native-composite-passage'), rendered = new Set();
+  for (const part of item.passage) {
+    if ('text' in part) { passage.append(document.createTextNode(part.text)); continue; }
+    const binding = bindings.find(value => value.identifier === part.response);
+    if (!binding || rendered.has(binding.identifier)) continue;
+    rendered.add(binding.identifier);
+    const value = current.response[binding.identifier];
+    if (binding.inline_choice) {
+      const span = node('span', undefined, 'native-inline-response');
+      const control = createNativeControl(span, binding, value, changed, { inline: true });
+      readers.set(binding.identifier, control.read); passage.append(span);
+    } else if (binding.cardinality === 'single' && !binding.choice && !binding.slider && !binding.extended_text && !binding.graphic && !binding.matching && !binding.gap_matching && !binding.hottext && ['string', 'identifier', 'integer', 'float'].includes(binding.base_type)) {
+      const label = node('label', undefined, 'native-inline-entry');
+      const input = node('input'); input.type = ['integer', 'float'].includes(binding.base_type) ? 'number' : 'text';
+      input.step = binding.base_type === 'integer' ? '1' : 'any'; input.value = value ?? '';
+      input.setAttribute('aria-label', binding.identifier); input.placeholder = binding.placeholder || binding.identifier;
+      input.addEventListener('input', changed); label.append(input); passage.append(label);
+      readers.set(binding.identifier, () => input.value === '' ? null : ['integer', 'float'].includes(binding.base_type) ? Number(input.value) : input.value);
+    } else passage.append(createControl(binding, value, true, itemPath));
+  }
+  parent.append(passage);
+  for (const binding of bindings) if (!rendered.has(binding.identifier)) parent.append(createControl(binding, current.response[binding.identifier], true, itemPath));
+}
 function response() { return Object.fromEntries([...readers].map(([id, read]) => [id, read()])); }
 function action(type, extra = {}) {
   const time = clock(); const next = session.act({ type, time, ...extra }); lastAction = time;
@@ -243,13 +279,13 @@ function render() {
   $('session-info').textContent = `${state.session_identifier} · ${state.completed ? '已完成' : state.paused ? '已暂停' : '进行中'} · 已用 ${Math.floor(state.part_elapsed)} 秒${part.max_time === null ? '' : ` / ${part.max_time} 秒`}`;
   $('item-position').textContent = `QUESTION ${currentIndex + 1} / ${state.items.length} · ${current.identifier}`;
   $('item-title').textContent = item.title;
-  $('item-prompt').textContent = item.passage?.length ? item.passage.map(part => 'text' in part ? part.text : `（${part.response}）`).join('') : item.prompt || '';
+  $('item-prompt').textContent = (item.responses && item.passage?.length) || item.prompt === item.title ? '' : item.prompt || '';
   $('response-json').value = JSON.stringify(current.response, null, 2);
   clearImages(); readers = new Map(); jsonDirty = false; $('response-controls').replaceChildren();
-  const bindings = item.responses || [{ ...item, identifier: item.response_identifier }];
-  for (const binding of bindings) $('response-controls').append(createControl(binding, current.response[binding.identifier], bindings.length > 1, entry.path));
+  renderControls(item, current, entry.path);
   const locked = state.completed || state.paused || (current.submitted && entry.control.max_attempts !== 0 && current.num_attempts >= entry.control.max_attempts);
   for (const field of $('response-controls').querySelectorAll('fieldset')) field.disabled = locked;
+  if (locked) for (const control of $('response-controls').querySelectorAll('input,select,textarea,button')) control.disabled = true;
   for (const region of $('response-controls').querySelectorAll('[data-graphic-region]')) { region.setAttribute('tabindex',locked?'-1':'0'); region.setAttribute('aria-disabled',String(locked)); }
   $('response-json').disabled = locked;
   $('save-response').disabled = $('save-json').disabled = locked;
@@ -285,13 +321,17 @@ function render() {
 }
 
 async function loadBuiltin(filename) {
-  status('正在载入演示试卷…'); const result = await fetch(filename);
+  status('正在载入演示试卷…'); $('start-test').disabled = true; $('open-test').disabled = true;
+  $('snapshot-file').disabled = true; $('restore-pasted').disabled = true;
+  const result = await fetch(filename);
   if (!result.ok) throw new Error('演示包加载失败，请先构建前端资源。');
   await loadPackage(new Uint8Array(await result.arrayBuffer()));
 }
 $('load-sample').addEventListener('click', () => runAsync(() => loadBuiltin('runtime-test-package.zip')));
 $('load-feedback-sample').addEventListener('click', () => runAsync(() => loadBuiltin('feedback-test-package.zip')));
 $('load-graphic-sample').addEventListener('click', () => runAsync(() => loadBuiltin('graphic-test-package.zip')));
+$('load-interaction-sample').addEventListener('click', () => runAsync(() => loadBuiltin('interaction-test-package.zip')));
+$('load-assembly-sample').addEventListener('click', () => runAsync(() => loadBuiltin('assembly-test-package.zip')));
 $('package-file').addEventListener('change', event => runAsync(async () => {
   const file = event.target.files[0]; if (!file) return;
   if (file.size > 8 * 1048576) throw new Error('ZIP 内容包超过 8 MiB。');
@@ -315,12 +355,19 @@ $('next-item').addEventListener('click', () => run(() => { if (inputDirty) save(
 $('finish-part').addEventListener('click', () => run(() => { if (inputDirty) save(); action('finish_part'); status(state.completed ? '测验已完成，可以导出标准结果。' : '当前部分已完成，已进入下一部分。'); }));
 $('pause-test').addEventListener('click', () => run(() => { if (inputDirty) save(); action(state.paused ? 'resume' : 'pause'); status(state.paused ? '会话已暂停。可以下载快照，稍后恢复。' : '已继续作答。'); }));
 $('download-snapshot').addEventListener('click', () => run(() => { if (inputDirty) save(); download('qti-session.json', session.snapshot(), 'application/json'); status('会话快照已下载。'); }));
+function restoreSnapshot(snapshot) {
+  if (new TextEncoder().encode(snapshot).length > 8 * 1048576) throw new Error('会话快照超过 8 MiB。');
+  const next = plan.restoreSession(snapshot);
+  disposeSession(); session = next; syncClock(snapshot); state = session.describe(); inputDirty = false;
+  $('session-id').value = state.session_identifier; render(); status('会话已从快照恢复。');
+}
 $('snapshot-file').addEventListener('change', event => runAsync(async () => {
   const file = event.target.files[0]; if (!file) return;
   if (file.size > 8 * 1048576) throw new Error('会话快照超过 8 MiB。');
-  const snapshot = await file.text(), next = plan.restoreSession(snapshot);
-  disposeSession(); session = next; syncClock(snapshot); state = session.describe(); inputDirty = false;
-  $('session-id').value = state.session_identifier; render(); status('会话已从快照恢复。');
+  restoreSnapshot(await file.text());
+}));
+$('restore-pasted').addEventListener('click', () => run(() => {
+  restoreSnapshot($('snapshot-text').value); $('snapshot-text').value = '';
 }));
 for (const format of ['xml', 'json']) $(`export-${format}`).addEventListener('click', () => run(() => {
   const { report, xml } = session.exportResult(new Date().toISOString());

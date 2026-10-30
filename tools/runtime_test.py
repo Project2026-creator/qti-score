@@ -257,7 +257,9 @@ def verify(offline=False):
 
     for name, resource, expected_scores, expected_outcomes, all_scored in (
             ("feedback", "feedback-workflow", [5, 2, None], {"SCORE": None, "MAXSCORE": 7}, False),
-            ("graphic", "graphic-test", [1, 3], {"SCORE": 4}, True)):
+            ("graphic", "graphic-test", [1, 3], {"SCORE": 4}, True),
+            ("interaction", "interaction-test", [3, 3, 2, 1, 1, 4, 1, 1], {"SCORE": 16}, True),
+            ("assembly", "assembly-test", [1, 2, 1, 0, 1], {"SCORE": 6.5, "CORE": 3, "ANCHOR": 2, "SECOND": 1}, True)):
         archive_path = ROOT / ("web/" + name + "-test-package.zip")
         actions_path = ROOT / ("examples/" + name + "-actions.json")
         cli_process = run_process([moon, "run", "--target", "native", "cmd/main", "--", "test-run",
@@ -293,6 +295,24 @@ def verify(offline=False):
         check(name + " result XML passes the pinned schema and independent typed reader",
               xml_scores == expected_scores and statuses == expected_status,
               {"scores": expected_scores, "statuses": expected_status}, {"scores": xml_scores, "statuses": statuses})
+
+    assembly_package = ROOT / "web/assembly-test-package.zip"
+    expected_seeds = {1: ["anchor", "review", "evidence", "repeat", "repeat"],
+                      42: ["anchor", "measurement", "review", "repeat", "repeat"]}
+    for seed, expected_refs in expected_seeds.items():
+        result = run_process([moon, "run", "--target", "native", "cmd/main", "--", "test-describe",
+                              str(assembly_package), "assembly-test", "--seed", str(seed)], env)
+        value, _ = json_output(result)
+        refs = [entry["source_identifier"] for entry in value.get("test", {}).get("entries", [])]
+        check("CLI seed " + str(seed) + " selects the documented reference sequence", result.returncode == 0 and refs == expected_refs,
+              expected_refs, refs)
+    invalid_seeds = []
+    for seed in ("-1", "0.5", "2147483648", "bad"):
+        result = run_process([moon, "run", "--target", "native", "cmd/main", "--", "test-describe",
+                              str(assembly_package), "assembly-test", "--seed", seed], env)
+        value, _ = json_output(result)
+        invalid_seeds.append(result.returncode == 2 and value.get("error", {}).get("code") == "usage")
+    check("CLI rejects malformed or out-of-range assembly seeds with usage status", all(invalid_seeds), [True] * 4, invalid_seeds)
 
     return {
         "ok": True,

@@ -60,7 +60,7 @@ test('paused snapshots replay into independent sessions and preserve response is
     const snapshot = session.snapshot();
     restored = plan.restoreSession(snapshot);
     assert.deepEqual(restored.describe(), session.describe());
-    assert.equal(JSON.parse(snapshot).format, 'qti-score-test-session-v1');
+    assert.equal(JSON.parse(snapshot).format, 'qti-score-test-session-v2');
     assert.doesNotMatch(snapshot, /correct_response|processing_source|MapEntry/);
     restored.act({ type: 'resume', time: 20 });
     restored.act({ type: 'submit', time: 21 });

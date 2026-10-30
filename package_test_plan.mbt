@@ -4,6 +4,7 @@
 pub fn ContentPackage::compile_test(
   self : ContentPackage,
   resource_id : String,
+  seed~ : Int32 = 0,
 ) -> AssessmentTest raise QtiError {
   guard self.resources.filter(r => r.identifier == resource_id).get(0)
     is Some(resource) else {
@@ -68,5 +69,6 @@ pub fn ContentPackage::compile_test(
     section_sources,
     section_errors,
     Limits::default(),
+    seed,
   )
 }

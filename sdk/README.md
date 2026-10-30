@@ -2,6 +2,14 @@
 
 ESM wrapper around the compiled MoonBit scorer. The package has no runtime dependencies and performs no network or file I/O. It supports Node.js 18+ and modern browsers with ES modules and private class fields.
 
+## Seeded assembly and weighted outcomes (0.21.0)
+
+`bundle.getTest(resourceId, { seed: 42 })` assembles section selection and ordering before returning a compiled plan. The seed defaults to zero and must be an integer in 0..2147483647. Required/fixed controls, with-replacement instances and section grouping apply. Each compiled plan has a fixed selected order; use a different seed to assemble another plan. Metadata includes assembly_seed, candidate_count and source/instance identifiers.
+
+Snapshots now use `qti-score-test-session-v2`, binding candidate content, selected order and seed. Restore with the same seed/core version; v1 snapshots remain usable in the original version. Standard result XML keeps the authored ItemRef identifier and global sequenceIndex for repeated instances. The JSON report additionally records instance_identifier and instance_index.
+
+ItemRef variable references, occurrence-qualified variables, weights, section/category filters and optional numeric base-type inference run in MoonBit. See the [assembly guide](../docs/assembly.md) for their typed contracts and exact boundaries.
+
 ## Tests, sessions and standard results (0.20.0)
 
 `ContentPackage.getTest(resourceId)` compiles a test and its section/item references. A test offers `describe`, `startSession(identifier, {now})`, `restoreSession(snapshot)`, and `dispose`. Sessions offer `act`, `describe`, `snapshot`, `exportResult(datestamp, {candidateIdentifier})`, and `dispose`. There are separate limits of 16 live tests and 16 live sessions. Existing sessions remain usable after releasing their package/test.

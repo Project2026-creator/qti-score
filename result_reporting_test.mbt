@@ -234,7 +234,7 @@ test "QTI result XML rejects mismatched types undeclared and reserved variables"
 }
 
 ///|
-test "QTI result XML limits and duplicate ItemRef rejection are deterministic" {
+test "QTI result XML limits and duplicate sequence rejection are deterministic" {
   let report = rr_test_report()
   let item = rr_test_item(report)
   ignore(rr_test_update(report, "items", [item, item]))
@@ -252,6 +252,34 @@ test "QTI result XML limits and duplicate ItemRef rejection are deterministic" {
     @qti.assessment_result_xml(rr_test_report()),
     @qti.assessment_result_xml(rr_test_report()),
   )
+}
+
+///|
+test "QTI result XML distinguishes repeated ItemRef instances by sequence index" {
+  let report = rr_test_report()
+  let first = rr_test_item(report)
+  let second = rr_test_item(rr_test_report())
+  ignore(rr_test_update(second, "sequence_index", 2))
+  ignore(rr_test_update(second, "response", { "RESPONSE": "B" }))
+  ignore(
+    rr_test_update(second, "outcomes", {
+      "SCORE": 0,
+      "completionStatus": "completed",
+    }),
+  )
+  ignore(rr_test_update(first, "instance_identifier", "runtime_instance_one"))
+  ignore(rr_test_update(second, "instance_identifier", "runtime_instance_two"))
+  ignore(rr_test_update(report, "items", [first, second]))
+  let xml = @qti.assessment_result_xml(report)
+  assert_true(
+    xml.contains("<itemResult identifier=\"REF_1\" sequenceIndex=\"1\""),
+  )
+  assert_true(
+    xml.contains("<itemResult identifier=\"REF_1\" sequenceIndex=\"2\""),
+  )
+  assert_false(xml.contains("runtime_instance"))
+  ignore(rr_test_update(second, "sequence_index", 1))
+  rr_test_reject(report)
 }
 
 ///|

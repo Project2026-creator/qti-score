@@ -48,15 +48,20 @@ pub struct TestPart {
 ///|
 pub struct TestEntry {
   identifier : String
+  source_identifier : String
+  instance_index : Int32
   part_identifier : String
   resource_id : String
   path : String
   control : ItemSessionControl
   priv item : AssessmentItem
+  priv section_identifiers : Array[String]
+  priv categories : Array[String]
+  priv weights : Map[String, Double]
 } derive(Debug)
 
 ///|
-/// A compiled, fixed-order test plan. Getters return fresh arrays.
+/// An assembled test plan with deterministic selection and order.
 pub struct AssessmentTest {
   identifier : String
   title : String
@@ -64,6 +69,8 @@ pub struct AssessmentTest {
   priv entries : Array[TestEntry]
   priv identity : String
   priv processing : ProcessingProgram?
+  priv assembly_seed : Int32
+  priv candidate_count : Int32
 } derive(Debug)
 
 ///|
@@ -111,11 +118,16 @@ pub fn AssessmentTest::describe(self : AssessmentTest) -> Json {
   })
   let entries : Array[Json] = self.entries.map(entry => {
     "identifier": entry.identifier,
+    "source_identifier": entry.source_identifier,
+    "instance_index": entry.instance_index,
     "part_identifier": entry.part_identifier,
     "resource_id": entry.resource_id,
     "path": entry.path,
     "control": entry.control.describe(),
     "item": entry.item.describe(),
+    "section_identifiers": entry.section_identifiers.copy(),
+    "categories": entry.categories.copy(),
+    "weights": Json(entry.weights),
   })
   {
     "identifier": self.identifier,
@@ -124,6 +136,8 @@ pub fn AssessmentTest::describe(self : AssessmentTest) -> Json {
     "entries": entries,
     "item_count": self.entries.length(),
     "outcome_types": self.outcome_types(),
+    "assembly_seed": self.assembly_seed,
+    "candidate_count": self.candidate_count,
   }
 }
 

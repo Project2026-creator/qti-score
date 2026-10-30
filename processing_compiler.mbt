@@ -202,6 +202,7 @@ fn processing_expression(
   node : Node,
   declarations : Array[ProcessingDeclaration],
   test_mode~ : Bool = false,
+  item_schemas~ : Array[ProcessingItemSchema]? = None,
 ) -> ProcessingExpression raise QtiError {
   if node.element.name.namespace_uri != Some(qti_namespace) {
     raise Unsupported(node.location(), "expression in a different namespace")
@@ -226,8 +227,36 @@ fn processing_expression(
   if ["qti-variable", "qti-correct", "qti-default", "qti-map-response"].contains(
       name,
     ) {
-    node.only_attributes(["identifier"])
+    node.only_attributes(
+      if name == "qti-variable" {
+        ["identifier", "weight-identifier"]
+      } else {
+        ["identifier"]
+      },
+    )
     node.only_children([])
+    if name == "qti-variable" {
+      let id = node.required("identifier")
+      if test_mode && id.contains(".") {
+        if declarations.any(d => d.identifier == id) {
+          if item_schemas is Some(schemas) &&
+            !processing_reference_candidates(id, schemas, None).is_empty() {
+            raise InvalidItem(
+              node.location(),
+              "ambiguous local and prefixed item variable '\{id}'",
+            )
+          }
+        } else {
+          return processing_item_reference(node, item_schemas)
+        }
+      }
+      if node.attr("weight-identifier") is Some(_) {
+        raise InvalidItem(
+          node.location(),
+          "weight-identifier requires a prefixed item variable in test outcome processing",
+        )
+      }
+    }
     let d = processing_known(node, declarations)
     if name == "qti-correct" && !d.response {
       raise InvalidItem(node.location(), "correct requires a response variable")
@@ -257,15 +286,7 @@ fn processing_expression(
         "test-variables outside outcome processing",
       )
     }
-    node.only_attributes(["variable-identifier", "base-type"])
-    node.only_children([])
-    let id = identifier(node.required("variable-identifier"), node.location())
-    let base = processing_base(node)
-    return {
-      expression: Reference("qti-test-variables", id),
-      kind: Some(processing_type(base, Multiple)),
-      source,
-    }
+    return processing_test_variables(node, item_schemas)
   }
   let supported = [
     "qti-is-null", "qti-not", "qti-and", "qti-or", "qti-match", "qti-equal", "qti-lt",
@@ -327,7 +348,7 @@ fn processing_expression(
     },
   )
   let args = node.children.map(n => {
-    processing_expression(n, declarations, test_mode~)
+    processing_expression(n, declarations, test_mode~, item_schemas~)
   })
   let kind : ProcessingType? = if [
       "qti-is-null", "qti-not", "qti-and", "qti-or",
@@ -483,6 +504,7 @@ fn processing_rules(
   nodes : Array[Node],
   declarations : Array[ProcessingDeclaration],
   test_mode~ : Bool = false,
+  item_schemas~ : Array[ProcessingItemSchema]? = None,
 ) -> Array[ProcessingRule] raise QtiError {
   let rules : Array[ProcessingRule] = []
   for node in nodes {
@@ -503,6 +525,7 @@ fn processing_rules(
         node.children[0],
         declarations,
         test_mode~,
+        item_schemas~,
       )
       processing_expect(node, expression, declaration.kind)
       rules.push(Assign(declaration.identifier, expression, node.source()))
@@ -543,6 +566,7 @@ fn processing_rules(
             branch.children[0],
             declarations,
             test_mode~,
+            item_schemas~,
           )
           processing_expect(
             branch,
@@ -565,7 +589,12 @@ fn processing_rules(
         }
         branches.push({
           predicate,
-          rules: processing_rules(remaining, declarations, test_mode~),
+          rules: processing_rules(
+            remaining,
+            declarations,
+            test_mode~,
+            item_schemas~,
+          ),
           source: branch.source(),
         })
       }
@@ -583,9 +612,13 @@ fn processing_rules(
 }
 
 ///|
-fn processing_program_root(root : Node) -> ProcessingProgram raise QtiError {
+fn processing_program_root(
+  root : Node,
+  item_declarations~ : Json = Json::null(),
+) -> ProcessingProgram raise QtiError {
   let test_mode = root.name() == "qti-assessment-test"
   let declarations = processing_declarations(root)
+  let item_schemas = processing_item_schemas(item_declarations)
   let processing = root.one(
     if test_mode {
       "qti-outcome-processing"
@@ -640,7 +673,12 @@ fn processing_program_root(root : Node) -> ProcessingProgram raise QtiError {
     if processing.content.to_string().trim() != "" {
       raise InvalidItem(processing.location(), "unexpected processing text")
     }
-    processing_rules(processing.children, declarations, test_mode~)
+    processing_rules(
+      processing.children,
+      declarations,
+      test_mode~,
+      item_schemas~,
+    )
   }
   { declarations, rules, test_mode, }
 }
@@ -649,16 +687,24 @@ fn processing_program_root(root : Node) -> ProcessingProgram raise QtiError {
 /// Compile typed processing from an item or test document. This API validates
 /// declarations and processing; compile_processed_item additionally validates
 /// the item body and its interactions.
+///
+/// For test programs, item_declarations is an array of metadata objects with
+/// identifier, outcome_types, response_types, categories and section_identifiers.
+/// Variable types have base_type and cardinality fields. Include candidates
+/// that selection may omit so references to unselected items evaluate to NULL.
+/// Bound metadata is required for prefixed item references and for inferring
+/// the base-type of an untyped test-variables expression.
 pub fn compile_processing_program(
   xml : String,
   limits~ : Limits = Limits::default(),
+  item_declarations~ : Json = Json::null(),
 ) -> ProcessingProgram raise QtiError {
   let root = parse_document(xml, limits)
   if !["qti-assessment-item", "qti-assessment-test"].contains(root.name()) ||
     root.element.name.namespace_uri != Some(qti_namespace) {
     raise Unsupported(root.location(), "expected QTI assessment item/test")
   }
-  processing_program_root(root)
+  processing_program_root(root, item_declarations~)
 }
 
 ///|

@@ -19,6 +19,7 @@ pub fn compile_assessment_test(
   xml : String,
   items : Map[String, AssessmentItem],
   limits~ : Limits = Limits::default(),
+  seed~ : Int32 = 0,
 ) -> AssessmentTest raise QtiError {
   let resource_ids : Map[String, String] = Map([])
   for path, _ in items {
@@ -36,6 +37,7 @@ pub fn compile_assessment_test(
     Map([]),
     Map([]),
     limits,
+    seed,
   )
 }
 
@@ -142,7 +144,109 @@ fn test_max_time(node : Node) -> Double? raise QtiError {
 }
 
 ///|
-fn test_walk_section(
+fn test_categories(node : Node) -> Array[String] raise QtiError {
+  let text = node
+    .attr("category")
+    .unwrap_or("")
+    .replace_all(old="\t", new=" ")
+    .replace_all(old="\n", new=" ")
+    .replace_all(old="\r", new=" ")
+  let categories : Array[String] = []
+  for token in text.split(" ") {
+    if token.is_empty() {
+      continue
+    }
+    let category = identifier(token.to_owned(), node.location())
+    if !categories.contains(category) {
+      categories.push(category)
+    }
+    if categories.length() > 128 {
+      raise LimitExceeded("item reference exceeds 128 categories")
+    }
+  }
+  categories
+}
+
+///|
+fn test_weights(node : Node) -> Map[String, Double] raise QtiError {
+  let weights : Map[String, Double] = Map([])
+  for child in node.children {
+    if child.name() != "qti-weight" {
+      continue
+    }
+    child.only_attributes(["identifier", "value"])
+    child.only_children([])
+    let id = identifier(child.required("identifier"), child.location())
+    if weights.contains(id) {
+      raise InvalidItem(child.location(), "duplicate weight identifier")
+    }
+    if weights.length() >= 128 {
+      raise LimitExceeded("item reference exceeds 128 weights")
+    }
+    weights[id] = number(child, "value")
+  }
+  weights
+}
+
+///|
+fn test_build_reference(
+  compiler : TestCompiler,
+  reference : Node,
+  base : String,
+  control : ItemSessionControl,
+  part_id : String,
+  prefix : String,
+  depth : Int32,
+  ancestors : Array[String],
+) -> TestAssemblyNode raise QtiError {
+  reference.only_attributes(["identifier", "href", "class"], allow_base=true)
+  reference.only_children([])
+  let id = test_register_id(compiler, reference, prefix)
+  let path = resolve_package_uri(
+    reference.package_base(base),
+    reference.required("href"),
+  )
+  if compiler.section_stack.contains(path) {
+    raise InvalidPackage(
+      reference.location(),
+      "section reference cycle at '\{path}'",
+    )
+  }
+  if compiler.section_errors.get(path) is Some(error) {
+    raise error
+  }
+  guard compiler.section_sources.get(path) is Some(bytes) else {
+    raise InvalidPackage(
+      reference.location(),
+      "no QTI 3 section resource for '\{path}'",
+    )
+  }
+  let source = @utf8.decode(bytes[:], ignore_bom=true) catch {
+    _ => raise InvalidPackage(path, "section XML must be UTF-8")
+  }
+  let root = parse_document(source, compiler.limits)
+  if root.name() != "qti-assessment-section" ||
+    root.element.name.namespace_uri != Some(qti_namespace) {
+    raise InvalidPackage(path, "expected a QTI 3 section document")
+  }
+  compiler.section_stack.push(path)
+  let result = test_build_section(
+    compiler,
+    root,
+    path,
+    control,
+    part_id,
+    id + ".",
+    depth + 1,
+    ancestors,
+    override_identifier=Some(id),
+  )
+  ignore(compiler.section_stack.pop())
+  result
+}
+
+///|
+fn test_build_section(
   compiler : TestCompiler,
   section : Node,
   base : String,
@@ -150,96 +254,88 @@ fn test_walk_section(
   part_id : String,
   prefix : String,
   depth : Int32,
-  register~ : Bool = true,
-) -> Unit raise QtiError {
+  ancestors : Array[String],
+  override_identifier~ : String? = None,
+) -> TestAssemblyNode raise QtiError {
   if depth > compiler.limits.max_depth {
     raise LimitExceeded("expanded test exceeds max_depth")
   }
-  if register {
-    ignore(test_register_id(compiler, section, prefix))
-  } else {
-    ignore(identifier(section.required("identifier"), section.location()))
+  let section_id = match override_identifier {
+    Some(id) => {
+      ignore(identifier(section.required("identifier"), section.location()))
+      id
+    }
+    None => test_register_id(compiler, section, prefix)
   }
   section.only_attributes(
-    ["identifier", "title", "visible", "keep-together", "required", "fixed"],
+    [
+      "identifier", "title", "visible", "keep-together", "required", "fixed", "class",
+    ],
     allow_base=true,
   )
   section.only_children([
-    "qti-item-session-control", "qti-assessment-section", "qti-assessment-section-ref",
-    "qti-assessment-item-ref",
+    "qti-item-session-control", "qti-selection", "qti-ordering", "qti-assessment-section",
+    "qti-assessment-section-ref", "qti-assessment-item-ref",
   ])
   ignore(section.required("title"))
   ignore(section.required("visible"))
-  ignore(xml_bool(section, "visible", default=true))
-  ignore(xml_bool(section, "keep-together", default=true))
-  ignore(xml_bool(section, "required", default=false))
-  ignore(xml_bool(section, "fixed", default=false))
+  let visible = xml_bool(section, "visible", default=true)
+  let keep_together = xml_bool(section, "keep-together", default=true)
+  let required = xml_bool(section, "required", default=false)
+  let fixed = xml_bool(section, "fixed", default=false)
   let base = section.package_base(base)
   let control = test_control(section, inherited)
+  let selection = section
+    .one("qti-selection", required=false)
+    .map(n => {
+      n.only_attributes(["select", "with-replacement"])
+      n.only_children([])
+      let select = nonnegative_int(n, "select")
+      if select > 512 {
+        raise LimitExceeded("section selection exceeds 512 children")
+      }
+      TestAssemblySelection::{
+        select,
+        with_replacement: xml_bool(n, "with-replacement", default=false),
+      }
+    })
+  let shuffle = match section.one("qti-ordering", required=false) {
+    Some(n) => {
+      n.only_attributes(["shuffle"])
+      n.only_children([])
+      xml_bool(n, "shuffle", default=false)
+    }
+    None => false
+  }
+  let ancestors = ancestors + [section_id]
+  let children : Array[TestAssemblyNode] = []
   for child in section.children {
     match child.name() {
       "qti-assessment-section" =>
-        test_walk_section(
-          compiler,
-          child,
-          base,
-          control,
-          part_id,
-          prefix,
-          depth + 1,
+        children.push(
+          test_build_section(
+            compiler,
+            child,
+            base,
+            control,
+            part_id,
+            prefix,
+            depth + 1,
+            ancestors,
+          ),
         )
-      "qti-assessment-section-ref" => {
-        child.only_attributes(["identifier", "href"], allow_base=true)
-        child.only_children([])
-        let id = test_register_id(compiler, child, prefix)
-        let path = resolve_package_uri(
-          child.package_base(base),
-          child.required("href"),
+      "qti-assessment-section-ref" =>
+        children.push(
+          test_build_reference(
+            compiler, child, base, control, part_id, prefix, depth, ancestors,
+          ),
         )
-        if compiler.section_stack.contains(path) {
-          raise InvalidPackage(
-            child.location(),
-            "section reference cycle at '\{path}'",
-          )
-        }
-        if compiler.section_errors.get(path) is Some(error) {
-          raise error
-        }
-        guard compiler.section_sources.get(path) is Some(bytes) else {
-          raise InvalidPackage(
-            child.location(),
-            "no QTI 3 section resource for '\{path}'",
-          )
-        }
-        let source = @utf8.decode(bytes[:], ignore_bom=true) catch {
-          _ => raise InvalidPackage(path, "section XML must be UTF-8")
-        }
-        let root = parse_document(source, compiler.limits)
-        if root.name() != "qti-assessment-section" ||
-          root.element.name.namespace_uri != Some(qti_namespace) {
-          raise InvalidPackage(path, "expected a QTI 3 section document")
-        }
-        compiler.section_stack.push(path)
-        test_walk_section(
-          compiler,
-          root,
-          path,
-          control,
-          part_id,
-          id + ".",
-          depth + 1,
-          register=false,
-        )
-        ignore(compiler.section_stack.pop())
-      }
       "qti-assessment-item-ref" => {
         child.only_attributes(
-          ["identifier", "href", "required", "fixed"],
+          ["identifier", "href", "required", "fixed", "category", "class"],
           allow_base=true,
         )
-        child.only_children(["qti-item-session-control"])
-        ignore(xml_bool(child, "required", default=false))
-        ignore(xml_bool(child, "fixed", default=false))
+        child.only_children(["qti-item-session-control", "qti-weight"])
         let id = test_register_id(compiler, child, prefix)
         let path = resolve_package_uri(
           child.package_base(base),
@@ -255,20 +351,38 @@ fn test_walk_section(
             "no compiled QTI 3 item resource for '\{path}'",
           )
         }
-        if compiler.entries.length() >= 512 {
-          raise LimitExceeded("test exceeds 512 item references")
+        if compiler.entries.length() >= 4096 {
+          raise LimitExceeded("test exceeds 4096 candidate item references")
         }
+        let index = compiler.entries.length()
         compiler.entries.push({
           identifier: id,
+          source_identifier: id,
+          instance_index: 1,
           part_identifier: part_id,
           resource_id,
           path,
           control: test_control(child, control),
           item,
+          section_identifiers: ancestors.copy(),
+          categories: test_categories(child),
+          weights: test_weights(child),
+        })
+        children.push({
+          identifier: id,
+          required: xml_bool(child, "required", default=false),
+          fixed: xml_bool(child, "fixed", default=false),
+          kind: Leaf(index),
         })
       }
       _ => ()
     }
+  }
+  {
+    identifier: section_id,
+    required,
+    fixed,
+    kind: Section(children~, selection~, shuffle~, visible~, keep_together~),
   }
 }
 
@@ -282,7 +396,11 @@ fn compile_test_document(
   section_sources : Map[String, Bytes],
   section_errors : Map[String, QtiError],
   limits : Limits,
+  seed : Int32,
 ) -> AssessmentTest raise QtiError {
+  if seed < 0 {
+    raise InvalidItem("seed", "assembly seed must be nonnegative")
+  }
   let root = parse_document(xml, limits)
   if root.name() != "qti-assessment-test" ||
     root.element.name.namespace_uri != Some(qti_namespace) {
@@ -313,9 +431,10 @@ fn compile_test_document(
   }
   compiler.ids[id] = true
   let parts : Array[TestPart] = []
+  let entries : Array[TestEntry] = []
   for part in test_parts {
     part.only_attributes(
-      ["identifier", "navigation-mode", "submission-mode"],
+      ["identifier", "title", "class", "navigation-mode", "submission-mode"],
       allow_base=true,
     )
     part.only_children([
@@ -334,45 +453,49 @@ fn compile_test_document(
     }
     let control = test_control(part, ItemSessionControl::default())
     let max_time = test_max_time(part)
-    let start = compiler.entries.length()
-    // A synthetic section shares the part children so both levels resolve
-    // section references through exactly the same checked traversal.
+    let nodes : Array[TestAssemblyNode] = []
     for section in part.children {
       if section.name() == "qti-assessment-section" {
-        test_walk_section(
-          compiler,
-          section,
-          part.package_base(base),
-          control,
-          part_id,
-          "",
-          1,
+        nodes.push(
+          test_build_section(
+            compiler,
+            section,
+            part.package_base(base),
+            control,
+            part_id,
+            "",
+            1,
+            [],
+          ),
         )
       } else if section.name() == "qti-assessment-section-ref" {
-        // Top-level section references are processed by a synthetic section
-        // whose attributes satisfy the same structural requirements.
-        let wrapper = parse_document(
-          "<qti-assessment-section xmlns=\"\{qti_namespace}\" identifier=\"_root\" title=\"Root\" visible=\"true\"/>",
-          limits,
-        )
-        wrapper.children.push(section)
-        test_walk_section(
-          compiler,
-          wrapper,
-          part.package_base(base),
-          control,
-          part_id,
-          "",
-          0,
-          register=false,
+        nodes.push(
+          test_build_reference(
+            compiler,
+            section,
+            part.package_base(base),
+            control,
+            part_id,
+            "",
+            0,
+            [],
+          ),
         )
       }
     }
-    let count = compiler.entries.length() - start
+    let selected = assemble_test_nodes(nodes, test_part_seed(seed, part_id))
+    let start = entries.length()
+    for index in selected {
+      entries.push(compiler.entries[index])
+    }
+    if entries.length() > 512 {
+      raise LimitExceeded("assembled test exceeds 512 item instances")
+    }
+    let count = entries.length() - start
     if count == 0 {
       raise InvalidItem(
         part.location(),
-        "test part must resolve at least one item",
+        "test part must select at least one item",
       )
     }
     parts.push({
@@ -385,9 +508,41 @@ fn compile_test_document(
       count,
     })
   }
+  let occurrences : Map[String, Int32] = Map([])
+  let runtime_ids : Map[String, Bool] = Map([])
+  for i, entry in entries {
+    let instance_index = occurrences.get(entry.source_identifier).unwrap_or(0) +
+      1
+    occurrences[entry.source_identifier] = instance_index
+    let id = if instance_index == 1 {
+      entry.source_identifier
+    } else {
+      let mut suffix = i + 1
+      let mut generated = "_qti_instance_\{suffix}"
+      while compiler.ids.contains(generated) || runtime_ids.contains(generated) {
+        suffix += 1
+        generated = "_qti_instance_\{suffix}"
+      }
+      generated
+    }
+    runtime_ids[id] = true
+    entries[i] = { ..entry, identifier: id, instance_index, }
+  }
+  let item_declarations : Json = Json(
+    compiler.entries.map(entry => {
+      let data : Json = {
+        "identifier": entry.source_identifier,
+        "outcome_types": entry.item.outcome_types_json(),
+        "response_types": entry.item.response_types_json(),
+        "categories": entry.categories.copy(),
+        "section_identifiers": entry.section_identifiers.copy(),
+      }
+      data
+    }),
+  )
   let processing = if root.one("qti-outcome-processing", required=false)
     is Some(_) {
-    Some(processing_program_root(root))
+    Some(processing_program_root(root, item_declarations~))
   } else {
     let declarations = processing_declarations(root)
     if declarations.is_empty() {
@@ -396,19 +551,26 @@ fn compile_test_document(
       Some(ProcessingProgram::{ declarations, rules: [], test_mode: true, })
     }
   }
-  let identity = test_identity(xml, compiler.entries)
+  let identity = test_identity(xml, compiler.entries, entries, seed)
   {
     identifier: id,
     title,
     parts,
-    entries: compiler.entries,
+    entries,
     identity,
     processing,
+    assembly_seed: seed,
+    candidate_count: compiler.entries.length(),
   }
 }
 
 ///|
-fn test_identity(xml : String, entries : Array[TestEntry]) -> String {
+fn test_identity(
+  xml : String,
+  candidates : Array[TestEntry],
+  entries : Array[TestEntry],
+  seed : Int32,
+) -> String {
   // FNV-1a over UTF-8 with unsigned wrapping arithmetic is backend independent.
   // The full compiled item includes rules; learner metadata alone cannot bind
   // a saved session to the scoring semantics used to create it.
@@ -416,13 +578,31 @@ fn test_identity(xml : String, entries : Array[TestEntry]) -> String {
   for byte in @utf8.encode(xml) {
     hash = (hash ^ byte.to_uint64()) * 1099511628211UL
   }
-  for entry in entries {
+  for entry in candidates {
     for
       byte in @utf8.encode(
-        "\{entry.identifier}\n\{entry.path}\n\{Repr(entry.control)}\n\{Repr(entry.item)}",
+        "\{entry.identifier}\n\{entry.path}\n\{Repr(entry.control)}\n\{Repr(entry.item)}\n\{Repr(entry.weights)}\n\{Repr(entry.categories)}\n\{Repr(entry.section_identifiers)}",
       ) {
       hash = (hash ^ byte.to_uint64()) * 1099511628211UL
     }
   }
-  "qti-test-v1-\{hash}"
+  for
+    byte in @utf8.encode(
+      "\{seed}\n" +
+      entries
+      .map(e => "\{e.identifier}:\{e.source_identifier}:\{e.instance_index}")
+      .join("\n"),
+    ) {
+    hash = (hash ^ byte.to_uint64()) * 1099511628211UL
+  }
+  "qti-test-v2-\{hash}"
+}
+
+///|
+fn test_part_seed(seed : Int32, part_identifier : String) -> Int32 {
+  let mut hash = seed.to_uint64() + 2166136261UL
+  for byte in @utf8.encode(part_identifier) {
+    hash = (hash ^ byte.to_uint64()) * 16777619UL
+  }
+  (hash % 2147483648UL).to_int()
 }

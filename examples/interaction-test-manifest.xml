@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.imsglobal.org/xsd/qti/qtiv3p0/imscp_v1p1" identifier="education-interactions">
+  <metadata><schema>QTI Test</schema><schemaversion>3.0.0</schemaversion></metadata>
+  <organizations/>
+  <resources>
+    <resource identifier="interaction-test" type="imsqti_test_xmlv3p0" href="test.xml"><file href="test.xml"/><dependency identifierref="match"/><dependency identifierref="gap"/><dependency identifierref="hottext"/><dependency identifierref="order"/><dependency identifierref="inline-choice"/><dependency identifierref="composite-inline"/><dependency identifierref="hottext-single"/><dependency identifierref="order-subset"/></resource>
+    <resource identifier="match" type="imsqti_item_xmlv3p0" href="items/match.xml"><file href="items/match.xml"/></resource>
+    <resource identifier="gap" type="imsqti_item_xmlv3p0" href="items/gap.xml"><file href="items/gap.xml"/></resource>
+    <resource identifier="hottext" type="imsqti_item_xmlv3p0" href="items/hottext.xml"><file href="items/hottext.xml"/></resource>
+    <resource identifier="order" type="imsqti_item_xmlv3p0" href="items/order.xml"><file href="items/order.xml"/></resource>
+    <resource identifier="inline-choice" type="imsqti_item_xmlv3p0" href="items/inline-choice.xml"><file href="items/inline-choice.xml"/></resource>
+    <resource identifier="composite-inline" type="imsqti_item_xmlv3p0" href="items/composite-inline.xml"><file href="items/composite-inline.xml"/></resource>
+    <resource identifier="hottext-single" type="imsqti_item_xmlv3p0" href="items/hottext-single.xml"><file href="items/hottext-single.xml"/></resource>
+    <resource identifier="order-subset" type="imsqti_item_xmlv3p0" href="items/order-subset.xml"><file href="items/order-subset.xml"/></resource>
+  </resources>
+</manifest>

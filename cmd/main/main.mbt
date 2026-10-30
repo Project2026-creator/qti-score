@@ -1,7 +1,7 @@
 ///|
 fn main {
   let args = @env.args()
-  let version = "0.20.0"
+  let version = "0.21.0"
   // Node keeps both the runtime and script prefix; other targets keep argv[0].
   let offset = if args.length() > 1 && args[1].has_suffix(".js") {
     2
@@ -16,7 +16,7 @@ fn main {
     args[offset] == "--help" ||
     args[offset] == "help" {
     println(
-      "QTI Score \{version}\n  --version\n  describe ITEM.xml\n  score ITEM.xml RESPONSE.json\n  explain ITEM.xml RESPONSE.json\n  batch ITEM.xml RESPONSES.jsonl\n  inspect-package ARCHIVE.zip\n  test-describe ARCHIVE.zip TEST_RESOURCE_ID\n  test-run ARCHIVE.zip TEST_RESOURCE_ID ACTIONS.json\n  result-xml REPORT.json\n  package-score ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-explain ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-batch ARCHIVE.zip ATTEMPTS.jsonl [--csv | --items-csv]\n\nResponses: {\"RESPONSE\":\"A\"}, {\"RESPONSE\":[\"A\",\"B\"]}, {\"RESPONSE\":100.5}, {\"RESPONSE\":null}, or composite {\"ACTION\":\"Adapt\",\"RATIO\":75}\nBatch rows: {\"attempt_id\":\"a\",\"resource_id\":\"choice\",\"response\":{\"RESPONSE\":\"A\"}}\nExplain is an explicit developer diagnostic and may reveal scoring rules.",
+      "QTI Score \{version}\n  --version\n  describe ITEM.xml\n  score ITEM.xml RESPONSE.json\n  explain ITEM.xml RESPONSE.json\n  batch ITEM.xml RESPONSES.jsonl\n  inspect-package ARCHIVE.zip\n  test-describe ARCHIVE.zip TEST_RESOURCE_ID [--seed N]\n  test-run ARCHIVE.zip TEST_RESOURCE_ID ACTIONS.json [--seed N]\n  result-xml REPORT.json\n  package-score ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-explain ARCHIVE.zip RESOURCE_ID RESPONSE.json\n  package-batch ARCHIVE.zip ATTEMPTS.jsonl [--csv | --items-csv]\n\nResponses: {\"RESPONSE\":\"A\"}, {\"RESPONSE\":[\"A\",\"B\"]}, {\"RESPONSE\":100.5}, {\"RESPONSE\":null}, or composite {\"ACTION\":\"Adapt\",\"RATIO\":75}\nBatch rows: {\"attempt_id\":\"a\",\"resource_id\":\"choice\",\"response\":{\"RESPONSE\":\"A\"}}\nExplain is an explicit developer diagnostic and may reveal scoring rules.",
     )
     return
   }
@@ -31,9 +31,31 @@ fn main {
     } else {
       4
     }
-    if args.length() != offset + count {
+    let seeded = command != "result-xml" &&
+      args.length() == offset + count + 2 &&
+      args[offset + count] == "--seed"
+    if args.length() != offset + count && !seeded {
       println(
         "{\"ok\":false,\"error\":{\"code\":\"usage\",\"message\":\"Use --help for command syntax\"}}",
+      )
+      @sys.exit(2)
+      return
+    }
+    let seed = if seeded {
+      let text = args[offset + count + 1]
+      if text.is_empty() || !text.iter().all(c => c >= '0' && c <= '9') {
+        -1
+      } else {
+        @string.parse_int(text) catch {
+          _ => -1
+        }
+      }
+    } else {
+      0
+    }
+    if seed < 0 {
+      println(
+        "{\"ok\":false,\"error\":{\"code\":\"usage\",\"message\":\"Seed must be an integer from 0 to 2147483647\"}}",
       )
       @sys.exit(2)
       return
@@ -52,7 +74,7 @@ fn main {
       } else {
         let plan = @qti.read_content_package(
           @fs.read_file_to_bytes(args[offset + 1]),
-        ).compile_test(args[offset + 2])
+        ).compile_test(args[offset + 2], seed~)
         let output : Json = if command == "test-describe" {
           { "ok": true, "test": plan.describe() }
         } else {

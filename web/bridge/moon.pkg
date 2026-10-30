@@ -25,6 +25,7 @@ options(
         "release_package",
         "score_package_attempts",
         "package_test",
+        "package_test_seeded",
         "describe_test",
         "release_test",
         "start_test_session",

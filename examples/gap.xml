@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="feedback-cycle" title="把反馈放回学习过程">
+<qti-assessment-item time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="feedback-cycle" title="把反馈放回学习过程">
   <qti-response-declaration identifier="RESPONSE" cardinality="multiple" base-type="directedPair">
     <qti-correct-response><qti-value>Feedback G1</qti-value><qti-value>Adjust G2</qti-value><qti-value>Feedback G3</qti-value></qti-correct-response>
     <qti-mapping default-value="-0.5" lower-bound="0" upper-bound="3">

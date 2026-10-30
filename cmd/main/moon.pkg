@@ -2,6 +2,7 @@ import {
   "Project2026-creator/qti-score" @qti,
   "moonbitlang/core/env",
   "moonbitlang/core/json",
+  "moonbitlang/core/string",
   "moonbitlang/x/fs",
   "moonbitlang/x/sys",
 }

@@ -269,7 +269,7 @@ export interface ContentPackage {
   readonly disposed: boolean;
   describe(): PackageDescription;
   getItem(resourceId: string): CompiledItem;
-  getTest(resourceId: string): CompiledTest;
+  getTest(resourceId: string, options?: { readonly seed?: number }): CompiledTest;
   resourceFiles(resourceId: string): string[];
   readFile(path: string): Uint8Array;
   scoreAttempts(jsonl: string): PackageBatchEvaluation;
@@ -349,11 +349,16 @@ export interface TestPartDescription {
 }
 export interface TestEntryDescription {
   readonly identifier: string;
+  readonly source_identifier: string;
+  readonly instance_index: number;
   readonly part_identifier: string;
   readonly resource_id: string;
   readonly path: string;
   readonly control: ItemSessionControl;
   readonly item: ItemDescription;
+  readonly section_identifiers: readonly string[];
+  readonly categories: readonly string[];
+  readonly weights: Readonly<Record<string, number>>;
 }
 export interface VariableTypeDescription {
   readonly base_type: string;
@@ -366,6 +371,8 @@ export interface TestDescription {
   readonly entries: readonly TestEntryDescription[];
   readonly item_count: number;
   readonly outcome_types: Readonly<Record<string, VariableTypeDescription>>;
+  readonly assembly_seed: number;
+  readonly candidate_count: number;
 }
 export type SessionAction =
   | { readonly type: 'save'; readonly time: number; readonly response: ResponseObject }

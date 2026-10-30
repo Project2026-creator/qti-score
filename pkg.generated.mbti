@@ -10,7 +10,7 @@ pub fn assessment_result_xml(Json) -> String raise QtiError
 
 pub fn compile_assessment_item(String, limits? : Limits) -> AssessmentItem raise QtiError
 
-pub fn compile_assessment_test(String, Map[String, AssessmentItem], limits? : Limits) -> AssessmentTest raise QtiError
+pub fn compile_assessment_test(String, Map[String, AssessmentItem], limits? : Limits, seed? : Int32) -> AssessmentTest raise QtiError
 
 pub fn compile_composite_item(String, limits? : Limits) -> CompositeItem raise QtiError
 
@@ -18,7 +18,7 @@ pub fn compile_item(String, limits? : Limits) -> Item raise QtiError
 
 pub fn compile_processed_item(String, limits? : Limits) -> ProcessedItem raise QtiError
 
-pub fn compile_processing_program(String, limits? : Limits) -> ProcessingProgram raise QtiError
+pub fn compile_processing_program(String, limits? : Limits, item_declarations? : Json) -> ProcessingProgram raise QtiError
 
 pub fn describe_json(String) -> String
 
@@ -173,7 +173,7 @@ pub struct ContentPackage {
   // private fields
 }
 pub fn ContentPackage::assessment_item(Self, String) -> AssessmentItem raise QtiError
-pub fn ContentPackage::compile_test(Self, String) -> AssessmentTest raise QtiError
+pub fn ContentPackage::compile_test(Self, String, seed? : Int32) -> AssessmentTest raise QtiError
 pub fn ContentPackage::describe(Self) -> Json
 pub fn ContentPackage::item(Self, String) -> Item raise QtiError
 pub fn ContentPackage::read_file(Self, String) -> Bytes raise QtiError
@@ -353,6 +353,8 @@ pub fn Template::to_repr(Self) -> @debug.Repr
 
 pub struct TestEntry {
   identifier : String
+  source_identifier : String
+  instance_index : Int32
   part_identifier : String
   resource_id : String
   path : String

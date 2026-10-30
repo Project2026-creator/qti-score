@@ -9,6 +9,8 @@ priv struct SessionEntry {
   mut outcomes : Json
   mut feedback : Json
   mut grading_error : QtiError?
+  mut submitted_response : Json
+  mut submission_index : Int32
 }
 
 ///|
@@ -29,6 +31,7 @@ pub struct TestSession {
   priv mut timed_out : Bool
   priv mut test_outcomes : Json
   priv mut test_processing_error : QtiError?
+  priv mut submission_count : Int32
 }
 
 ///|
@@ -87,6 +90,8 @@ pub fn AssessmentTest::new_session(
       outcomes: Json::object({}),
       feedback: Json::array([]),
       grading_error: None,
+      submitted_response: Json::object({}),
+      submission_index: 0,
     }),
     events: [],
     event_characters: 0,
@@ -100,6 +105,7 @@ pub fn AssessmentTest::new_session(
     timed_out: false,
     test_outcomes: Json::object({}),
     test_processing_error: None,
+    submission_count: 0,
   }
 }
 
@@ -163,10 +169,47 @@ fn TestSession::evaluate_test_outcomes(
   overrides : Map[Int32, Json],
 ) -> Json raise QtiError {
   guard self.plan.processing is Some(program) else { return Json::object({}) }
-  let items : Array[Json] = self.plan.entries.mapi((i, entry) => {
-    "identifier": entry.identifier,
-    "outcomes": overrides.get(i).unwrap_or(self.states[i].outcomes),
-  })
+  let items : Array[Json] = []
+  let mut submission_index = self.submission_count
+  for i, entry in self.plan.entries {
+    let state = self.states[i]
+    let changed = overrides.contains(i)
+    if changed {
+      submission_index += 1
+    }
+    let part = self.plan.parts.filter(p => p.identifier == entry.part_identifier)[0]
+    items.push({
+      "identifier": entry.source_identifier,
+      "instance_identifier": entry.identifier,
+      "instance_index": entry.instance_index,
+      "sequence_index": i + 1,
+      "outcomes": overrides.get(i).unwrap_or(state.outcomes),
+      "response": session_result_response(
+        entry.item,
+        if changed {
+          state.response
+        } else {
+          state.submitted_response
+        },
+      ),
+      "submitted": changed || state.submitted,
+      "submission_index": if changed {
+        submission_index
+      } else {
+        state.submission_index
+      },
+      "submission_mode": if part.submission_mode == Simultaneous {
+        "simultaneous"
+      } else {
+        "individual"
+      },
+      "categories": entry.categories.copy(),
+      "section_identifiers": entry.section_identifiers.copy(),
+      "weights": Json(entry.weights),
+      "response_types": entry.item.response_types_json(),
+      "outcome_types": entry.item.outcome_types_json(),
+    })
+  }
   program.evaluate_json({ "items": items })
 }
 
@@ -212,6 +255,9 @@ fn TestSession::commit_current(self : TestSession) -> Unit raise QtiError {
   state.attempts += 1
   state.submitted = true
   state.dirty = false
+  state.submitted_response = session_clone(state.response)
+  self.submission_count += 1
+  state.submission_index = self.submission_count
   self.test_outcomes = test_outcomes
   self.test_processing_error = None
 }
@@ -309,6 +355,9 @@ fn TestSession::finish_part(
     }
     state.submitted = true
     state.dirty = false
+    state.submitted_response = session_clone(state.response)
+    self.submission_count += 1
+    state.submission_index = self.submission_count
   }
   self.test_outcomes = test_outcomes
   self.test_processing_error = processing_error
@@ -534,8 +583,9 @@ pub fn TestSession::describe(self : TestSession) -> Json {
 /// Versioned action history; restoring replays validated actions, never saved scores.
 pub fn TestSession::snapshot(self : TestSession) -> String {
   let value : Json = {
-    "format": "qti-score-test-session-v1",
+    "format": "qti-score-test-session-v2",
     "test_identity": self.plan.identity(),
+    "assembly_seed": self.plan.assembly_seed,
     "session_identifier": self.session_identifier,
     "started_at": self.started_at,
     "actions": self.events,
@@ -559,9 +609,14 @@ pub fn AssessmentTest::restore_session(
   ) catch {
     _ => raise InvalidResponse("malformed session snapshot")
   }
-  if session_string(data, "format") != "qti-score-test-session-v1" ||
+  if session_string(data, "format") != "qti-score-test-session-v2" ||
     session_string(data, "test_identity") != self.identity() {
     raise InvalidResponse("snapshot belongs to a different test or version")
+  }
+  if session_number(data, "assembly_seed") != self.assembly_seed.to_double() {
+    raise InvalidResponse(
+      "snapshot assembly seed differs from the compiled test",
+    )
   }
   let session = self.new_session(
     session_string(data, "session_identifier"),
@@ -592,7 +647,9 @@ pub fn TestSession::report(
   for i, entry in self.plan.entries {
     let state = self.states[i]
     items.push({
-      "identifier": entry.identifier,
+      "identifier": entry.source_identifier,
+      "instance_identifier": entry.identifier,
+      "instance_index": entry.instance_index,
       "item_identifier": entry.item.identifier(),
       "sequence_index": i + 1,
       "session_status": if state.grading_error is Some(_) {

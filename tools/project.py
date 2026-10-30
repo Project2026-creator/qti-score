@@ -121,6 +121,15 @@ def build_sample_package():
                                                 ("items/hotspot.xml", "hotspot.xml"),
                                                 ("items/graphic-gap.xml", "graphic-gap.xml"),
                                                 ("items/graphic-map.svg", "graphic-map.svg")]))
+    examples.append(("interaction-test-package.zip", [("imsmanifest.xml", "interaction-test-manifest.xml"),
+                                                    ("test.xml", "interaction-test.xml")] +
+                    [("items/" + name + ".xml", name + ".xml") for name in
+                     ("match", "gap", "hottext", "order", "inline-choice", "composite-inline", "hottext-single", "order-subset")]))
+    examples.append(("assembly-test-package.zip", [("imsmanifest.xml", "assembly-test-manifest.xml"),
+                                               ("test.xml", "assembly-test.xml"),
+                                               ("items/single.xml", "single.xml"),
+                                               ("items/multiple.xml", "multiple.xml"),
+                                               ("items/numeric.xml", "numeric.xml")]))
     for filename, files in examples:
         with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path, source in files:
@@ -199,7 +208,7 @@ def verify_item_statistics(report):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.20.0",
+        "module": "Project2026-creator/qti-score", "version": "0.21.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }
@@ -240,8 +249,8 @@ def verify(moon, env, output, offline=False):
     sdk = package_sdk(bridge)
     sdk_env = env.copy()
     sdk_env["QTI_SDK_URL"] = (sdk / "index.mjs").as_uri()
-    sdk_tests = command([node, "--test", str(ROOT / "sdk/sdk_test.mjs"), str(ROOT / "sdk/session_test.mjs")], sdk_env)
-    report["checks"].append({"command": ["node", "--test", "sdk/sdk_test.mjs", "sdk/session_test.mjs"],
+    sdk_tests = command([node, "--test", str(ROOT / "sdk/sdk_test.mjs"), str(ROOT / "sdk/session_test.mjs"), str(ROOT / "sdk/assembly_test.mjs")], sdk_env)
+    report["checks"].append({"command": ["node", "--test", "sdk/sdk_test.mjs", "sdk/session_test.mjs", "sdk/assembly_test.mjs"],
                              "sdk": str(sdk), "returncode": sdk_tests.returncode,
                              "output": (sdk_tests.stdout + sdk_tests.stderr).strip()})
     view_tests = command([node, "--test", "web/results_test.mjs"], env)

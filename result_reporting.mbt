@@ -374,7 +374,6 @@ pub fn assessment_result_xml(report : Json) -> String raise QtiError {
     test_variables +
     "</testResult>",
   ]
-  let identities : Map[String, Bool] = Map([])
   let positions : Map[String, Bool] = Map([])
   let mut length = test_variables.length() + 1024
   for item in items {
@@ -391,10 +390,8 @@ pub fn assessment_result_xml(report : Json) -> String raise QtiError {
       raise rr_error("duplicate sequence_index")
     }
     positions[sequence] = true
-    if identities.contains(item_id) {
-      raise rr_error("duplicate ItemRef identifier '" + item_id + "'")
-    }
-    identities[item_id] = true
+    // Selection with replacement creates multiple instances of one ItemRef.
+    // Keep the authored identifier; sequenceIndex disambiguates its instances.
     let status = rr_string(rr_field(item, "session_status"), "session_status")
     if ![
         "initial", "pendingSubmission", "pendingResponseProcessing", "pendingExternalScoring",

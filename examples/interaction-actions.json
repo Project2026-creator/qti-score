@@ -1,0 +1,32 @@
+{
+  "session_identifier": "interaction-practice",
+  "candidate_identifier": "demo-candidate",
+  "start_time": 0,
+  "datestamp": "2026-10-30T12:00:00Z",
+  "actions": [
+    {"type":"save","time":1,"response":{"RESPONSE":["Quiz Diagnose","Portfolio Growth","Observation Diagnose"]}},
+    {"type":"submit","time":2},
+    {"type":"next","time":3},
+    {"type":"save","time":4,"response":{"RESPONSE":["Feedback G1","Adjust G2","Feedback G3"]}},
+    {"type":"submit","time":5},
+    {"type":"next","time":6},
+    {"type":"save","time":7,"response":{"RESPONSE":["Evidence","Support"]}},
+    {"type":"submit","time":8},
+    {"type":"next","time":9},
+    {"type":"save","time":10,"response":{"RESPONSE":["Analyze","Design","Develop","Implement","Evaluate"]}},
+    {"type":"submit","time":11},
+    {"type":"next","time":12},
+    {"type":"save","time":13,"response":{"RESPONSE":"Improve"}},
+    {"type":"submit","time":14},
+    {"type":"next","time":15},
+    {"type":"save","time":16,"response":{"ACTION":"Adapt","RATIO":75}},
+    {"type":"submit","time":17},
+    {"type":"next","time":18},
+    {"type":"save","time":19,"response":{"RESPONSE":"Feedback"}},
+    {"type":"submit","time":20},
+    {"type":"next","time":21},
+    {"type":"save","time":22,"response":{"RESPONSE":["Locate","Adapt"]}},
+    {"type":"submit","time":23},
+    {"type":"finish_part","time":24}
+  ]
+}

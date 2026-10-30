@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-test xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="assembled-practice" title="按规则组卷与加权计分">
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-outcome-declaration identifier="CORE" cardinality="single" base-type="float"/>
+  <qti-outcome-declaration identifier="ANCHOR" cardinality="single" base-type="float"/>
+  <qti-outcome-declaration identifier="SECOND" cardinality="single" base-type="float"/>
+  <qti-test-part identifier="practice" navigation-mode="nonlinear" submission-mode="simultaneous">
+    <qti-assessment-section identifier="practice-bank" title="保留必选题，从四个引用中选三个" visible="true">
+      <qti-selection select="3"/>
+      <qti-ordering shuffle="true"/>
+      <qti-assessment-item-ref identifier="anchor" href="items/single.xml" required="true" fixed="true" category="core"><qti-weight identifier="W" value="2"/></qti-assessment-item-ref>
+      <qti-assessment-item-ref identifier="evidence" href="items/multiple.xml" category="core evidence"><qti-weight identifier="W" value="1.5"/></qti-assessment-item-ref>
+      <qti-assessment-item-ref identifier="measurement" href="items/numeric.xml" category="application"><qti-weight identifier="W" value="0.5"/></qti-assessment-item-ref>
+      <qti-assessment-item-ref identifier="review" href="items/single.xml" category="application"/>
+    </qti-assessment-section>
+  </qti-test-part>
+  <qti-test-part identifier="repeated" navigation-mode="linear" submission-mode="simultaneous">
+    <qti-assessment-section identifier="repeated-bank" title="同一题目引用的两个独立实例" visible="true">
+      <qti-selection select="2" with-replacement="true"/>
+      <qti-assessment-item-ref identifier="repeat" href="items/single.xml" category="practice"/>
+    </qti-assessment-section>
+  </qti-test-part>
+  <qti-outcome-processing>
+    <qti-set-outcome-value identifier="SCORE"><qti-sum><qti-test-variables variable-identifier="SCORE" weight-identifier="W"/></qti-sum></qti-set-outcome-value>
+    <qti-set-outcome-value identifier="CORE"><qti-sum><qti-test-variables variable-identifier="SCORE" base-type="float" section-identifier="practice-bank" include-category="core"/></qti-sum></qti-set-outcome-value>
+    <qti-set-outcome-value identifier="ANCHOR"><qti-variable identifier="anchor.SCORE" weight-identifier="W"/></qti-set-outcome-value>
+    <qti-set-outcome-value identifier="SECOND"><qti-variable identifier="repeat.2.SCORE"/></qti-set-outcome-value>
+  </qti-outcome-processing>
+</qti-assessment-test>

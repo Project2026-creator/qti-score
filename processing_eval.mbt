@@ -4,6 +4,7 @@ priv struct ProcessingContext {
   variables : Map[String, Json]
   items : Array[Json]
   steps : Array[ScoringStep]?
+  dynamic_bases : Map[String, String]
   mut remaining : Int32
 }
 
@@ -302,95 +303,74 @@ fn ProcessingExpression::evaluate(
   context.consume()
   match self.expression {
     Literal(value) => processing_copy(value)
-    Reference(mode, id) =>
-      if mode == "qti-test-variables" {
-        let kind = self.kind.unwrap()
-        let values : Array[Json] = []
-        for item in context.items {
-          context.consume()
-          guard item is { "outcomes": Object(outcomes), .. } else {
-            raise InvalidResponse("test item requires an outcomes object")
+    ItemReference(reference) => reference.evaluate(context)
+    TestVariables(selector) => selector.evaluate(context, self.source)
+    Reference(mode, id) => {
+      let declaration = context.program.declaration(id).unwrap()
+      match mode {
+        "qti-variable" => processing_copy(context.variables[id])
+        "qti-correct" => processing_copy(declaration.correct)
+        "qti-default" => processing_copy(declaration.default_value)
+        "qti-map-response" => {
+          let value = context.variables[id]
+          if value == Json::null() {
+            return Json::null()
           }
-          if outcomes.get(id) is Some(value) && value != Json::null() {
-            if value is Array(_) {
-              continue
-            }
-            values.push(processing_scalar(value, kind.base, authored=true))
-          }
-        }
-        if values.is_empty() {
-          Json::null()
-        } else {
-          Json(values)
-        }
-      } else {
-        let declaration = context.program.declaration(id).unwrap()
-        match mode {
-          "qti-variable" => processing_copy(context.variables[id])
-          "qti-correct" => processing_copy(declaration.correct)
-          "qti-default" => processing_copy(declaration.default_value)
-          "qti-map-response" => {
-            let value = context.variables[id]
-            if value == Json::null() {
-              return Json::null()
-            }
-            let mapping = declaration.mapping.unwrap()
-            if declaration.kind.numeric() {
-              if value is Array(values) {
-                // Mapping de-duplicates numeric values before summing.
-                let seen : Array[Double] = []
-                let mut total = 0.0
-                for value in values {
-                  let n = processing_number(value)
-                  if seen.contains(n) {
-                    continue
-                  }
-                  seen.push(n)
-                  let matched = mapping.entries
-                    .filter(e => e.numeric_key == Some(n))
-                    .get(0)
-                  total += matched
-                    .map(e => e.value)
-                    .unwrap_or(mapping.default_value)
+          let mapping = declaration.mapping.unwrap()
+          if declaration.kind.numeric() {
+            if value is Array(values) {
+              // Mapping de-duplicates numeric values before summing.
+              let seen : Array[Double] = []
+              let mut total = 0.0
+              for value in values {
+                let n = processing_number(value)
+                if seen.contains(n) {
+                  continue
                 }
-                if total.is_nan() || total.is_inf() {
-                  raise InvalidResponse("mapping exceeds finite range")
-                }
-                Json(mapping.bounded_score(total, context.steps))
-              } else {
-                Json(
-                  mapping.score_numeric(
-                    Some(processing_number(value)),
-                    context.steps,
-                    self.source,
-                  ),
-                )
+                seen.push(n)
+                let matched = mapping.entries
+                  .filter(e => e.numeric_key == Some(n))
+                  .get(0)
+                total += matched
+                  .map(e => e.value)
+                  .unwrap_or(mapping.default_value)
               }
+              if total.is_nan() || total.is_inf() {
+                raise InvalidResponse("mapping exceeds finite range")
+              }
+              Json(mapping.bounded_score(total, context.steps))
             } else {
-              let values = match value {
-                String(s) => [s]
-                Array(xs) =>
-                  xs.map(v => {
-                    guard v is String(s) else {
-                      abort("validated mapped response is not text")
-                    }
-                    s
-                  })
-                _ => abort("validated mapped response has invalid type")
-              }
-              let base = match declaration.kind.base {
-                "identifier" => Identifier
-                "directedPair" => DirectedPair
-                _ => Text
-              }
               Json(
-                mapping.score_values(values, base, context.steps, self.source),
+                mapping.score_numeric(
+                  Some(processing_number(value)),
+                  context.steps,
+                  self.source,
+                ),
               )
             }
+          } else {
+            let values = match value {
+              String(s) => [s]
+              Array(xs) =>
+                xs.map(v => {
+                  guard v is String(s) else {
+                    abort("validated mapped response is not text")
+                  }
+                  s
+                })
+              _ => abort("validated mapped response has invalid type")
+            }
+            let base = match declaration.kind.base {
+              "identifier" => Identifier
+              "directedPair" => DirectedPair
+              _ => Text
+            }
+            Json(mapping.score_values(values, base, context.steps, self.source))
           }
-          _ => abort("unknown compiled variable reference")
         }
+        _ => abort("unknown compiled variable reference")
       }
+    }
     Operator(name, args, tolerance) => {
       let values = args.map(arg => arg.evaluate(context))
       if name == "qti-is-null" {
@@ -510,7 +490,7 @@ fn ProcessingExpression::evaluate(
         numbers[1] == 0.0 {
         return Json::null()
       }
-      if self.kind is Some(kind) && kind.base == "integer" {
+      if self.runtime_base(context) == Some("integer") {
         return processing_integer_operation(name, numbers)
       }
       let result = match name {
@@ -635,10 +615,65 @@ fn ProcessingProgram::evaluate(
             "test environment items require identifier and outcomes",
           )
         }
-        if ids.contains(id) {
-          raise InvalidResponse("duplicate test item reference '\{id}'")
+        guard item is Object(metadata) else {
+          abort("validated item must be an object")
         }
-        ids[id] = true
+        for name in ["instance_index", "sequence_index", "submission_index"] {
+          if metadata.get(name) is Some(value) {
+            guard value is Number(n, ..) &&
+              !n.is_inf() &&
+              !n.is_nan() &&
+              n.trunc() == n &&
+              n >= (if name == "submission_index" { 0.0 } else { 1.0 }) &&
+              n <=
+              (if name == "submission_index" { 2147483647.0 } else { 4096.0 }) else {
+              raise InvalidResponse(
+                "item \{name} must be a safe positive integer",
+              )
+            }
+          }
+        }
+        if metadata.get("submitted") is Some(value) &&
+          value != Json(true) &&
+          value != Json(false) {
+          raise InvalidResponse("item submitted must be boolean")
+        }
+        if metadata.get("submission_mode") is Some(mode) &&
+          mode != Json("individual") &&
+          mode != Json("simultaneous") {
+          raise InvalidResponse("invalid item submission_mode")
+        }
+        if metadata.get("response") is Some(value) && !(value is Object(_)) {
+          raise InvalidResponse("item response must be an object")
+        }
+        ignore(
+          processing_metadata_identifiers(
+            metadata.get("categories"),
+            "item categories",
+          ),
+        )
+        ignore(
+          processing_metadata_identifiers(
+            metadata.get("section_identifiers"),
+            "item sections",
+          ),
+        )
+        if metadata.get("weights") is Some(value) {
+          guard value is Object(weights) else {
+            raise InvalidResponse("item weights must be an object")
+          }
+          for _, weight in weights {
+            guard weight is Number(n, ..) && !n.is_nan() && !n.is_inf() else {
+              raise InvalidResponse("item weights must be finite JSON numbers")
+            }
+          }
+        }
+        let index = processing_item_index(item, "instance_index", 1)
+        let identity = "\{id}:\{index}"
+        if ids.contains(identity) {
+          raise InvalidResponse("duplicate test item instance '\{id}'")
+        }
+        ids[identity] = true
         items.push(item)
       }
     } else {
@@ -669,6 +704,7 @@ fn ProcessingProgram::evaluate(
     variables,
     items,
     steps,
+    dynamic_bases: Map([]),
     remaining: 16384,
   }
   ignore(processing_execute(self.rules, context))
@@ -682,8 +718,11 @@ fn ProcessingProgram::evaluate(
 }
 
 ///|
-/// Evaluate item responses as an object. For test programs use
-/// {"items":[{"identifier":"itemRef","outcomes":{"SCORE":2.0}}]}.
+/// Evaluate item responses as an object. Test inputs contain an `items` array
+/// with each source identifier, outcomes and last submitted response object.
+/// Repeated sources also provide a one-based `instance_index`; submission
+/// metadata distinguishes the last simultaneous submission from saved drafts.
+/// Item weights are finite numbers keyed by their authored identifiers.
 /// Outcome variables cannot be supplied by the caller and reset on every run.
 pub fn ProcessingProgram::evaluate_json(
   self : ProcessingProgram,
