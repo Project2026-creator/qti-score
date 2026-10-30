@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-test xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="dynamic-practice" title="从评价证据到动态反馈">
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-outcome-declaration identifier="NOTICE" cardinality="single" base-type="identifier"/>
+  <qti-test-part identifier="foundation" navigation-mode="nonlinear" submission-mode="individual">
+    <qti-item-session-control max-attempts="2" allow-skipping="true" allow-review="true" show-feedback="true"/>
+    <qti-assessment-section identifier="understanding" title="理解反馈" visible="true"><qti-assessment-item-ref identifier="first" href="items/dynamic-feedback.xml"/></qti-assessment-section>
+    <qti-test-feedback access="atEnd" identifier="ready" outcome-identifier="NOTICE" show-hide="show" title="基础部分反馈"><qti-content-body><p>结束这一部分时，累计得分为 <qti-printed-variable identifier="SCORE" format="%.1f"/>。这份反馈保留结束时的分值。</p></qti-content-body></qti-test-feedback>
+  </qti-test-part>
+  <qti-test-part identifier="transfer" navigation-mode="linear" submission-mode="simultaneous">
+    <qti-item-session-control allow-skipping="true" allow-review="true" show-feedback="true"/>
+    <qti-assessment-section identifier="application" title="再次应用" visible="true"><qti-assessment-item-ref identifier="second" href="items/dynamic-feedback.xml"/></qti-assessment-section>
+  </qti-test-part>
+  <qti-outcome-processing>
+    <qti-set-outcome-value identifier="SCORE"><qti-sum><qti-test-variables variable-identifier="SCORE" base-type="float"/></qti-sum></qti-set-outcome-value>
+    <qti-set-outcome-value identifier="NOTICE"><qti-base-value base-type="identifier">ready</qti-base-value></qti-set-outcome-value>
+  </qti-outcome-processing>
+  <qti-test-feedback access="during" identifier="ready" outcome-identifier="NOTICE" show-hide="show" title="当前进度"><qti-content-body><p>已提交部分的累计得分：<qti-printed-variable identifier="SCORE" format="%.1f"/>。</p></qti-content-body></qti-test-feedback>
+  <qti-test-feedback access="atEnd" identifier="ready" outcome-identifier="NOTICE" show-hide="show" title="学习反馈"><qti-content-body><p>本次测验得分为 <qti-printed-variable identifier="SCORE" format="%.1f"/> / 4.0。</p><p>回看每道题的选项反馈，说明你会如何使用学习证据。</p></qti-content-body></qti-test-feedback>
+</qti-assessment-test>

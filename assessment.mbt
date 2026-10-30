@@ -15,6 +15,11 @@ pub fn compile_assessment_item(
   limits~ : Limits = Limits::default(),
 ) -> AssessmentItem raise QtiError {
   let root = parse_document(xml, limits)
+  if !processing_nodes(root, "qti-printed-variable").is_empty() ||
+    !processing_nodes(root, "qti-feedback-inline").is_empty() ||
+    !processing_nodes(root, "qti-feedback-block").is_empty() {
+    return Processed(compile_processed_item(xml, limits~))
+  }
   try {
     if root.children
       .filter(n => n.name() == "qti-response-declaration")
@@ -49,6 +54,33 @@ pub fn AssessmentItem::describe(self : AssessmentItem) -> Json {
     Single(item) => item.describe()
     Composite(item) => item.describe()
     Processed(item) => item.describe()
+  }
+}
+
+///|
+fn AssessmentItem::describe_outcomes(
+  self : AssessmentItem,
+  outcomes : Json,
+  allow_feedback~ : Bool = true,
+) -> Json {
+  match self {
+    Processed(item) => item.describe_outcomes(outcomes, allow_feedback~)
+    _ => self.describe()
+  }
+}
+
+///|
+/// Evaluate an explicit submission and return its rendered content and feedback.
+/// Session hosts use accepted stored outcomes instead of evaluating drafts.
+pub fn AssessmentItem::presentation_json(
+  self : AssessmentItem,
+  input : String,
+) -> Json raise QtiError {
+  let outcomes = self.outcomes_json(input)
+  {
+    "item": self.describe_outcomes(outcomes),
+    "outcomes": outcomes,
+    "feedback": self.feedback_json(input),
   }
 }
 

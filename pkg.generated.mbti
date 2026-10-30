@@ -60,6 +60,7 @@ pub fn AssessmentItem::feedback_json(Self, String) -> Json raise QtiError
 pub fn AssessmentItem::identifier(Self) -> String
 pub fn AssessmentItem::outcome_types_json(Self) -> Json
 pub fn AssessmentItem::outcomes_json(Self, String) -> Json raise QtiError
+pub fn AssessmentItem::presentation_json(Self, String) -> Json raise QtiError
 pub fn AssessmentItem::response_types_json(Self) -> Json
 pub fn AssessmentItem::score_json(Self, String) -> Score raise QtiError
 pub fn AssessmentItem::to_repr(Self) -> @debug.Repr

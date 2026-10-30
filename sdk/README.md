@@ -2,6 +2,12 @@
 
 ESM wrapper around the compiled MoonBit scorer. The package has no runtime dependencies and performs no network or file I/O. It supports Node.js 18+ and modern browsers with ES modules and private class fields.
 
+## Dynamic content and independent interoperability (0.25.0)
+
+`item.present(response)` evaluates an explicit submission and returns `{item,outcomes,feedback}`. Printed outcomes and nested inline/block feedback are rendered as plain text by MoonBit. Ordinary `describe()` retains initial outcome values and omits hidden feedback. Dynamic bodies use composite descriptions with `dynamic_content:true`, even for one response. Session views render accepted outcomes without processing drafts, respect feedback controls, and freeze rendered part-end history. Supported formats, limits and snapshot migration are described in [dynamic content](https://github.com/Project2026-creator/qti-score/blob/master/docs/dynamic-content.md).
+
+The pinned independent LongsightGroup QTI 3 core/player comparison covers 22 item-response cases and a real browser flow. The input `qti-label` and printed delimiter differences remain recorded; see [interoperability](https://github.com/Project2026-creator/qti-score/blob/master/docs/interoperability.md) for commands and the exact exchange boundary.
+
 ## Undirected associations (0.24.0)
 
 `qti-associate-interaction` binds single/multiple `pair` responses. Use a string or string array, e.g. `{RESPONSE:['Memory Cognitivism']}`. Reversing a pair is equivalent; core values use lexical endpoint order. The core validates association counts, per-choice counts and both match groups. Self-associations, unknown endpoints and reverse duplicates fail. `describe().association` exposes a single choice pool with limits, shuffle/fixed flags and match groups, without scoring keys. Typed rules, composite bindings, test sessions, restoration and standard pair result variables use the same core. The browser controls shuffle free slots while preserving fixed positions; displayed order is not saved in snapshots. See [the association guide](https://github.com/Project2026-creator/qti-score/blob/master/docs/associate.md) for bounds and unsupported content.

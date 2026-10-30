@@ -87,6 +87,6 @@ View 包含 scope、scope_identifier、identifier、outcome_identifier、access�
 
 快照继续记录动作，恢复时在相同结束边界重新构建历史反馈，不读取快照中伪造的反馈或分数。试卷编译对象的 `describe()` 仅提供 has_feedback 标记，不返回作者的反馈内容、控制条件或换算表。标准结果 XML 继续导出带类型的结果变量；反馈历史保留在 JSON 中，不向结果 XML 添加非标准节点。
 
-本版本支持 `qti-content-body` 内安全静态文字与基础块／内联格式，按纯文本呈现。可省略 content-body，也可只提供 title。打印变量、嵌套动态反馈、外部样式、catalog、脚本、交互及其他内容明确报错。
+支持 `qti-content-body` 内安全文字与基础格式，按纯文本呈现。可省略 content-body，也可只提供 title。0.25.0 增加已声明结果变量的打印，格式和示例见 [动态内容](dynamic-content.md)。测验反馈中不能嵌入题目的 inline／block 反馈；外部样式、catalog、脚本、交互及未支持的内容明确报错。
 
 规范依据为 [ASI 3.0.1 信息模型](https://www.imsglobal.org/sites/default/files/spec/qti/v3/info/imsqti_asi_v3p0p1_infomodel_v1p0.html) 的 InterpolationTable、LookupOutcomeValue 和 TestFeedback，以及 [实施指南](https://www.imsglobal.org/spec/qti/v3p0/impl/) §4.6.2。示例结构与导出结果分别由固定版本官方 XSD 校验，具体行为由核心、SDK、CLI 与浏览器回归验证。

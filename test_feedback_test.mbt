@@ -712,7 +712,7 @@ test "test feedback declarations and required attributes are checked before exec
 }
 
 ///|
-test "test feedback rejects foreign namespace elements and unsupported dynamic or active content" {
+test "test feedback rejects foreign namespaces active content and unsupported assets" {
   let part = test_feedback_part("P", "A", "")
   let valid = test_feedback_block("ready", "TEXT")
   for
@@ -726,19 +726,7 @@ test "test feedback rejects foreign namespace elements and unsupported dynamic o
         new="<qti-content-body xmlns=\"urn:foreign\">",
       ),
       valid.replace(old="<p>", new="<p xmlns=\"urn:foreign\">"),
-      valid.replace(
-        old="TEXT",
-        new="<qti-printed-variable identifier=\"NOTICE\"/>",
-      ),
-      valid.replace(
-        old="TEXT",
-        new="<qti-feedback-inline identifier=\"ready\" outcome-identifier=\"NOTICE\" show-hide=\"show\">nested</qti-feedback-inline>",
-      ),
       valid.replace(old="TEXT", new="<script>alert(1)</script>"),
-      valid.replace(
-        old="TEXT",
-        new="<qti-choice-interaction response-identifier=\"NOTICE\" max-choices=\"1\"><qti-simple-choice identifier=\"ready\">answer</qti-simple-choice></qti-choice-interaction>",
-      ),
       valid.replace(old="<p>", new="<p onclick=\"alert(1)\">"),
       valid.replace(
         old="<qti-content-body>",
@@ -750,6 +738,20 @@ test "test feedback rejects foreign namespace elements and unsupported dynamic o
       "unsupported",
     )
   }
+}
+
+///|
+test "test feedback rejects interactions in non adaptive content" {
+  test_feedback_reject(
+    test_plan_source(
+      test_feedback_declaration() +
+      test_feedback_part("P", "A", "") +
+      test_feedback_block(
+        "ready", "<qti-choice-interaction response-identifier=\"NOTICE\" max-choices=\"1\"><qti-simple-choice identifier=\"ready\">answer</qti-simple-choice></qti-choice-interaction>",
+      ),
+    ),
+    "invalid_item",
+  )
 }
 
 ///|

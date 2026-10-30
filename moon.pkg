@@ -5,6 +5,7 @@ import {
   "moonbit-community/casefold",
   "moonbit-community/flate/zip",
   "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/bigint",
 }
 
 import {

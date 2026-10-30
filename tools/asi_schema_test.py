@@ -55,6 +55,7 @@ SCHEMAS = {
     "xlink.xsd": ("https://purl.imsglobal.org/spec/w3/1999/schema/xsd/xlink.xsd", "e49074eafa608cbf3bc01c2de3406781d466f6ae6adbb90f26cc450d5bf02a1c"),
 }
 DEFAULT_FILES = (
+    "dynamic-feedback.xml", "dynamic-test.xml", "dynamic-test-manifest.xml",
     "associate.xml", "associate-test.xml", "associate-test-manifest.xml",
     "outcome-test.xml", "outcome-test-manifest.xml",
     "conditional-test.xml", "conditional-test-manifest.xml",

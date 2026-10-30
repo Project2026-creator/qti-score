@@ -598,7 +598,16 @@ pub fn TestSession::describe(self : TestSession) -> Json {
     "part_elapsed": self.part_elapsed,
     "current": {
       "identifier": entry.identifier,
-      "item": entry.item.describe(),
+      "item": entry.item.describe_outcomes(
+        if state.submitted &&
+          state.grading_error is None &&
+          entry.control.show_feedback {
+          state.outcomes
+        } else {
+          session_initial_outcomes(entry.item)
+        },
+        allow_feedback=entry.control.show_feedback,
+      ),
       "instructions": session_clone(Json(entry.instructions)),
       "response": session_clone(state.response),
       "submitted": state.submitted,

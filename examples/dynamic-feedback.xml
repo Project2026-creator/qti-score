@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="feedback-literacy" title="反馈如何帮助学习" adaptive="false" time-dependent="false">
+  <qti-response-declaration identifier="RESPONSE" cardinality="single" base-type="identifier"><qti-correct-response><qti-value>Adjust</qti-value></qti-correct-response></qti-response-declaration>
+  <qti-outcome-declaration identifier="SCORE" cardinality="single" base-type="float"/>
+  <qti-outcome-declaration identifier="MAXSCORE" cardinality="single" base-type="float"><qti-default-value><qti-value>2</qti-value></qti-default-value></qti-outcome-declaration>
+  <qti-outcome-declaration identifier="NOTICE" cardinality="multiple" base-type="identifier"/>
+  <qti-outcome-declaration identifier="EVIDENCE" cardinality="ordered" base-type="string"><qti-default-value><qti-value>收集证据</qti-value><qti-value>调整教学</qti-value></qti-default-value></qti-outcome-declaration>
+  <qti-item-body>
+    <p>本题满分 <qti-printed-variable identifier="MAXSCORE" format="%.0f"/> 分。提交后，题目中的反馈会随结果更新。</p>
+    <qti-choice-interaction response-identifier="RESPONSE" max-choices="1" shuffle="false">
+      <qti-prompt>形成性评价最直接的用途是什么？</qti-prompt>
+      <qti-simple-choice identifier="Adjust">依据学习证据调整教学<qti-feedback-inline identifier="correct" outcome-identifier="NOTICE"> —— 回答正确，得到 <qti-printed-variable identifier="SCORE" format="%.1f"/> 分。</qti-feedback-inline></qti-simple-choice>
+      <qti-simple-choice identifier="Rank">只用于学期结束时排名<qti-feedback-inline identifier="retry" outcome-identifier="NOTICE"> —— 请重新思考反馈发生的时机。</qti-feedback-inline></qti-simple-choice>
+    </qti-choice-interaction>
+    <qti-feedback-block identifier="submitted" outcome-identifier="NOTICE"><qti-content-body>
+      <p>本次得分：<qti-printed-variable identifier="SCORE" format="%.1f"/> / <qti-printed-variable identifier="MAXSCORE" format="%.1f"/>。</p>
+      <qti-feedback-block identifier="correct" outcome-identifier="NOTICE"><qti-content-body><p>你已把反馈用于教学决策。关键步骤：<qti-printed-variable identifier="EVIDENCE" delimiter=" → "/>。</p></qti-content-body></qti-feedback-block>
+      <qti-feedback-block identifier="correct" outcome-identifier="NOTICE" show-hide="hide"><qti-content-body><p>先<qti-printed-variable identifier="EVIDENCE" index="1"/>，再<qti-printed-variable identifier="EVIDENCE" index="2"/>。</p></qti-content-body></qti-feedback-block>
+    </qti-content-body></qti-feedback-block>
+  </qti-item-body>
+  <qti-response-processing>
+    <qti-response-condition><qti-response-if><qti-match><qti-variable identifier="RESPONSE"/><qti-correct identifier="RESPONSE"/></qti-match>
+      <qti-set-outcome-value identifier="SCORE"><qti-base-value base-type="float">2</qti-base-value></qti-set-outcome-value>
+      <qti-set-outcome-value identifier="NOTICE"><qti-multiple><qti-base-value base-type="identifier">submitted</qti-base-value><qti-base-value base-type="identifier">correct</qti-base-value></qti-multiple></qti-set-outcome-value>
+    </qti-response-if><qti-response-else>
+      <qti-set-outcome-value identifier="NOTICE"><qti-multiple><qti-base-value base-type="identifier">submitted</qti-base-value><qti-base-value base-type="identifier">retry</qti-base-value></qti-multiple></qti-set-outcome-value>
+    </qti-response-else></qti-response-condition>
+  </qti-response-processing>
+  <qti-modal-feedback identifier="submitted" outcome-identifier="NOTICE" show-hide="show" title="本次反馈"><qti-content-body><p>已完成本次作答，得分 <qti-printed-variable identifier="SCORE" format="%.1f"/>。</p><p><qti-feedback-inline identifier="correct" outcome-identifier="NOTICE">继续把评价证据转化为学习行动。</qti-feedback-inline></p></qti-content-body></qti-modal-feedback>
+</qti-assessment-item>

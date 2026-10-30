@@ -15,11 +15,11 @@
     <a class="brand" href="./"><span class="mark" aria-hidden="true">q.</span><span>QTI Score<small>ASSESSMENT WORKSPACE</small></span></a>
     <p class="nav-label">工作空间</p>
     <nav class="workspace-nav" aria-label="工作空间">
-      <button type="button" data-view="workbench" aria-current="page"><span aria-hidden="true">◫</span>题目工作台<span class="nav-count">29</span></button>
+      <button type="button" data-view="workbench" aria-current="page"><span aria-hidden="true">◫</span>题目工作台<span class="nav-count">30</span></button>
       <button type="button" data-view="package"><span aria-hidden="true">▣</span>题包资源</button>
       <button type="button" data-view="results"><span aria-hidden="true">▥</span>结果分析<span id="nav-result-count" class="nav-count">—</span></button>
     </nav>
-    <div class="sidebar-note"><span class="local-icon" aria-hidden="true">◎</span><strong>在你的设备上评分</strong><p>题目与作答留在当前浏览器。无需账号，即可开始验证。</p><span class="version-label">MoonBit · v0.24.0</span></div>
+    <div class="sidebar-note"><span class="local-icon" aria-hidden="true">◎</span><strong>在你的设备上评分</strong><p>题目与作答留在当前浏览器。无需账号，即可开始验证。</p><span class="version-label">MoonBit · v0.25.0</span></div>
     <a href="test.html" class="sidebar-doc">参加整卷测验 <span aria-hidden="true">↗</span></a>
     <a href="../README.md" class="sidebar-doc">使用文档 <span aria-hidden="true">↗</span></a>
   </aside>
@@ -30,10 +30,11 @@
     <section class="intro"><div><p class="eyebrow">BUILD CONFIDENCE IN EVERY SCORE</p><h1 id="workbench-title">每一次评分，都有据可循。</h1><p class="lead">从标准题目到可验证的结果，在一个工作台里完成。</p></div><div class="hero-note"><span class="hero-symbol" aria-hidden="true">✓</span><div><strong>QTI 3 评分内核</strong><small>预览、验证、解释，共用同一套规则</small></div></div></section>
     <div class="workspace-layout">
     <aside class="sample-library" aria-label="示例题库">
-      <div class="library-heading"><h2>示例题库</h2><span id="example-count">29 道</span></div>
+      <div class="library-heading"><h2>示例题库</h2><span id="example-count">30 道</span></div>
       <label class="search-field"><span aria-hidden="true">⌕</span><input id="example-search" type="search" placeholder="搜索题型或评分规则" aria-label="搜索示例"></label>
       <p class="library-help">选择示例，直接体验评分</p>
     <nav class="examples" aria-label="示例题目">
+      <button type="button" disabled data-example="dynamic-feedback" aria-pressed="false"><span class="example-number">30</span><span><strong>动态学习反馈</strong><small>变量呈现 · 条件嵌套</small></span><span class="example-arrow">↗</span></button>
       <button type="button" disabled data-example="associate" aria-pressed="false"><span class="example-number">29</span><span><strong>同组关联</strong><small>无向配对 · 交换两端等价</small></span><span class="example-arrow">↗</span></button>
       <button type="button" disabled data-example="single" aria-pressed="true"><span class="example-number">01</span><span><strong>单选题</strong><small>完全匹配 · match_correct</small></span><span class="example-arrow">↗</span></button>
       <button type="button" disabled data-example="multiple" aria-pressed="false"><span class="example-number">02</span><span><strong>多选题</strong><small>部分得分 · map_response</small></span><span class="example-arrow">↗</span></button>
@@ -107,7 +108,7 @@
     <template id="editor-template">
     <section class="workbench" aria-label="评分工作台">
       <section class="panel source-panel"><div class="panel-heading"><div><span class="step">01 / SOURCE</span><h2>题目定义</h2></div><button id="open-file" class="text-button" type="button">导入 XML ↥</button><input id="file-input" type="file" accept=".xml,text/xml,application/xml" hidden></div><div class="file-bar"><span id="filename">single.xml</span><span>QTI 3 XML</span></div><label class="sr-only" for="xml-source">QTI 题目 XML 源码</label><textarea id="xml-source" spellcheck="false" autocapitalize="off" aria-describedby="source-status"></textarea><div class="source-bottom"><span id="source-status" role="status">正在载入内核…</span><button id="compile" type="button" class="secondary">编译题目</button></div><div id="compile-error" class="error" role="alert" hidden></div></section>
-      <section class="panel response-panel"><div class="panel-heading"><div><span class="step">02 / RESPONSE</span><h2>尝试作答</h2></div><span id="template-name" class="small-tag">—</span></div><div class="question"><p id="item-id" class="eyebrow">ITEM</p><h3 id="question-title">正在载入示例</h3><div id="item-instructions" class="item-instructions" aria-label="考生说明" hidden></div><p id="question-prompt" class="question-prompt"></p><form id="answer-form"><fieldset id="answer-controls"><legend class="sr-only">选择或填写你的答案</legend></fieldset><div class="answer-actions"><button id="submit-score" class="primary" type="submit" disabled>提交评分 <span aria-hidden="true">→</span></button><button id="clear-answer" class="text-button" type="button">清空作答</button></div></form></div><div class="response-json"><span>响应 JSON</span><pre id="response-json">{"RESPONSE":null}</pre></div><section class="result" aria-labelledby="result-heading" aria-live="polite"><div><span class="step" id="result-heading">03 / RESULT</span><p id="result-message">提交作答后，在这里查看结果。</p><p id="match-message" class="match-message"></p></div><div class="score"><span id="score-value">—</span><small>得分</small></div></section><div id="score-error" class="error" role="alert" hidden></div></section>
+      <section class="panel response-panel"><div class="panel-heading"><div><span class="step">02 / RESPONSE</span><h2>尝试作答</h2></div><span id="template-name" class="small-tag">—</span></div><div class="question"><p id="item-id" class="eyebrow">ITEM</p><h3 id="question-title">正在载入示例</h3><div id="item-instructions" class="item-instructions" aria-label="考生说明" hidden></div><p id="question-prompt" class="question-prompt"></p><form id="answer-form"><fieldset id="answer-controls"><legend class="sr-only">选择或填写你的答案</legend></fieldset><div class="answer-actions"><button id="submit-score" class="primary" type="submit" disabled>提交评分 <span aria-hidden="true">→</span></button><button id="clear-answer" class="text-button" type="button">清空作答</button></div></form></div><div class="response-json"><span>响应 JSON</span><pre id="response-json">{"RESPONSE":null}</pre></div><section class="result" aria-labelledby="result-heading" aria-live="polite"><div><span class="step" id="result-heading">03 / RESULT</span><p id="result-message">提交作答后，在这里查看结果。</p><p id="match-message" class="match-message"></p></div><div class="score"><span id="score-value">—</span><small>得分</small></div></section><div id="item-feedback" class="item-feedback" aria-live="polite" hidden></div><div id="score-error" class="error" role="alert" hidden></div></section>
     </section>
     </template>
     <footer><span><span class="status-dot"></span>评分在当前浏览器运行，题目与作答不会上传。</span><span>支持明确的 QTI 子集 · <a href="https://www.1edtech.org/standards/qti/index" target="_blank" rel="noreferrer">QTI 规范 ↗</a></span></footer>

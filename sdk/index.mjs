@@ -77,6 +77,11 @@ class CompiledItem {
     return unwrap(core.score_compiled(this.#handle, encodeResponse(response))).result;
   }
 
+  present(response) {
+    this.#assertLive();
+    return unwrap(core.present_compiled(this.#handle, encodeResponse(response))).presentation;
+  }
+
   explain(response) {
     this.#assertLive();
     const { result, steps } = unwrap(core.explain_compiled(this.#handle, encodeResponse(response)));

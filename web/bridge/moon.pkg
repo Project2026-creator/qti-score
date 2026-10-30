@@ -15,6 +15,7 @@ options(
         "compile",
         "describe_compiled",
         "score_compiled",
+        "present_compiled",
         "explain_compiled",
         "release",
         "import_package",

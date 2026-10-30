@@ -79,6 +79,7 @@ export interface ProcessingDeclarationDescription extends VariableTypeDescriptio
   readonly role: 'response' | 'outcome';
 }
 export interface AuthoredProcessingMetadata {
+  readonly dynamic_content?: boolean;
   readonly declarations?: readonly ProcessingDeclarationDescription[];
   readonly has_feedback?: boolean;
   readonly external_scoring?: boolean;
@@ -249,9 +250,21 @@ export interface CompiledItem {
   readonly disposed: boolean;
   describe(): ItemDescription;
   score(response: ResponseObject): Score;
+  present(response: ResponseObject): ItemPresentation;
   explain(response: ResponseObject): Explanation;
   scoreBatch(responses: readonly ResponseObject[]): BatchResult[];
   dispose(): void;
+}
+export interface ItemFeedback {
+  readonly identifier: string;
+  readonly outcome_identifier: string;
+  readonly title: string;
+  readonly text: string;
+}
+export interface ItemPresentation {
+  readonly item: ItemDescription;
+  readonly outcomes: Readonly<Record<string, JsonValue>>;
+  readonly feedback: readonly ItemFeedback[];
 }
 export function compileItem(xml: string): CompiledItem;
 export function evaluateItem(xml: string, response: ResponseObject): Score;

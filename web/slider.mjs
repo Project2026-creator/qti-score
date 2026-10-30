@@ -1,6 +1,7 @@
 /** Range and text inputs collect a response; the MoonBit core validates it. */
 export function createSliderControl(fieldset, item, onChange, {
   responseIdentifier = 'RESPONSE', idPrefix = 'slider', rangeLabel = '数值滑杆', valueLabel = '填写数值',
+  initialValue = null,
 } = {}) {
   const spec = item.slider;
   let selected = false;
@@ -47,6 +48,9 @@ export function createSliderControl(fieldset, item, onChange, {
       tick.label = tick.value; ticks.append(tick);
     }
     range.setAttribute('list', ticks.id); track.append(ticks);
+  }
+  if (initialValue !== null && initialValue !== undefined && String(initialValue).trim() !== '') {
+    selected = true; input.value = String(initialValue); range.value = input.value;
   }
   fieldset.append(bounds, track, status, label, input, adopt); update();
   return {

@@ -12,6 +12,9 @@
   background: var(--paper);
   font-synthesis: none;
 }
+.item-feedback section { margin-top: 14px; padding: 16px; border: 1px solid #d7e7de; border-radius: 12px; background: #f3faf6; color: #244d3d; }
+.item-feedback h4 { margin: 0 0 8px; font-size: 13px; }
+.item-feedback p { margin: 0; white-space: pre-wrap; line-height: 1.7; overflow-wrap: anywhere; }
 * { box-sizing: border-box; }
 body { margin: 0; font-size: 13px; }
 [hidden] { display: none !important; }

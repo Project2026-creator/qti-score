@@ -346,7 +346,15 @@ pub fn compile_processed_item(
       "host scoring requires a single numeric SCORE outcome",
     )
   }
-  let body = root.one("qti-item-body").unwrap()
+  let authored_body = root.one("qti-item-body").unwrap()
+  if authored_body.all_text.to_string().contains(content_marker) {
+    raise InvalidItem(
+      authored_body.location(),
+      "reserved dynamic content token",
+    )
+  }
+  let fragments : Array[Array[ContentPart]] = []
+  let body = content_body(authored_body, program, fragments)
   body.only_attributes(["class", "id", "dir"])
   let interactions : Array[Node] = []
   let extended_nodes = processing_nodes(body, "qti-extended-text-interaction")
@@ -435,20 +443,23 @@ pub fn compile_processed_item(
       "hide" => false
       _ => raise InvalidItem(node.location(), "show-hide must be show or hide")
     }
-    let text = match node.one("qti-content-body", required=false) {
+    if feedback.length() >= 256 || node.all_text.to_string().length() > 65536 {
+      raise LimitExceeded("item feedback content limit exceeded")
+    }
+    let content = match node.one("qti-content-body", required=false) {
       Some(content) => {
         node.only_children(["qti-content-body"])
         content.only_attributes(["class", "id", "dir"])
-        plain_static_text(content)
+        content_parts(content, program)
       }
-      None => plain_static_text(node)
+      None => content_parts(node, program)
     }
     feedback.push({
       identifier: id,
       outcome,
       show,
       title: node.attr("title").unwrap_or(""),
-      text: text.trim().to_owned(),
+      content,
     })
   }
   let passage : Array[CompositePart] = []
@@ -460,6 +471,11 @@ pub fn compile_processed_item(
     bindings,
     passage,
     feedback,
+    presentation: if fragments.is_empty() {
+      None
+    } else {
+      Some({ fragments, })
+    },
     instructions: body.children
     .filter(n => n.name() == "qti-rubric-block")
     .map(candidate_instructions),
@@ -473,7 +489,16 @@ pub fn ProcessedItem::identifier(self : ProcessedItem) -> String {
 
 ///|
 pub fn ProcessedItem::describe(self : ProcessedItem) -> Json {
-  let description = if self.bindings.length() == 1 {
+  self.describe_outcomes(self.program.initial_outcomes())
+}
+
+///|
+fn ProcessedItem::describe_outcomes(
+  self : ProcessedItem,
+  outcomes : Json,
+  allow_feedback~ : Bool = true,
+) -> Json {
+  let description = if self.bindings.length() == 1 && self.presentation is None {
     let result = self.bindings[0].validator.describe()
     if result is Object(fields) {
       fields["response_identifier"] = Json(self.bindings[0].identifier)
@@ -558,7 +583,13 @@ pub fn ProcessedItem::describe(self : ProcessedItem) -> Json {
     fields["title"] = Json(self.title)
     fields["template"] = Json("typed_rules")
     fields["declarations"] = self.program.describe()
-    fields["has_feedback"] = Json(!self.feedback.is_empty())
+    fields["has_feedback"] = Json(
+      !self.feedback.is_empty() ||
+      (
+        self.presentation is Some(presentation) &&
+        presentation.fragments.any(content_has_feedback)
+      ),
+    )
     if self.program.declaration("SCORE") is Some(score) {
       fields["external_scoring"] = Json(score.external_scored is Some(_))
       if score.external_scored is Some(mode) {
@@ -568,8 +599,15 @@ pub fn ProcessedItem::describe(self : ProcessedItem) -> Json {
     if !self.instructions.is_empty() {
       fields["instructions"] = Json(self.instructions.copy())
     }
+    if self.presentation is Some(_) {
+      fields["dynamic_content"] = Json(true)
+    }
   }
-  description
+  match self.presentation {
+    Some(presentation) =>
+      presentation.describe(description, outcomes, allow_feedback~)
+    None => description
+  }
 }
 
 ///|
@@ -713,7 +751,7 @@ pub fn ProcessedItem::feedback_json(
       "identifier": f.identifier,
       "outcome_identifier": f.outcome,
       "title": f.title,
-      "text": f.text,
+      "text": content_render(f.content, outcomes).trim().to_owned(),
     }),
   )
 }

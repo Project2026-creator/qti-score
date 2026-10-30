@@ -146,6 +146,9 @@ def build_sample_package():
     examples.append(("associate-test-package.zip", [("imsmanifest.xml", "associate-test-manifest.xml"),
                                                  ("test.xml", "associate-test.xml"),
                                                  ("items/associate.xml", "associate.xml")]))
+    examples.append(("dynamic-test-package.zip", [("imsmanifest.xml", "dynamic-test-manifest.xml"),
+                                               ("test.xml", "dynamic-test.xml"),
+                                               ("items/dynamic-feedback.xml", "dynamic-feedback.xml")]))
     for filename, files in examples:
         with zipfile.ZipFile(str(ROOT / "web" / filename), "w", compression=zipfile.ZIP_DEFLATED) as archive:
             for path, source in files:
@@ -224,7 +227,7 @@ def verify_item_statistics(report):
 def verify(moon, env, output, offline=False):
     report = {
         "checked_at": datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat(),
-        "module": "Project2026-creator/qti-score", "version": "0.24.0",
+        "module": "Project2026-creator/qti-score", "version": "0.25.0",
         "toolchain": command([moon, "version", "--all"], env).stdout.strip(),
         "checks": [], "official_revision": REVISION, "official_cases": [], "derived_cases": [], "official_rejections": [], "feature_cases": [],
     }

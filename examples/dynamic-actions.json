@@ -1,0 +1,13 @@
+{
+  "session_identifier": "dynamic-learning",
+  "candidate_identifier": "demo-candidate",
+  "start_time": 0,
+  "datestamp": "2026-10-30T14:00:00Z",
+  "actions": [
+    {"type":"save","time":1,"response":{"RESPONSE":"Adjust"}},
+    {"type":"submit","time":2},
+    {"type":"finish_part","time":3},
+    {"type":"save","time":4,"response":{"RESPONSE":"Adjust"}},
+    {"type":"finish_part","time":5}
+  ]
+}

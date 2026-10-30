@@ -4,6 +4,12 @@ import type { Score, Explanation, BatchResult, ResponseObject, ItemDescription }
 const item = compileItem('<xml/>');
 const response: ResponseObject = { RESPONSE: ['A', 'B'] as const };
 const score: Score = item.score(response);
+const rendered = item.present(response);
+const renderedItem: ItemDescription = rendered.item;
+const itemFeedbackText: string | undefined = rendered.feedback[0]?.text;
+// @ts-expect-error rendered feedback is immutable
+rendered.feedback[0].text = 'changed';
+void [renderedItem, itemFeedbackText];
 const explanation: Explanation = item.explain({ RESPONSE: 100.5 });
 const batch: BatchResult[] = item.scoreBatch([response, {}, { RESPONSE: null }] as const);
 const metadata: ItemDescription = describeItem('<xml/>');

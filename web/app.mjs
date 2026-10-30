@@ -55,6 +55,8 @@ function updateResponse() {
 }
 
 function resetResult() {
+  $('item-feedback').replaceChildren();
+  $('item-feedback').hidden = true;
   $('score-value').textContent = '—';
   $('result-message').textContent = '提交作答后，在这里查看结果。';
   $('match-message').textContent = '';
@@ -103,7 +105,7 @@ function renderExplanation(steps) {
   $('score-trace').textContent = JSON.stringify(steps, null, 2);
 }
 
-function renderQuestion() {
+function renderQuestion(initialResponses = {}) {
   workspace.setItem(item);
   $('item-id').textContent = `ITEM / ${item.identifier}`;
   $('question-title').textContent = item.title;
@@ -129,7 +131,7 @@ function renderQuestion() {
   legend.textContent = item.kind === 'composite' ? '填写多个答案' : item.slider ? '选择数值' : item.inline_choice ? '文中下拉选词' : item.hottext ? '选择原文片段' : item.gap_matching ? '在文段中选词' : (item.base_type === 'directedPair' || item.association) ? '添加配对' : item.cardinality === 'ordered' ? '排列答案' : item.base_type !== 'identifier' ? '填写答案' : '选择答案';
   fieldset.append(legend);
   if (item.kind === 'composite') {
-    compositeControl = createCompositeControl(fieldset, item, () => { updateResponse(); resetResult(); });
+    compositeControl = createCompositeControl(fieldset, item, () => { updateResponse(); resetResult(); }, initialResponses);
   } else if (item.slider) {
     sliderControl = createSliderControl(fieldset, item, () => { updateResponse(); resetResult(); });
   } else if (item.inline_choice) {
@@ -365,17 +367,38 @@ $('answer-form').addEventListener('submit', event => {
   event.preventDefault();
   if (!item || source.value !== activeXml) return;
   showError('score-error', null);
+  $('item-feedback').replaceChildren();
+  $('item-feedback').hidden = true;
   let value;
+  let explanationSteps = null;
+  const submittedResponse = response();
   try {
     if ($('enable-trace').checked) {
-      const explanation = compiledItem.explain(response());
+      const explanation = compiledItem.explain(submittedResponse);
       value = explanation.result;
-      renderExplanation(explanation.steps);
-      $('trace-panel').open = true;
+      explanationSteps = explanation.steps;
     } else {
-      value = compiledItem.score(response());
-      $('trace-summary').replaceChildren();
-      $('score-trace').textContent = '本次评分未记录解释。';
+      value = compiledItem.score(submittedResponse);
+    }
+    if (item.has_feedback || item.dynamic_content) {
+      const presentation = compiledItem.present(submittedResponse);
+      if (item.dynamic_content) {
+        item = presentation.item;
+        renderQuestion(submittedResponse);
+      }
+      const region = $('item-feedback');
+      region.hidden = !presentation.feedback.length;
+      for (const message of presentation.feedback) {
+        const card = document.createElement('section');
+        const title = document.createElement('h4'); title.textContent = message.title || '本次反馈';
+        const text = document.createElement('p'); text.textContent = message.text;
+        card.append(title, text); region.append(card);
+      }
+    }
+    if (explanationSteps !== null) {
+      renderExplanation(explanationSteps); $('trace-panel').open = true;
+    } else {
+      $('trace-summary').replaceChildren(); $('score-trace').textContent = '本次评分未记录解释。';
     }
   } catch (error) {
     resetResult();
@@ -393,7 +416,7 @@ $('answer-form').addEventListener('submit', event => {
     else matchMessage = '未与标准响应完全匹配；评分规则仍可给予部分分数。';
   }
   $('match-message').textContent = matchMessage;
-  workspace.record(item, response(), value);
+  workspace.record(item, submittedResponse, value);
 });
 $('answer-controls').addEventListener('input', () => { updateResponse(); resetResult(); });
 $('clear-answer').addEventListener('click', () => { $('answer-form').reset(); orderControl?.reset(); matchControl?.reset(); gapControl?.reset(); hottextControl?.reset(); inlineChoiceControl?.reset(); sliderControl?.reset(); compositeControl?.reset(); updateResponse(); resetResult(); });

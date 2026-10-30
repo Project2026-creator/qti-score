@@ -1,6 +1,6 @@
 # 试卷运行、响应处理与标准结果
 
-QTI Score 0.24.0 可从 QTI 3 内容包编译试卷，运行分部分的作答会话，执行题目与试卷评分规则，并导出 QTI Result Reporting XML。MoonBit 核心承担编译、状态变更、评分和序列化；浏览器、命令行和 JavaScript SDK 共用这些逻辑。
+QTI Score 0.25.0 可从 QTI 3 内容包编译试卷，运行分部分的作答会话，执行题目与试卷评分规则，并导出 QTI Result Reporting XML。MoonBit 核心承担编译、状态变更、评分和序列化；浏览器、命令行和 JavaScript SDK 共用这些逻辑。
 
 ## 运行示例
 
@@ -99,7 +99,7 @@ MoonBit 可用 `ContentPackage::compile_test`、`AssessmentTest::new_session` / 
 
 条件只执行首个为真的分支，NULL 与 false 区分；计算保持 QTI NULL 传播规则并拒绝非有限结果、类型不匹配与超出执行限额的程序。题目逐次提交与部分集中提交都会重新执行试卷结果处理，计算成功后才提交状态；普通提交失败不改变作答状态。到时强制结束时的试卷处理失败记录在报告的 `test_processing_error`，结果保留 NULL。分节、类别、权重与 ItemRef 变量语义见 [组卷指南](assembly.md#题目变量权重与过滤)。record、模板生成、随机表达式、全部数学与统计运算符仍待补充，未识别的结构明确报错。
 
-`qti-modal-feedback` 根据结果变量与 `show-hide` 选择静态文字反馈。`qti-test-feedback` 增加进行中、部分结束和整卷结束反馈，部分历史在结束时冻结；阈值换算和具体生命周期见 [分数换算与测验反馈](outcomes.md)。普通元信息只列变量类型、反馈是否存在与交互描述，不返回正确答案、映射或处理规则；`explain` 是显式的开发者接口。HTML 反馈布局、打印变量、内联动态反馈与模板反馈尚未实现。
+`qti-modal-feedback` 根据结果变量与 `show-hide` 选择反馈，支持打印变量与题目反馈的嵌套。题目正文支持 `qti-feedback-inline`、`qti-feedback-block`，以纯文本呈现；打印格式和会话行为见 [动态内容](dynamic-content.md)。`qti-test-feedback` 提供进行中、部分结束和整卷结束反馈，可打印已提交的结果；部分历史在结束时冻结。阈值换算见 [分数换算与测验反馈](outcomes.md)。普通元信息不返回正确答案、映射或处理规则；`explain` 是显式开发者接口。完整 HTML 反馈布局和模板反馈仍待实现。
 
 ## 长文本与图形交互
 

@@ -76,6 +76,22 @@ pub fn score_compiled(handle : Int32, response : String) -> String {
 }
 
 ///|
+pub fn present_compiled(handle : Int32, response : String) -> String {
+  guard compiled.items.get(handle) is Some(item) else {
+    return handle_error(
+      "invalid_handle", "compiled item is unavailable or disposed",
+    )
+  }
+  let result : Json = {
+    "ok": true,
+    "presentation": item.presentation_json(response),
+  } catch {
+    e => { "ok": false, "error": e }
+  }
+  result.stringify()
+}
+
+///|
 pub fn explain_compiled(handle : Int32, response : String) -> String {
   guard compiled.items.get(handle) is Some(item) else {
     return handle_error(

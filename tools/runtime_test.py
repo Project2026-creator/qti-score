@@ -256,6 +256,7 @@ def verify(offline=False):
         check("Changed snapshot test identity is rejected without altering its source session", identity_rejected, True, identity_rejected)
 
     for name, resource, expected_scores, expected_outcomes, all_scored, suffix in (
+            ("dynamic", "dynamic-test", [2, 2], {"SCORE": 4, "NOTICE": "ready"}, True, ""),
             ("associate", "associate-test", [3], {"SCORE": 3}, True, ""),
             ("feedback", "feedback-workflow", [5, 2, None], {"SCORE": None, "MAXSCORE": 7}, False, ""),
             ("graphic", "graphic-test", [1, 3], {"SCORE": 4}, True, ""),

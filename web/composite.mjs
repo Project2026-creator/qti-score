@@ -2,7 +2,7 @@ import { createSliderControl } from './slider.mjs';
 import { createAssociationControl } from './associate.mjs';
 
 /** Collect independent responses in their authored text positions. */
-export function createCompositeControl(fieldset, item, onChange = () => {}) {
+export function createCompositeControl(fieldset, item, onChange = () => {}, initial = {}) {
   const controls = new Map();
   const passage = document.createElement('div'); passage.className = 'composite-passage';
   let sliderGroup;
@@ -13,7 +13,7 @@ export function createCompositeControl(fieldset, item, onChange = () => {}) {
       const block = document.createElement('fieldset'); block.className = 'composite-choice';
       const legend = document.createElement('legend'); legend.textContent = binding.prompt || binding.identifier;
       block.append(legend);
-      const control = createAssociationControl(block, binding, null, onChange);
+      const control = createAssociationControl(block, binding, initial[binding.identifier] ?? null, onChange);
       controls.set(binding.identifier, { value: () => control.read(), reset: () => control.reset() });
       passage.append(block); sliderGroup = null; continue;
     }
@@ -25,6 +25,7 @@ export function createCompositeControl(fieldset, item, onChange = () => {}) {
       const control = createSliderControl(block, binding, onChange, {
         responseIdentifier: binding.identifier, idPrefix: `composite-slider-${binding.identifier}`,
         rangeLabel: `${title}：滑杆`,
+        initialValue: initial[binding.identifier] ?? null,
       });
       const clear = document.createElement('button'); clear.type = 'button';
       clear.className = 'text-button'; clear.textContent = '清除此项';
@@ -52,6 +53,7 @@ export function createCompositeControl(fieldset, item, onChange = () => {}) {
         const label = document.createElement('label'); label.className = 'answer-option';
         const radio = document.createElement('input'); radio.type = multiple ? 'checkbox' : 'radio';
         radio.name = `composite-${binding.identifier}`; radio.value = choice.identifier;
+        radio.checked = multiple ? (initial[binding.identifier] || []).includes(choice.identifier) : initial[binding.identifier] === choice.identifier;
         const text = document.createElement('span'); text.textContent = choice.text;
         label.append(radio, text); block.append(label); inputs.push(radio);
       }
@@ -89,6 +91,7 @@ export function createCompositeControl(fieldset, item, onChange = () => {}) {
       input.type = 'text'; input.autocomplete = 'off'; input.maxLength = 65536; input.placeholder = binding.placeholder;
       if (binding.base_type !== 'string') input.inputMode = 'decimal';
     }
+    input.value = initial[binding.identifier] ?? '';
     controls.set(binding.identifier, { value: () => input.value || null, reset: () => { input.value = ''; } });
     if (spec?.label) {
       const field = document.createElement('label'); field.className = 'inline-choice-field';

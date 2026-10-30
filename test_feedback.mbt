@@ -7,7 +7,7 @@ priv struct TestFeedback {
   access : String
   show : Bool
   title : String
-  text : String
+  content : Array[ContentPart]
 } derive(Debug)
 
 ///|
@@ -33,6 +33,13 @@ fn test_feedback_scope(
       allow_base=true,
     )
     child.only_children(["qti-content-body"])
+    if !processing_nodes(child, "qti-feedback-inline").is_empty() ||
+      !processing_nodes(child, "qti-feedback-block").is_empty() {
+      raise InvalidItem(
+        child.location(),
+        "item feedback cannot be nested inside test feedback",
+      )
+    }
     if child.content.to_string().trim() != "" {
       raise InvalidItem(
         child.location(),
@@ -66,14 +73,14 @@ fn test_feedback_scope(
         "feedback access must be during or atEnd",
       )
     }
-    let text = match child.one("qti-content-body", required=false) {
+    let content = match child.one("qti-content-body", required=false) {
       Some(content) => {
         content.only_attributes(["class", "id", "dir"], allow_base=true)
-        plain_static_text(content).trim().to_owned()
+        content_parts(content, program)
       }
-      None => ""
+      None => []
     }
-    if text.length() > 65536 {
+    if child.all_text.to_string().length() > 65536 {
       raise LimitExceeded("test feedback text exceeds 65536 UTF-16 units")
     }
     if feedback.length() >= 256 {
@@ -87,7 +94,7 @@ fn test_feedback_scope(
       access,
       show,
       title: child.attr("title").unwrap_or(""),
-      text,
+      content,
     })
   }
 }
@@ -149,7 +156,7 @@ fn test_visible_feedback(
         "scope_identifier": scope_identifier,
         "access": access,
         "title": block.title,
-        "text": block.text,
+        "text": content_render(block.content, outcomes).trim().to_owned(),
       })
     }
   }

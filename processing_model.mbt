@@ -97,7 +97,7 @@ priv struct ProcessingFeedback {
   outcome : String
   show : Bool
   title : String
-  text : String
+  content : Array[ContentPart]
 } derive(Debug)
 
 ///|
@@ -147,6 +147,7 @@ pub struct ProcessedItem {
   priv passage : Array[CompositePart]
   priv feedback : Array[ProcessingFeedback]
   priv instructions : Array[String]
+  priv presentation : DynamicPresentation?
 } derive(Debug)
 
 ///|
