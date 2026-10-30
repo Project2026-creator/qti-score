@@ -410,6 +410,25 @@ fn content_render(
 }
 
 ///|
+fn content_clip(text : String) -> String {
+  if text.length() <= 65536 {
+    return text
+  }
+  let clipped = StringBuilder()
+  let mut used = 0
+  for c in text.iter() {
+    let units = if c.to_int() > 65535 { 2 } else { 1 }
+    if used + units > 65520 {
+      break
+    }
+    clipped.write_char(c)
+    used += units
+  }
+  clipped.write_string("…[content limit]")
+  clipped.to_string()
+}
+
+///|
 // Replace dynamic nodes with private tokens before compiling interaction text.
 // All original tokens are rejected so authored text cannot address a fragment.
 fn content_body(
@@ -463,6 +482,10 @@ fn DynamicPresentation::text(
   let result = StringBuilder()
   let pieces = template.split(content_marker).to_array()
   result.write_stringview(pieces[0])
+  let mut length = pieces[0].length()
+  if length > 65536 {
+    return content_clip(result.to_string())
+  }
   for i in 1..<pieces.length() {
     let piece = pieces[i]
     let end = piece.find("\u{e001}").unwrap_or(-1)
@@ -472,10 +495,17 @@ fn DynamicPresentation::text(
       continue
     }
     let index = @string.parse_int(piece[:end]) catch { _ => -1 }
-    if self.fragments.get(index) is Some(fragment) {
-      result.write_string(content_render(fragment, outcomes, allow_feedback~))
+    let rendered = self.fragments
+      .get(index)
+      .map(fragment => content_render(fragment, outcomes, allow_feedback~))
+      .unwrap_or("")
+    let suffix = piece[end + 1:]
+    if length + rendered.length() + suffix.length() > 65536 {
+      return content_clip(result.to_string() + rendered + suffix.to_owned())
     }
-    result.write_stringview(piece[end + 1:])
+    result.write_string(rendered)
+    result.write_stringview(suffix)
+    length += rendered.length() + suffix.length()
   }
   result.to_string()
 }

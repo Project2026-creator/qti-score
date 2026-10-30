@@ -370,3 +370,25 @@ test "oversized printed content has an explicit marker and preserves Unicode bou
   assert_true(rendered.has_suffix("…[content limit]"))
   assert_false(rendered.contains("\u{fffd}"))
 }
+
+///|
+test "multiple printed fragments share the rendered field limit" {
+  let value = StringBuilder()
+  for _ in 0..<20000 {
+    value.write_string("😀")
+  }
+  let declaration = "<qti-outcome-declaration identifier=\"LARGE\" base-type=\"string\" cardinality=\"single\"><qti-default-value><qti-value>\{value.to_string()}</qti-value></qti-default-value></qti-outcome-declaration>"
+  let xml = fixture("dynamic-feedback")
+    .swap("<qti-item-body>", declaration + "<qti-item-body>")
+    .swap(
+      "形成性评价最直接的用途是什么？", "<qti-printed-variable identifier=\"LARGE\"/><qti-printed-variable identifier=\"LARGE\"/>",
+    )
+  let description = @qti.compile_assessment_item(xml).describe()
+  guard description is { "responses": Array(bindings), .. } &&
+    bindings[0] is { "prompt": String(prompt), .. } else {
+    fail("dynamic prompt missing")
+  }
+  assert_true(prompt.length() <= 65536)
+  assert_true(prompt.has_suffix("…[content limit]"))
+  assert_false(prompt.contains("\u{fffd}"))
+}
